@@ -1,7 +1,7 @@
 import { Text } from '@/components/Themed';
-import { Climber, ClimbingGrade } from '@/types/climber';
 import React from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Climber, ClimbingGrade } from '../../src/types/climber';
 
 interface ClimberCardProps {
   climber: Climber;
@@ -56,11 +56,11 @@ export const ClimberCard: React.FC<ClimberCardProps> = ({ climber, onPress }) =>
             </View>
 
             {/* Style Badges */}
-            {climber.climbing_styles.slice(0, 2).map((style) => (
+            {climber.climbing_styles.slice(0, 2).map((style: string) => (
               <View key={style} style={[styles.badge, styles.styleBadge]}>
-                <Text style={styles.badgeText}>
-                  {style.charAt(0).toUpperCase() + style.slice(1)}
-                </Text>
+              <Text style={styles.badgeText}>
+                {style.charAt(0).toUpperCase() + style.slice(1)}
+              </Text>
               </View>
             ))}
           </View>
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: '60%',
-    background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.8))',
+    backgroundColor: 'rgba(0,0,0,0.8)',
   },
   content: {
     position: 'absolute',

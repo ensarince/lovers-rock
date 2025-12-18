@@ -3,12 +3,12 @@ import { Climber, ClimbingGrade } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useRef } from 'react';
 import {
-    Animated,
-    Image,
-    PanResponder,
-    Pressable,
-    StyleSheet,
-    View,
+  Animated,
+  Image,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  View,
 } from 'react-native';
 
 interface SwipeableCardProps {
@@ -197,9 +197,9 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
 const styles = StyleSheet.create({
   container: {
     width: '90%',
-    height: '85%',
+    height: '80%',
     maxHeight: 600,
-    marginBottom: 16,
+    marginBottom: 30,
     marginHorizontal: 'auto',
   },
   card: {
