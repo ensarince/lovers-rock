@@ -1,4 +1,5 @@
 import { Text, View } from '@/components/Themed';
+import { useAuth } from '@/src/context/AuthContext';
 import { getMatches, Match } from '@/src/services/matchData';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useState } from 'react';
@@ -13,6 +14,16 @@ import {
 export default function MatchesScreen() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+
+  const isProfileComplete = user &&
+    user.name &&
+    typeof user.age === 'number' &&
+    user.grade &&
+    Array.isArray(user.climbing_styles) && user.climbing_styles.length > 0 &&
+    user.home_gym &&
+    user.bio &&
+    user.email;
 
   useEffect(() => {
     const fetchMatches = async () => {
@@ -50,10 +61,23 @@ export default function MatchesScreen() {
     );
   }
 
+  if (!isProfileComplete) {
+    return (
+      <View style={styles.centerContainer}>
+        <Ionicons name="alert-circle" size={64} color="#ec4899" />
+        <Text style={styles.emptyTitle}>Complete your profile</Text>
+        <Text style={styles.emptySubtitle}>
+          Please fill out your profile before viewing matches.
+        </Text>
+        {/* Optionally, add a button to navigate to Edit Profile */}
+      </View>
+    );
+  }
+
   const renderMatch = ({ item }: { item: Match }) => (
     <Pressable style={styles.matchCardMinimal}>
       <Image
-        source={{ uri: item.climber.image_url }}
+        source={{ uri: item.climber.avatar }}
         style={styles.matchImageMinimal}
       />
 
@@ -109,6 +133,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#101014',
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#101014',
+    padding: 16,
   },
   listContent: {
     paddingVertical: 8,
@@ -187,5 +218,18 @@ const styles = StyleSheet.create({
   subtitleMinimal: {
     fontSize: 13,
     color: '#a1a1aa',
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 6,
+    color: '#fff',
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#a1a1aa',
+    textAlign: 'center',
+    marginTop: 4,
   },
 });

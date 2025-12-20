@@ -1,6 +1,6 @@
 import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
-import { User } from '@/src/types/user';
+import { Climber, ClimbingGrade, ClimbingStyle } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
@@ -18,18 +18,41 @@ import {
 
 const pb = new PocketBase(`http://${process.env.EXPO_PUBLIC_IP}:8090`);
 
+const CLIMBING_GRADES: ClimbingGrade[] = [
+  'beginner',
+  'intermediate',
+  'advanced',
+  'expert',
+  'elite',
+];
+
+const CLIMBING_STYLES: ClimbingStyle[] = [
+  'bouldering',
+  'sport',
+  'trad',
+  'gym',
+  'outdoor',
+];
+
 export default function ProfileScreen() {
-  const { user, logout, isLoading, isAuthenticated, token } = useAuth(); // <-- make sure your context provides the token
-  const typedUser = user as User | null;
+  const { user, logout, isLoading, isAuthenticated, token } = useAuth();
+  const typedUser = user as Climber | null;
   const router = useRouter();
 
   // Editable state
-  const [bio, setBio] = useState(typedUser?.bio || '');
-  const [preferences, setPreferences] = useState(typedUser?.preferences || '');
-  // Use avatar field, not avatarUrl, and construct the URL as needed
-  const [photo, setPhoto] = useState('');
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Profile fields
+  const [name, setName] = useState(typedUser?.name || '');
+  const [bio, setBio] = useState(typedUser?.bio || '');
+  const [age, setAge] = useState(typedUser?.age ? String(typedUser.age) : '');
+  const [grade, setGrade] = useState<ClimbingGrade>(typedUser?.grade || 'beginner');
+  const [climbingStyles, setClimbingStyles] = useState<ClimbingStyle[]>(typedUser?.climbing_styles || []);
+  const [homeGym, setHomeGym] = useState(typedUser?.home_gym || '');
+  // Remove photo state for display, only use for upload
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [avatar, setAvatar] = useState(typedUser?.avatar || '');
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -38,21 +61,19 @@ export default function ProfileScreen() {
   }, [isAuthenticated]);
 
   useEffect(() => {
+    setName(typedUser?.name || '');
     setBio(typedUser?.bio || '');
-    setPreferences(typedUser?.preferences || '');
-    // If user.avatar is set, construct the Pocketbase file URL
-    if (typedUser?.avatar) {
-      setPhoto(pb.files.getUrl(typedUser, typedUser.avatar, { thumb: '100x100' }));
-    } else {
-      setPhoto('');
-    }
+    setAge(typedUser?.age ? String(typedUser.age) : '');
+    setGrade(typedUser?.grade || 'beginner');
+    setClimbingStyles(typedUser?.climbing_styles || []);
+    setHomeGym(typedUser?.home_gym || '');
+    setAvatar(typedUser?.avatar || '');
+    setPhoto(null);
   }, [user]);
 
   useEffect(() => {
-    // Set the PocketBase auth token if available and not already set
     if (token && pb.authStore.token !== token) {
-      pb.authStore.save(token, user);
-      console.log('PocketBase authStore updated with token:', token);
+      pb.authStore.save(token, user as any);
     }
   }, [token, user]);
 
@@ -62,7 +83,7 @@ export default function ProfileScreen() {
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'], // updated to use array of MediaType
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
@@ -75,21 +96,6 @@ export default function ProfileScreen() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Debug: check authentication
-      console.log('Is authenticated:', pb.authStore.isValid);
-      console.log('Auth token:', pb.authStore.token);
-
-      // Try to fetch the user record before updating
-      try {
-        const fetched = await pb.collection('users').getOne(user?.id!);
-        console.log('Fetched user record:', fetched);
-      } catch (fetchErr) {
-        console.error('Could not fetch user record:', fetchErr);
-        Alert.alert('Error', 'Could not fetch user record. Check if the user exists and you are authenticated.');
-        setSaving(false);
-        return;
-      }
-
       let avatarFile = null;
       if (photo && !photo.startsWith('http')) {
         const extension = photo.split('.').pop()?.toLowerCase() || 'jpg';
@@ -102,46 +108,38 @@ export default function ProfileScreen() {
           name: `avatar.${extension}`,
           type: mimeType,
         };
-        console.log('Avatar file:', avatarFile);
       }
-      // Debug: log PocketBase URL, collection, and user id
-      console.log('PocketBase URL:', `http://${process.env.EXPO_PUBLIC_IP}:8090`);
-      console.log('Collection:', 'users');
-      console.log('User ID:', user?.id);
-
-      const endpoint = `http://${process.env.EXPO_PUBLIC_IP}:8090/api/collections/users/records/${user?.id}`;
-      console.log('Testing endpoint:', endpoint);
 
       let formData: any;
       if (avatarFile) {
         formData = new FormData();
+        formData.append('name', name);
         formData.append('bio', bio);
-        formData.append('preferences', preferences);
+        formData.append('age', age);
+        formData.append('grade', grade);
+        formData.append('climbing_styles', JSON.stringify(climbingStyles));
+        formData.append('home_gym', homeGym);
         // @ts-ignore
         formData.append('avatar', avatarFile);
-        if (formData instanceof FormData && formData._parts) {
-          console.log('FormData parts:', formData._parts);
-        }
         await pb.collection('users').update(user?.id!, formData);
       } else {
         formData = {
+          name,
           bio,
-          preferences,
+          age: Number(age),
+          grade,
+          climbing_styles: climbingStyles,
+          home_gym: homeGym,
         };
-        console.log('FormData (no avatar):', formData);
         await pb.collection('users').update(user?.id!, formData);
       }
       setEditMode(false);
+      setPhoto(null); // Reset photo after save
       Alert.alert('Profile updated!');
     } catch (e: any) {
-      console.error('Profile update error:', e, e?.response);
       let errorMsg = 'Failed to update profile.';
       if (e?.message) errorMsg += '\n' + e.message;
       if (e?.response) errorMsg += '\n' + JSON.stringify(e.response, null, 2);
-      // Add more debug info
-      errorMsg += `\nPocketBase URL: http://${process.env.EXPO_PUBLIC_IP}:8090`;
-      errorMsg += `\nCollection: users`;
-      errorMsg += `\nUser ID: ${user?.id}`;
       Alert.alert('Error', errorMsg);
     }
     setSaving(false);
@@ -163,12 +161,24 @@ export default function ProfileScreen() {
     );
   }
 
-  // Helper to get the correct avatar URL for display
-  const getAvatarUrl = () => {
-    if (photo && photo.startsWith('file')) return photo;
-    if (typedUser?.avatar) return pb.files.getUrl(typedUser, typedUser.avatar, { thumb: '100x100' });
-    return '';
-  };
+  // Always show the avatar from the DB unless a new photo is picked
+ const getAvatarUrl = () => {
+  // 1. Priority: Locally picked photo (blob/uri)
+  if (photo) return photo;
+
+  // 2. Use the filename from state or the user object
+  const filename = avatar || typedUser?.avatar;
+  const userId = typedUser?.id;
+
+  // 3. Manually construct the URL if we have the necessary parts
+  if (filename && userId) {
+    const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+    // PocketBase file path format: /api/files/COLLECTION_ID_OR_NAME/RECORD_ID/FILENAME
+    return `${baseUrl}/api/files/users/${userId}/${filename}?thumb=100x100`;
+  }
+
+  return '';
+};
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
@@ -198,12 +208,107 @@ export default function ProfileScreen() {
             <Text style={styles.valueMinimal}>{user.email}</Text>
           </View>
 
-          {user.name && (
-            <View style={styles.infoCardMinimal}>
-              <Text style={styles.labelMinimal}>Name</Text>
-              <Text style={styles.valueMinimal}>{user.name}</Text>
-            </View>
-          )}
+          <View style={styles.infoCardMinimal}>
+            <Text style={styles.labelMinimal}>Name</Text>
+            {editMode ? (
+              <TextInput
+                style={[styles.valueMinimal, { backgroundColor: '#23232b', borderRadius: 8, padding: 8 }]}
+                value={name}
+                onChangeText={setName}
+                placeholder="Name"
+                placeholderTextColor="#888"
+              />
+            ) : (
+              <Text style={styles.valueMinimal}>{name || 'No name set.'}</Text>
+            )}
+          </View>
+
+          <View style={styles.infoCardMinimal}>
+            <Text style={styles.labelMinimal}>Age</Text>
+            {editMode ? (
+              <TextInput
+                style={[styles.valueMinimal, { backgroundColor: '#23232b', borderRadius: 8, padding: 8 }]}
+                value={age}
+                onChangeText={setAge}
+                placeholder="Age"
+                placeholderTextColor="#888"
+                keyboardType="numeric"
+              />
+            ) : (
+              <Text style={styles.valueMinimal}>{age || 'No age set.'}</Text>
+            )}
+          </View>
+
+          <View style={styles.infoCardMinimal}>
+            <Text style={styles.labelMinimal}>Grade</Text>
+            {editMode ? (
+              <View style={{ backgroundColor: '#23232b', borderRadius: 8 }}>
+                {CLIMBING_GRADES.map(g => (
+                  <Pressable
+                    key={g}
+                    style={{
+                      padding: 8,
+                      backgroundColor: grade === g ? '#ec4899' : 'transparent',
+                      borderRadius: 8,
+                      marginVertical: 2,
+                    }}
+                    onPress={() => setGrade(g)}
+                  >
+                    <Text style={{ color: '#fff' }}>{g.charAt(0).toUpperCase() + g.slice(1)}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.valueMinimal}>{grade.charAt(0).toUpperCase() + grade.slice(1)}</Text>
+            )}
+          </View>
+
+          <View style={styles.infoCardMinimal}>
+            <Text style={styles.labelMinimal}>Climbing Styles</Text>
+            {editMode ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {CLIMBING_STYLES.map(style => (
+                  <Pressable
+                    key={style}
+                    style={{
+                      padding: 8,
+                      backgroundColor: climbingStyles.includes(style) ? '#ec4899' : '#23232b',
+                      borderRadius: 8,
+                      margin: 2,
+                    }}
+                    onPress={() => {
+                      setClimbingStyles(climbingStyles.includes(style)
+                        ? climbingStyles.filter(s => s !== style)
+                        : [...climbingStyles, style]);
+                    }}
+                  >
+                    <Text style={{ color: '#fff' }}>{style.charAt(0).toUpperCase() + style.slice(1)}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.valueMinimal}>
+                {climbingStyles.length > 0
+                  ? climbingStyles.map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(', ')
+                  : 'No styles set.'}
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.infoCardMinimal}>
+            <Text style={styles.labelMinimal}>Home Gym</Text>
+            {editMode ? (
+              <TextInput
+                style={[styles.valueMinimal, { backgroundColor: '#23232b', borderRadius: 8, padding: 8 }]}
+                value={homeGym}
+                onChangeText={setHomeGym}
+                placeholder="Home Gym"
+                placeholderTextColor="#888"
+              />
+            ) : (
+              <Text style={styles.valueMinimal}>{homeGym || 'No home gym set.'}</Text>
+            )}
+          </View>
 
           <View style={styles.infoCardMinimal}>
             <Text style={styles.labelMinimal}>Bio</Text>
@@ -217,23 +322,7 @@ export default function ProfileScreen() {
                 placeholderTextColor="#888"
               />
             ) : (
-              <Text style={styles.valueMinimal}>{typedUser?.bio || 'No bio set.'}</Text>
-            )}
-          </View>
-
-          <View style={styles.infoCardMinimal}>
-            <Text style={styles.labelMinimal}>Preferences</Text>
-            {editMode ? (
-              <TextInput
-                style={[styles.valueMinimal, { backgroundColor: '#23232b', borderRadius: 8, padding: 8, minHeight: 40 }]}
-                value={preferences}
-                onChangeText={setPreferences}
-                multiline
-                placeholder="Your preferences"
-                placeholderTextColor="#888"
-              />
-            ) : (
-              <Text style={styles.valueMinimal}>{typedUser?.preferences || 'No preferences set.'}</Text>
+              <Text style={styles.valueMinimal}>{bio || 'No bio set.'}</Text>
             )}
           </View>
         </View>

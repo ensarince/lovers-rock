@@ -96,6 +96,15 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
     outputRange: [1, 0],
   });
 
+  // Construct the full image URL if only the filename is provided
+  const getImageUrl = () => {
+    if (climber.avatar && climber.id) {
+      const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      return `${baseUrl}/api/files/users/${climber.id}/${climber.avatar}?thumb=100x100`;
+    }
+    return undefined;
+  };
+
   return (
     <Animated.View
       {...panResponder.panHandlers}
@@ -107,7 +116,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
         pan.getLayout(),
       ]}>
       <Pressable onPress={onPress} style={styles.card}>
-        <Image source={{ uri: climber.image_url }} style={styles.image} />
+        <Image source={{ uri: getImageUrl() }} style={styles.image} />
 
         <View style={styles.overlay} />
 

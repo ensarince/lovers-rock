@@ -1,4 +1,4 @@
-export type ClimbingStyle = 'bouldering' | 'sport' | 'trad' | 'speed' | 'gym' | 'outdoor';
+export type ClimbingStyle = 'bouldering' | 'sport' | 'trad' | 'gym' | 'outdoor';
 
 export type ClimbingGrade = 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'elite';
 
@@ -10,5 +10,6 @@ export interface Climber {
   climbing_styles: ClimbingStyle[];
   home_gym: string;
   bio: string;
-  image_url: string;
+  email: string;
+  avatar?: string;
 }

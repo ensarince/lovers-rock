@@ -1,7 +1,7 @@
 import { Text, View } from '@/components/Themed';
 import { DiscoverFilters, FilterModal } from '@/src/components/FilterModal';
 import { SwipeableCard } from '@/src/components/SwipeableCard';
-import { getClimbers } from '@/src/services/mockData';
+import { useAuth } from '@/src/context/AuthContext';
 import { preferenceService } from '@/src/services/preferenceService';
 import { Climber } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -12,6 +12,7 @@ import {
   StyleSheet,
   TextInput
 } from 'react-native';
+import { getAllAccounts } from '../../src/services/accountService';
 
 export default function DiscoverScreen() {
   const [climbers, setClimbers] = useState<Climber[]>([]);
@@ -22,14 +23,65 @@ export default function DiscoverScreen() {
   const [searchText, setSearchText] = useState('');
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [activeFilters, setActiveFilters] = useState<DiscoverFilters>({});
+  const { token, user } = useAuth();
+
+
+  // Helper to check if user profile is complete
+  const isProfileComplete =
+    user &&
+    user.name &&
+    typeof user.age === 'number' &&
+    user.grade &&
+    Array.isArray(user.climbing_styles) && user.climbing_styles.length > 0 &&
+    user.home_gym &&
+    user.bio &&
+    user.email;
+
+  // Show prompt if profile is incomplete
+  if (!isProfileComplete) {
+    return (
+      <View style={styles.centerContainer}>
+        <Ionicons name="alert-circle" size={64} color="#ec4899" />
+        <Text style={styles.emptyTitle}>Complete your profile</Text>
+        <Text style={styles.emptySubtitle}>
+          Please fill out your profile before discovering other climbers.
+        </Text>
+        {/* Optionally, add a button to navigate to Edit Profile */}
+      </View>
+    );
+  }
 
   useEffect(() => {
     const fetchClimbers = async () => {
       try {
         setLoading(true);
-        const data = await getClimbers();
-        setClimbers(data);
-        setFilteredClimbers(data);
+        if (!token) return;
+        const data = await getAllAccounts(token);
+
+        // Normalize climbing_styles and avatar URL for each climber
+        const normalized = data
+          // Exclude the current user from the list
+          .filter((c) => c.id !== user?.id)
+          .map((c) => {
+            const climbing_styles = typeof c.climbing_styles === 'string'
+              ? JSON.parse(c.climbing_styles)
+              : c.climbing_styles || [];
+
+            let avatarUrl = '';
+            if (c.avatar && c.id) {
+              const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+              avatarUrl = `${baseUrl}/api/files/users/${c.id}/${c.avatar}?thumb=100x100`;
+            }
+
+            return {
+              ...c,
+              climbing_styles,
+              image_url: avatarUrl,
+            };
+          });
+
+        setClimbers(normalized);
+        setFilteredClimbers(normalized);
         setError(null);
       } catch (err) {
         setError('Failed to load climbers');
@@ -39,8 +91,12 @@ export default function DiscoverScreen() {
       }
     };
 
-    fetchClimbers();
-  }, []);
+    if (token) {
+      fetchClimbers();
+    }
+  }, [token, user?.id]);
+
+  console.log('Fetched climbers', climbers);
 
   const applyFiltersAndSearch = (
     baseClimbers: Climber[],
