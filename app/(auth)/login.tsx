@@ -3,10 +3,10 @@ import { useAuth } from '@/src/context/AuthContext';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Pressable,
-    StyleSheet,
-    TextInput,
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  TextInput,
 } from 'react-native';
 
 export default function LoginScreen() {
@@ -68,19 +68,18 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Ionicons name="person" size={48} color="#ec4899" />
-        <Text style={styles.title}>Lovers Rock</Text>
-        <Text style={styles.subtitle}>Find your climbing partner</Text>
+      <View style={styles.headerMinimal}>
+        <Ionicons name="person" size={44} color="#fff" style={{ backgroundColor: '#ec4899', borderRadius: 16, padding: 8 }} />
+        <Text style={styles.titleMinimal}>Lovers Rock</Text>
       </View>
 
-      <View style={styles.form}>
-        {error && <Text style={styles.error}>{error}</Text>}
+      <View style={styles.formMinimal}>
+        {error && <Text style={styles.errorMinimal}>{error}</Text>}
 
         <TextInput
-          style={styles.input}
+          style={styles.inputMinimal}
           placeholder="Email"
-          placeholderTextColor="#6b7280"
+          placeholderTextColor="#a1a1aa"
           value={email}
           onChangeText={setEmail}
           editable={!isLoading}
@@ -88,11 +87,11 @@ export default function LoginScreen() {
           autoCapitalize="none"
         />
 
-        <View style={styles.passwordContainer}>
+        <View style={styles.passwordContainerMinimal}>
           <TextInput
-            style={styles.passwordInput}
+            style={styles.passwordInputMinimal}
             placeholder="Password"
-            placeholderTextColor="#6b7280"
+            placeholderTextColor="#a1a1aa"
             value={password}
             onChangeText={setPassword}
             editable={!isLoading}
@@ -102,17 +101,17 @@ export default function LoginScreen() {
             <Ionicons
               name={showPassword ? 'eye' : 'eye-off'}
               size={20}
-              color="#6b7280"
+              color="#a1a1aa"
             />
           </Pressable>
         </View>
 
         {isSignup && (
-          <View style={styles.passwordContainer}>
+          <View style={styles.passwordContainerMinimal}>
             <TextInput
-              style={styles.passwordInput}
+              style={styles.passwordInputMinimal}
               placeholder="Confirm Password"
-              placeholderTextColor="#6b7280"
+              placeholderTextColor="#a1a1aa"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               editable={!isLoading}
@@ -122,36 +121,36 @@ export default function LoginScreen() {
               <Ionicons
                 name={showConfirmPassword ? 'eye' : 'eye-off'}
                 size={20}
-                color="#6b7280"
+                color="#a1a1aa"
               />
             </Pressable>
           </View>
         )}
 
         <Pressable
-          style={[styles.button, isLoading && styles.buttonDisabled]}
+          style={[styles.buttonMinimal, isLoading && styles.buttonDisabledMinimal]}
           onPress={isSignup ? handleSignup : handleLogin}
           disabled={isLoading}>
           {isLoading ? (
-            <ActivityIndicator color="#ffffff" />
+            <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.buttonText}>{isSignup ? 'Sign Up' : 'Login'}</Text>
+            <Text style={styles.buttonTextMinimal}>{isSignup ? 'Sign Up' : 'Login'}</Text>
           )}
         </Pressable>
       </View>
 
-      <View style={styles.divider}>
-        <View style={styles.line} />
-        <Text style={styles.dividerText}>or</Text>
-        <View style={styles.line} />
+      <View style={styles.dividerMinimal}>
+        <View style={styles.lineMinimal} />
+        <Text style={styles.dividerTextMinimal}>or</Text>
+        <View style={styles.lineMinimal} />
       </View>
 
       <Pressable
-        style={[styles.googleButton, isLoading && styles.buttonDisabled]}
+        style={[styles.googleButtonMinimal, isLoading && styles.buttonDisabledMinimal]}
         onPress={handleGoogleAuth}
         disabled={isLoading}>
-        <Ionicons name="logo-google" size={20} color="#ffffff" />
-        <Text style={styles.googleButtonText}>
+        <Ionicons name="logo-google" size={20} color="#fff" />
+        <Text style={styles.googleButtonTextMinimal}>
           {isSignup ? 'Sign Up' : 'Login'} with Google
         </Text>
       </Pressable>
@@ -161,7 +160,7 @@ export default function LoginScreen() {
         setError(null);
         setConfirmPassword('');
       }}>
-        <Text style={styles.footer}>
+        <Text style={styles.footerMinimal}>
           {isSignup ? 'Already have an account? Login' : "Don't have an account? Sign up"}
         </Text>
       </Pressable>
@@ -172,106 +171,119 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 32,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 0,
   },
-  header: {
+  headerMinimal: {
     alignItems: 'center',
-    gap: 12,
+    marginBottom: 32,
+    gap: 8,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#ffffff',
+  titleMinimal: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 1.2,
+    marginTop: 8,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#9ca3af',
+  formMinimal: {
+    gap: 18,
+    marginBottom: 24,
   },
-  form: {
-    gap: 16,
-  },
-  error: {
+  errorMinimal: {
     color: '#ef4444',
     fontSize: 14,
     textAlign: 'center',
+    marginBottom: 8,
   },
-  input: {
-    backgroundColor: '#1f2937',
-    borderWidth: 1,
-    borderColor: '#374151',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#ffffff',
-    fontSize: 14,
+  inputMinimal: {
+    backgroundColor: '#18181b',
+    borderWidth: 0,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    color: '#fff',
+    fontSize: 15,
+    marginBottom: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  passwordContainer: {
+  passwordContainerMinimal: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1f2937',
-    borderWidth: 1,
-    borderColor: '#374151',
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    backgroundColor: '#18181b',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginBottom: 4,
   },
-  passwordInput: {
+  passwordInputMinimal: {
     flex: 1,
-    paddingHorizontal: 0,
-    paddingVertical: 10,
-    color: '#ffffff',
-    fontSize: 14,
+    paddingVertical: 14,
+    color: '#fff',
+    fontSize: 15,
   },
-  button: {
+  buttonMinimal: {
     backgroundColor: '#ec4899',
-    borderRadius: 8,
-    paddingVertical: 12,
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
+    shadowColor: '#ec4899',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  buttonDisabled: {
-    opacity: 0.6,
+  buttonDisabledMinimal: {
+    opacity: 0.5,
   },
-  buttonText: {
-    color: '#ffffff',
-    fontWeight: '600',
+  buttonTextMinimal: {
+    color: '#fff',
+    fontWeight: '700',
     fontSize: 16,
+    letterSpacing: 1.1,
   },
-  divider: {
+  dividerMinimal: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
+    marginVertical: 18,
   },
-  line: {
+  lineMinimal: {
     flex: 1,
     height: 1,
-    backgroundColor: '#374151',
+    backgroundColor: '#23232a',
   },
-  dividerText: {
-    color: '#6b7280',
+  dividerTextMinimal: {
+    color: '#a1a1aa',
     fontSize: 12,
+    fontWeight: '500',
   },
-  googleButton: {
+  googleButtonMinimal: {
     flexDirection: 'row',
-    backgroundColor: '#1f2937',
-    borderWidth: 1,
-    borderColor: '#374151',
-    borderRadius: 8,
-    paddingVertical: 12,
+    backgroundColor: '#18181b',
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    borderWidth: 1,
+    borderColor: '#23232a',
+    marginBottom: 12,
   },
-  googleButtonText: {
-    color: '#ffffff',
+  googleButtonTextMinimal: {
+    color: '#fff',
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: 15,
+    marginLeft: 8,
   },
-  footer: {
+  footerMinimal: {
     textAlign: 'center',
-    color: '#6b7280',
+    color: '#a1a1aa',
     fontSize: 14,
+    marginTop: 18,
+    fontWeight: '500',
   },
 });

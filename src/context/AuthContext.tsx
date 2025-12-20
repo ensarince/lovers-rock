@@ -11,6 +11,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  token: string | null; 
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
@@ -23,6 +24,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null); // <-- add token state
   const [isLoading, setIsLoading] = useState(true);
 
   // Check if user is already authenticated on app start
@@ -35,6 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           email: currentUser?.email,
           name: currentUser?.name,
         });
+        setToken(authService.getToken?.() || null); // <-- get token from service if available
       }
       setIsLoading(false);
     };
@@ -51,6 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         email: authData.record.email,
         name: authData.record.name,
       });
+      setToken(authData.token); 
     } catch (error) {
       throw error;
     } finally {
@@ -79,6 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         email: authData.record.email,
         name: authData.record.name,
       });
+      setToken(authData.token); 
     } catch (error) {
       throw error;
     } finally {
@@ -89,6 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const logout = () => {
     authService.logout();
     setUser(null);
+    setToken(null); 
   };
 
   return (
@@ -97,6 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         user,
         isLoading,
         isAuthenticated: user !== null,
+        token, // <-- provide token in context
         login,
         register,
         loginWithGoogle,

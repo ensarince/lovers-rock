@@ -1,9 +1,6 @@
-import Constants from 'expo-constants';
 import PocketBase from 'pocketbase';
 
-const API_IP = Constants.expoConfig?.extra?.API_IP;
-
-const POCKETBASE_URL = `http://${API_IP}:8090`; // ← Replace with YOUR IP
+const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
 let pb = new PocketBase(POCKETBASE_URL);
 
 // Verify PocketBase connection on startup

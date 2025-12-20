@@ -3,11 +3,11 @@ import { getMatches, Match } from '@/src/services/matchData';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    Pressable,
-    StyleSheet,
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Pressable,
+  StyleSheet,
 } from 'react-native';
 
 export default function MatchesScreen() {
@@ -32,7 +32,7 @@ export default function MatchesScreen() {
 
   if (loading) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={styles.centerContainerMinimal}>
         <ActivityIndicator size="large" color="#ec4899" />
       </View>
     );
@@ -40,10 +40,10 @@ export default function MatchesScreen() {
 
   if (matches.length === 0) {
     return (
-      <View style={styles.centerContainer}>
-        <Ionicons name="heart-outline" size={48} color="#6b7280" />
-        <Text style={styles.title}>No matches yet</Text>
-        <Text style={styles.subtitle}>
+      <View style={styles.centerContainerMinimal}>
+        <Ionicons name="heart-outline" size={44} color="#a1a1aa" style={{ backgroundColor: '#23232a', borderRadius: 16, padding: 8 }} />
+        <Text style={styles.titleMinimal}>No matches yet</Text>
+        <Text style={styles.subtitleMinimal}>
           Go discover climbers you like!
         </Text>
       </View>
@@ -51,38 +51,38 @@ export default function MatchesScreen() {
   }
 
   const renderMatch = ({ item }: { item: Match }) => (
-    <Pressable style={styles.matchCard}>
+    <Pressable style={styles.matchCardMinimal}>
       <Image
         source={{ uri: item.climber.image_url }}
-        style={styles.matchImage}
+        style={styles.matchImageMinimal}
       />
 
-      <View style={styles.matchInfo}>
-        <View style={styles.matchHeader}>
+      <View style={styles.matchInfoMinimal}>
+        <View style={styles.matchHeaderMinimal}>
           <View>
-            <Text style={styles.matchName}>
+            <Text style={styles.matchNameMinimal}>
               {item.climber.name}, {item.climber.age}
             </Text>
-            <Text style={styles.matchGym}>{item.climber.home_gym}</Text>
+            <Text style={styles.matchGymMinimal}>{item.climber.home_gym}</Text>
           </View>
           {item.unreadCount > 0 && (
-            <View style={styles.unreadBadge}>
-              <Text style={styles.unreadText}>{item.unreadCount}</Text>
+            <View style={styles.unreadBadgeMinimal}>
+              <Text style={styles.unreadTextMinimal}>{item.unreadCount}</Text>
             </View>
           )}
         </View>
 
-        <Text style={styles.messagePreview} numberOfLines={1}>
+        <Text style={styles.messagePreviewMinimal} numberOfLines={1}>
           {item.messagePreview || 'No messages yet'}
         </Text>
 
-        <Text style={styles.matchedTime}>
+        <Text style={styles.matchedTimeMinimal}>
           Matched{' '}
           {Math.floor((Date.now() - item.matchedAt) / (1000 * 60 * 60))}h ago
         </Text>
       </View>
 
-      <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+      <Ionicons name="chevron-forward" size={20} color="#a1a1aa" />
     </Pressable>
   );
 
@@ -103,83 +103,89 @@ export default function MatchesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
   },
-  centerContainer: {
+  centerContainerMinimal: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#101014',
   },
   listContent: {
     paddingVertical: 8,
   },
-  matchCard: {
+  matchCardMinimal: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1f2937',
-    marginHorizontal: 12,
-    marginVertical: 8,
-    borderRadius: 12,
+    backgroundColor: '#18181b',
+    marginHorizontal: 18,
+    marginVertical: 10,
+    borderRadius: 14,
     overflow: 'hidden',
-    padding: 12,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  matchImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    marginRight: 12,
+  matchImageMinimal: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    marginRight: 14,
+    backgroundColor: '#23232a',
   },
-  matchInfo: {
+  matchInfoMinimal: {
     flex: 1,
   },
-  matchHeader: {
+  matchHeaderMinimal: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  matchName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+  matchNameMinimal: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
   },
-  matchGym: {
+  matchGymMinimal: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: '#a1a1aa',
     marginTop: 2,
   },
-  unreadBadge: {
+  unreadBadgeMinimal: {
     backgroundColor: '#ec4899',
     borderRadius: 10,
     minWidth: 20,
     height: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    marginLeft: 8,
   },
-  unreadText: {
-    color: '#ffffff',
+  unreadTextMinimal: {
+    color: '#fff',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  messagePreview: {
+  messagePreviewMinimal: {
     fontSize: 13,
     color: '#d1d5db',
-    marginBottom: 6,
+    marginBottom: 4,
   },
-  matchedTime: {
+  matchedTimeMinimal: {
     fontSize: 11,
-    color: '#6b7280',
+    color: '#a1a1aa',
   },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 8,
-    marginTop: 12,
-    color: '#ffffff',
+  titleMinimal: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 6,
+    marginTop: 10,
+    color: '#fff',
+    letterSpacing: 1.1,
   },
-  subtitle: {
-    fontSize: 14,
-    color: '#9ca3af',
+  subtitleMinimal: {
+    fontSize: 13,
+    color: '#a1a1aa',
   },
 });
