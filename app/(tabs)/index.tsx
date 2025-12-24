@@ -1,5 +1,6 @@
 import { Text, View } from '@/components/Themed';
 import { DiscoverFilters, FilterModal } from '@/src/components/FilterModal';
+import { MatchAnimation } from '@/src/components/MatchAnimation';
 import { SwipeableCard } from '@/src/components/SwipeableCard';
 import { useAuth } from '@/src/context/AuthContext';
 import { preferenceService } from '@/src/services/preferenceService';
@@ -23,39 +24,31 @@ export default function DiscoverScreen() {
   const [searchText, setSearchText] = useState('');
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [activeFilters, setActiveFilters] = useState<DiscoverFilters>({});
-  const { token, user } = useAuth();
+  const [matchAnimationVisible, setMatchAnimationVisible] = useState(false);
+  const [matchedClimber, setMatchedClimber] = useState<Climber | null>(null);
+  const { token, user, preferencesSynced } = useAuth();
 
+  // Reset currentIndex when search or filters change
+  useEffect(() => {
+    setCurrentIndex(0);
+  }, [searchText, activeFilters]);
 
-  // Helper to check if user profile is complete
-  const isProfileComplete =
-    user &&
-    user.name &&
-    typeof user.age === 'number' &&
-    user.grade &&
-    Array.isArray(user.climbing_styles) && user.climbing_styles.length > 0 &&
-    user.home_gym &&
-    user.bio &&
-    user.email;
-
-  // Show prompt if profile is incomplete
-  if (!isProfileComplete) {
-    return (
-      <View style={styles.centerContainer}>
-        <Ionicons name="alert-circle" size={64} color="#ec4899" />
-        <Text style={styles.emptyTitle}>Complete your profile</Text>
-        <Text style={styles.emptySubtitle}>
-          Please fill out your profile before discovering other climbers.
-        </Text>
-        {/* Optionally, add a button to navigate to Edit Profile */}
-      </View>
-    );
-  }
+  // Reset currentIndex if it's out of bounds when filteredClimbers changes
+  useEffect(() => {
+    if (currentIndex >= filteredClimbers.length && filteredClimbers.length > 0) {
+      setCurrentIndex(0);
+    }
+  }, [filteredClimbers.length]);
 
   useEffect(() => {
-    const fetchClimbers = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
         if (!token) return;
+        
+        // Preferences are already synced by AuthContext on login
+        
+        // Fetch climbers
         const data = await getAllAccounts(token);
 
         // Normalize climbing_styles and avatar URL for each climber
@@ -81,6 +74,8 @@ export default function DiscoverScreen() {
           });
 
         setClimbers(normalized);
+        
+        // Initially show all climbers, filter later when preferences are synced
         setFilteredClimbers(normalized);
         setError(null);
       } catch (err) {
@@ -92,11 +87,52 @@ export default function DiscoverScreen() {
     };
 
     if (token) {
-      fetchClimbers();
+      loadData();
     }
   }, [token, user?.id]);
 
-  console.log('Fetched climbers', climbers);
+  // Filter climbers when preferences are synced
+  useEffect(() => {
+    if (preferencesSynced && climbers.length > 0) {
+      const notLiked = climbers.filter(c => !preferenceService.isAccepted(c.id));
+      const filtered = applyFiltersAndSearch(notLiked, searchText, activeFilters);
+      setFilteredClimbers(filtered);
+    }
+  }, [preferencesSynced, climbers]);
+
+  // Re-apply search and filters when they change
+  useEffect(() => {
+    if (preferencesSynced && climbers.length > 0) {
+      const notLiked = climbers.filter(c => !preferenceService.isAccepted(c.id));
+      const filtered = applyFiltersAndSearch(notLiked, searchText, activeFilters);
+      setFilteredClimbers(filtered);
+    }
+  }, [searchText, activeFilters]);
+
+  // Helper to check if user profile is complete
+  const isProfileComplete =
+    user &&
+    user.name &&
+    typeof user.age === 'number' &&
+    user.grade &&
+    Array.isArray(user.climbing_styles) && user.climbing_styles.length > 0 &&
+    user.home_gym &&
+    user.bio &&
+    user.email;
+
+  // Show prompt if profile is incomplete
+  if (!isProfileComplete) {
+    return (
+      <View style={styles.centerContainer}>
+        <Ionicons name="alert-circle" size={64} color="#ec4899" />
+        <Text style={styles.emptyTitle}>Complete your profile</Text>
+        <Text style={styles.emptySubtitle}>
+          Please fill out your profile before discovering other climbers.
+        </Text>
+        {/* Optionally, add a button to navigate to Edit Profile */}
+      </View>
+    );
+  }
 
   const applyFiltersAndSearch = (
     baseClimbers: Climber[],
@@ -140,16 +176,10 @@ export default function DiscoverScreen() {
 
   const handleSearchChange = (text: string) => {
     setSearchText(text);
-    const filtered = applyFiltersAndSearch(climbers, text, activeFilters);
-    setFilteredClimbers(filtered);
-    setCurrentIndex(0);
   };
 
   const handleApplyFilters = (filters: DiscoverFilters) => {
     setActiveFilters(filters);
-    const filtered = applyFiltersAndSearch(climbers, searchText, filters);
-    setFilteredClimbers(filtered);
-    setCurrentIndex(0);
   };
 
   if (loading) {
@@ -168,14 +198,59 @@ export default function DiscoverScreen() {
     );
   }
 
-  const handleAccept = (climber: Climber) => {
-    preferenceService.accept(climber);
-    setCurrentIndex((prev) => prev + 1);
-    console.log('Accepted:', climber.name);
+  const handleAccept = async (climber: Climber) => {
+    if (!user?.id) {
+      console.error('❌ No user ID available for liking!');
+      return;
+    }
+    if (!token) {
+      console.error('❌ No token available for liking!');
+      return;
+    }
+    
+    // Check if already liked
+    if (preferenceService.isAccepted(climber.id)) {
+      console.log(`⚠️ Already liked ${climber.name}, skipping`);
+      setCurrentIndex((prev) => prev + 1);
+      return;
+    }
+    
+    await preferenceService.accept(climber, token, user.id);
+    
+    // Check if this creates a mutual match
+    try {
+      const allUsers = await getAllAccounts(token);
+      const likedUser = allUsers.find(u => u.id === climber.id);
+      if (likedUser) {
+        const likedUserLiked = likedUser.liked_users || [];
+        if (likedUserLiked.includes(user.id)) {
+          // It's a match! Show animation
+          setMatchedClimber(climber);
+          setMatchAnimationVisible(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking for match:', error);
+    }
+    
+    // Update filtered climbers to exclude the newly liked user
+    setFilteredClimbers(prev => {
+      const filtered = prev.filter(c => c.id !== climber.id);
+      return filtered;
+    });
+    
+    setCurrentIndex((prev) => {
+      const newIndex = prev + 1;
+      return newIndex;
+    });
   };
 
   const handleReject = (climber: Climber) => {
     preferenceService.reject(climber);
+    
+    // Update filtered climbers to exclude the rejected user (they don't want to see them again)
+    setFilteredClimbers(prev => prev.filter(c => c.id !== climber.id));
+    
     setCurrentIndex((prev) => prev + 1);
     console.log('Rejected:', climber.name);
   };
@@ -184,6 +259,7 @@ export default function DiscoverScreen() {
     filteredClimbers.length > 0 ? filteredClimbers[currentIndex] : null;
   const hasMoreClimbers = currentIndex < filteredClimbers.length - 1;
   const allCardsSeen = currentIndex >= filteredClimbers.length;
+
 
   return (
     <View style={styles.container}>
@@ -234,21 +310,22 @@ export default function DiscoverScreen() {
         )}
       </View>
 
-      {/* Card Counter */}
-      {currentClimber && (
-        <View style={styles.counterContainer}>
-          <Text style={styles.counter}>
-            {currentIndex + 1} / {filteredClimbers.length}
-          </Text>
-        </View>
-      )}
-
       {/* Filter Modal */}
       <FilterModal
         visible={filterModalVisible}
         onClose={() => setFilterModalVisible(false)}
         onApplyFilters={handleApplyFilters}
         currentFilters={activeFilters}
+      />
+
+      {/* Match Animation */}
+      <MatchAnimation
+        visible={matchAnimationVisible}
+        climber={matchedClimber!}
+        onClose={() => {
+          setMatchAnimationVisible(false);
+          setMatchedClimber(null);
+        }}
       />
     </View>
   );

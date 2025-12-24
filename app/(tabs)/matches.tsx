@@ -14,7 +14,7 @@ import {
 export default function MatchesScreen() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   const isProfileComplete = user &&
     user.name &&
@@ -29,7 +29,8 @@ export default function MatchesScreen() {
     const fetchMatches = async () => {
       try {
         setLoading(true);
-        const data = await getMatches();
+        if (!token || !user?.id) return;
+        const data = await getMatches(token, user.id);
         setMatches(data);
       } catch (err) {
         console.error('Failed to load matches:', err);
@@ -38,8 +39,10 @@ export default function MatchesScreen() {
       }
     };
 
-    fetchMatches();
-  }, []);
+    if (token && user?.id) {
+      fetchMatches();
+    }
+  }, [token, user?.id]);
 
   if (loading) {
     return (

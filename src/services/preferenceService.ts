@@ -1,5 +1,7 @@
 import { Climber } from '@/src/types/climber';
 
+const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+
 export interface UserPreference {
   climberId: string;
   action: 'accept' | 'reject';
@@ -11,7 +13,112 @@ class PreferenceService {
   private rejectedClimbers: Set<string> = new Set();
   private preferences: UserPreference[] = [];
 
-  accept(climber: Climber): void {
+  // Sync preferences with server
+  async syncPreferences(token: string | null, userId: string): Promise<void> {
+    if (!token) {
+      console.log('⚠️ No token for syncing preferences');
+      return;
+    }
+    
+    try {
+      // Get current user data
+      const response = await fetch(
+        `${POCKETBASE_URL}/api/collections/users/records/${userId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+
+      const userData = await response.json();
+      const likedUsersRaw = userData.liked_users;
+      let likedUsers: string[] = [];
+      if (Array.isArray(likedUsersRaw)) {
+        likedUsers = likedUsersRaw;
+      } else if (typeof likedUsersRaw === 'string') {
+        try {
+          likedUsers = JSON.parse(likedUsersRaw);
+        } catch (e) {
+          likedUsers = [];
+        }
+      } else {
+        likedUsers = [];
+      }
+      // Update local state from server
+      this.acceptedClimbers = new Set(likedUsers);
+      this.preferences = likedUsers.map((id: string) => ({
+        climberId: id,
+        action: 'accept' as const,
+        timestamp: Date.now(),
+      }));
+      
+    } catch (error) {
+      console.error('❌ Failed to sync preferences:', error);
+    }
+  }
+
+  // Save preference to server
+  private async saveToServer(token: string, userId: string): Promise<void> {
+    try {
+      const likedUsers = Array.from(this.acceptedClimbers);
+
+      const response = await fetch(
+        `${POCKETBASE_URL}/api/collections/users/records/${userId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            liked_users: JSON.stringify(likedUsers),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Failed to save preferences:', response.status, errorText);
+        throw new Error('Failed to save preferences');
+      }
+      
+      // Verify the save worked by fetching the data back
+      try {
+        const verifyResponse = await fetch(
+          `${POCKETBASE_URL}/api/collections/users/records/${userId}`,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+        
+        if (verifyResponse.ok) {
+          const verifyData = await verifyResponse.json();
+        }
+      } catch (verifyError) {
+        console.warn('⚠️ Could not verify save:', verifyError);
+      }
+    } catch (error) {
+      console.error('❌ Failed to save preferences to server:', error);
+    }
+  }
+
+  async accept(climber: Climber, token?: string | null, userId?: string): Promise<void> {
+    if (!userId) {
+      console.error('❌ No userId provided to accept method!');
+      return;
+    }
+    
     this.acceptedClimbers.add(climber.id);
     this.rejectedClimbers.delete(climber.id);
     this.preferences.push({
@@ -19,6 +126,13 @@ class PreferenceService {
       action: 'accept',
       timestamp: Date.now(),
     });
+
+    // Save to server if token and userId provided
+    if (token && userId) {
+      await this.saveToServer(token, userId);
+    } else {
+      console.warn('⚠️ Not saving to server - missing token or userId');
+    }
   }
 
   reject(climber: Climber): void {

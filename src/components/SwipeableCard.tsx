@@ -35,6 +35,12 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
   const pan = useRef(new Animated.ValueXY()).current;
   const [isAccepting, setIsAccepting] = React.useState(false);
   const [isRejecting, setIsRejecting] = React.useState(false);
+  const currentClimberRef = useRef(climber);
+
+  // Update the ref when climber changes
+  useEffect(() => {
+    currentClimberRef.current = climber;
+  }, [climber]);
 
   // Reset animation when climber changes
   useEffect(() => {
@@ -57,7 +63,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
             duration: 300,
             useNativeDriver: false,
           }).start(() => {
-            onAccept(climber);
+            onAccept(currentClimberRef.current);
             pan.setValue({ x: 0, y: 0 });
           });
         } else if (dx < -threshold) {
@@ -67,7 +73,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
             duration: 300,
             useNativeDriver: false,
           }).start(() => {
-            onReject(climber);
+            onReject(currentClimberRef.current);
             pan.setValue({ x: 0, y: 0 });
           });
         } else {

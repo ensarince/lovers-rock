@@ -1,4 +1,5 @@
 import { authService } from '@/src/services/authService';
+import { preferenceService } from '@/src/services/preferenceService';
 import { Climber } from '@/src/types/climber'; // <-- Use Climber type
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
@@ -8,7 +9,8 @@ interface AuthContextType {
   user: Climber | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  token: string | null; 
+  token: string | null;
+  preferencesSynced: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
@@ -23,6 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<Climber | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [preferencesSynced, setPreferencesSynced] = useState(false);
 
   // Helper to map any record to Climber type with defaults
   const mapToClimber = (record: any): Climber => ({
@@ -39,11 +42,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Check if user is already authenticated on app start
   useEffect(() => {
-    const checkAuth = () => {
+    const checkAuth = async () => {
       if (authService.isAuthenticated()) {
         const currentUser = authService.getCurrentUser();
+        const currentToken = authService.getToken?.() || null;
         setUser(currentUser ? mapToClimber(currentUser) : null);
-        setToken(authService.getToken?.() || null);
+        setToken(currentToken);
+        
+        // Reset preferences and sync for existing user
+        if (currentUser && currentToken) {
+          preferenceService.reset();
+          await preferenceService.syncPreferences(currentToken, currentUser.id);
+          setPreferencesSynced(true);
+        }
       }
       setIsLoading(false);
     };
@@ -53,10 +64,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
+    setPreferencesSynced(false);
     try {
       const authData = await authService.login(email, password);
       setUser(mapToClimber(authData.record));
       setToken(authData.token);
+      // Reset preferences and sync for the new user
+      preferenceService.reset();
+      await preferenceService.syncPreferences(authData.token, authData.record.id);
+      setPreferencesSynced(true);
     } catch (error) {
       throw error;
     } finally {
@@ -78,10 +94,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const loginWithGoogle = async () => {
     setIsLoading(true);
+    setPreferencesSynced(false);
     try {
       const authData = await authService.loginWithGoogle();
       setUser(mapToClimber(authData.record));
-      setToken(authData.token); 
+      setToken(authData.token);
+      // Reset preferences and sync for the new user
+      preferenceService.reset();
+      await preferenceService.syncPreferences(authData.token, authData.record.id);
+      setPreferencesSynced(true);
     } catch (error) {
       throw error;
     } finally {
@@ -92,7 +113,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const logout = () => {
     authService.logout();
     setUser(null);
-    setToken(null); 
+    setToken(null);
+    setPreferencesSynced(false);
+    // Reset preference service when logging out
+    preferenceService.reset();
   };
 
   return (
@@ -102,6 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         isLoading,
         isAuthenticated: user !== null,
         token,
+        preferencesSynced,
         login,
         register,
         loginWithGoogle,

@@ -1,4 +1,5 @@
 import { Climber } from '@/src/types/climber';
+import { getAllAccounts } from './accountService';
 
 export interface Match {
   id: string;
@@ -9,53 +10,63 @@ export interface Match {
 }
 
 /**
- * Simulate API that returns matches (climbers who accepted you back)
+ * Get matches (mutual likes)
  */
-export const getMatches = async (): Promise<Match[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // Mock: simulate some matches from the 5 climbers
-      // In real app, backend would return mutual accepts
-      const mockMatches: Match[] = [
-        {
-          id: '1-match',
-          climber: {
-            id: '1',
-            name: 'Alex Rivera',
-            age: 28,
-            grade: 'advanced',
-            climbing_styles: ['sport', 'outdoor'],
-            home_gym: 'Red Rock Climbing Co.',
-            bio: 'Weekend warrior obsessed with outdoor crags. Always up for road trips to test new routes!',
-            image_url:
-              'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
-          },
-          matchedAt: Date.now() - 86400000, // 1 day ago
-          messagePreview: 'Hey! I love outdoor climbing too 🧗',
-          unreadCount: 2,
-        },
-        {
-          id: '3-match',
-          climber: {
-            id: '3',
-            name: 'Maya Patel',
-            age: 31,
-            grade: 'advanced',
-            climbing_styles: ['trad', 'sport', 'outdoor'],
-            home_gym: 'Stone Summit',
-            bio: 'Trad climbing enthusiast from Colorado. Love exploring new areas and meeting fellow climbers.',
-            image_url:
-              'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop',
-          },
-          matchedAt: Date.now() - 3600000, // 1 hour ago
-          messagePreview: 'Colorado has some amazing climbing!',
-          unreadCount: 0,
-        },
-      ];
+export const getMatches = async (token: string, currentUserId: string): Promise<Match[]> => {
+  try {
+    const allUsers = await getAllAccounts(token);
 
-      resolve(mockMatches);
-    }, 300);
-  });
+    // Find current user's liked users
+    const currentUser = allUsers.find(u => u.id === currentUserId);
+    const currentUserLiked = currentUser?.liked_users || [];
+
+    // Find users who have liked the current user back (mutual matches)
+    const matches: Match[] = [];
+
+    for (const user of allUsers) {
+      if (user.id === currentUserId) continue;
+
+      const userLiked = user.liked_users || [];
+      
+      // Check for mutual like: current user liked this user AND this user liked current user
+      const currentLikedThisUser = currentUserLiked.includes(user.id);
+      const thisUserLikedCurrent = userLiked.includes(currentUserId);
+      
+      if (currentLikedThisUser && thisUserLikedCurrent) {
+        
+        // Normalize climbing_styles
+        const climbing_styles = typeof user.climbing_styles === 'string'
+          ? JSON.parse(user.climbing_styles)
+          : user.climbing_styles || [];
+
+        let avatarUrl = '';
+        if (user.avatar && user.id) {
+          const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+          avatarUrl = `${baseUrl}/api/files/users/${user.id}/${user.avatar}?thumb=100x100`;
+        }
+
+        const normalizedClimber: Climber = {
+          ...user,
+          climbing_styles,
+          image_url: avatarUrl,
+        };
+
+        matches.push({
+          id: `${user.id}-match`,
+          climber: normalizedClimber,
+          matchedAt: Date.now() - Math.random() * 86400000 * 7, // Random time within last week
+          messagePreview: 'You matched! Say hello 👋',
+          unreadCount: Math.floor(Math.random() * 3), // Random unread count
+        });
+      }
+    }
+
+    console.log(`🎯 Found ${matches.length} matches for user ${currentUserId}`);
+    return matches;
+  } catch (error) {
+    console.error('Failed to fetch matches:', error);
+    return [];
+  }
 };
 
 /**
