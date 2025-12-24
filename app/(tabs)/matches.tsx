@@ -1,7 +1,9 @@
 import { Text, View } from '@/components/Themed';
+import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import { useAuth } from '@/src/context/AuthContext';
 import { getMatches, Match } from '@/src/services/matchData';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,6 +16,8 @@ import {
 export default function MatchesScreen() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
   const { user, token } = useAuth();
 
   const isProfileComplete = user &&
@@ -77,16 +81,39 @@ export default function MatchesScreen() {
     );
   }
 
+  const handleMatchPress = (match: Match) => {
+    setSelectedMatch(match);
+    setModalVisible(true);
+  };
+
+  const handleCloseModal = () => {
+    setModalVisible(false);
+    setSelectedMatch(null);
+  };
+
+  const handleMessage = (match: Match) => {
+    // Navigate directly to chat screen
+    setModalVisible(false);
+    router.push({
+      pathname: '/chat',
+      params: {
+        matchId: match.id,
+        climberName: match.climber.name,
+        climberId: match.climber.id
+      }
+    });
+  };
+
   const renderMatch = ({ item }: { item: Match }) => (
-    <Pressable style={styles.matchCardMinimal}>
+    <Pressable style={styles.matchCardMinimal} onPress={() => handleMatchPress(item)}>
       <Image
-        source={{ uri: item.climber.avatar }}
+        source={{ uri: item.climber.image_url }}
         style={styles.matchImageMinimal}
       />
 
       <View style={styles.matchInfoMinimal}>
         <View style={styles.matchHeaderMinimal}>
-          <View>
+          <View style={{ backgroundColor: "transparent" }}>
             <Text style={styles.matchNameMinimal}>
               {item.climber.name}, {item.climber.age}
             </Text>
@@ -123,6 +150,13 @@ export default function MatchesScreen() {
         scrollEnabled={true}
         contentContainerStyle={styles.listContent}
       />
+
+      <MatchDetailModal
+        visible={modalVisible}
+        match={selectedMatch}
+        onClose={handleCloseModal}
+        onMessage={handleMessage}
+      />
     </View>
   );
 }
@@ -135,13 +169,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#101014',
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#101014',
     padding: 16,
   },
   listContent: {
@@ -166,16 +198,17 @@ const styles = StyleSheet.create({
     height: 70,
     borderRadius: 35,
     marginRight: 14,
-    backgroundColor: '#23232a',
   },
   matchInfoMinimal: {
     flex: 1,
+    backgroundColor: "transparent"
   },
   matchHeaderMinimal: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 2,
+    backgroundColor: "transparent"
   },
   matchNameMinimal: {
     fontSize: 15,

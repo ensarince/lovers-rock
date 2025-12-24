@@ -61,7 +61,6 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
       }
     }
 
-    console.log(`🎯 Found ${matches.length} matches for user ${currentUserId}`);
     return matches;
   } catch (error) {
     console.error('Failed to fetch matches:', error);
