@@ -10,7 +10,7 @@ export const theme = {
     textSecondary: '#9CA3AF',
     border: '#374151',
     error: '#EF4444', 
-    success: '#22C55E',
+    success: '#22C55E', 
     edit: '#6366F1', 
   },
 };
