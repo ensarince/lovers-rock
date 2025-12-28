@@ -5,10 +5,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   StyleSheet,
   TextInput,
 } from 'react-native';
+// import img_logo from "../../assets/images/logo.png";
 
 export default function LoginScreen() {
   const { login, register, loginWithGoogle, isLoading } = useAuth();
@@ -70,7 +72,11 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.headerMinimal}>
-        <Ionicons name="person" size={44} color={theme.colors.text} style={{ backgroundColor: theme.colors.accent, borderRadius: 16, padding: 8 }} />
+        <Image
+          source={require('../../assets/images/logo.jpg')}
+          style={{ width: 128, height: 128 }}
+          resizeMode="cover"
+        />
         <Text style={styles.titleMinimal}>ClimbMate</Text>
       </View>
 

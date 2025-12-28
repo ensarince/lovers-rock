@@ -5,8 +5,8 @@ import { messageService } from '@/src/services/messageService';
 import { theme } from '@/src/theme';
 import { Conversation } from '@/src/types/message';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -22,12 +22,14 @@ export default function MessagesScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const { user, token } = useAuth();
 
-    useEffect(() => {
-        if (token) {
-            messageService.setToken(token);
-            loadConversations();
-        }
-    }, [token, user?.id]);
+    useFocusEffect(
+        React.useCallback(() => {
+            if (token) {
+                messageService.setToken(token);
+                loadConversations();
+            }
+        }, [token, user?.id])
+    );
 
     const loadConversations = async () => {
         if (!user?.id || !token) return;
@@ -41,7 +43,19 @@ export default function MessagesScreen() {
                     try {
                         const messages = await messageService.getMessagesBetweenUsers(user.id, match.climber.id);
                         const lastMessage = messages.length > 0 ? messages[messages.length - 1] : undefined;
-                        const unreadCount = messages.filter(m => !m.read && m.sender_id !== user.id).length;
+                        // Only count unread messages not sent by the user
+                        const unreadMessages = messages.filter(
+                            m => !m.read && m.sender_id !== user.id
+                        );
+                        // Only show unread if last message is NOT sent by user and there are unread messages
+                        let unreadCount = 0;
+                        if (
+                            lastMessage &&
+                            lastMessage.sender_id !== user.id &&
+                            unreadMessages.length > 0
+                        ) {
+                            unreadCount = unreadMessages.length;
+                        }
 
                         return {
                             matchId: match.id,
@@ -89,37 +103,42 @@ export default function MessagesScreen() {
         });
     };
 
-    const renderConversation = ({ item }: { item: Conversation }) => (
-        <Pressable style={styles.conversationItem} onPress={() => openChat(item)}>
-            <Image
-                source={{ uri: item.climber?.image_url }}
-                style={styles.avatar}
-            />
+    const renderConversation = ({ item }: { item: Conversation }) => {
+        // Only show unread badge if there are unread messages and the last message is not sent by the user
+        const showUnread = item.unreadCount > 0;
 
-            <View style={styles.conversationContent}>
-                <View style={styles.headerRow}>
-                    <Text style={styles.climberName}>{item.climber.name}</Text>
-                    {item.lastMessage && (
-                        <Text style={styles.timestamp}>
-                            {new Date(item.lastMessage.created).toLocaleDateString()}
-                        </Text>
-                    )}
+        return (
+            <Pressable style={styles.conversationItem} onPress={() => openChat(item)}>
+                <Image
+                    source={{ uri: item.climber?.image_url }}
+                    style={styles.avatar}
+                />
+
+                <View style={styles.conversationContent}>
+                    <View style={styles.headerRow}>
+                        <Text style={styles.climberName}>{item.climber.name}</Text>
+                        {item.lastMessage && (
+                            <Text style={styles.timestamp}>
+                                {new Date(item.lastMessage.created).toLocaleDateString()}
+                            </Text>
+                        )}
+                    </View>
+
+                    <Text style={styles.lastMessage} numberOfLines={1}>
+                        {item.lastMessage?.content || 'No messages yet'}
+                    </Text>
                 </View>
 
-                <Text style={styles.lastMessage} numberOfLines={1}>
-                    {item.lastMessage?.content || 'No messages yet'}
-                </Text>
-            </View>
+                {showUnread && (
+                    <View style={styles.unreadBadge}>
+                        <Text style={styles.unreadText}>{item.unreadCount}</Text>
+                    </View>
+                )}
 
-            {item.unreadCount > 0 && (
-                <View style={styles.unreadBadge}>
-                    <Text style={styles.unreadText}>{item.unreadCount}</Text>
-                </View>
-            )}
-
-            <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
-        </Pressable>
-    );
+                <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
+            </Pressable>
+        );
+    };
 
     if (loading) {
         return (

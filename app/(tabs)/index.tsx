@@ -282,7 +282,7 @@ export default function DiscoverScreen() {
         <Pressable
           onPress={() => setFilterModalVisible(true)}
           style={styles.filterButton}>
-          <Ionicons name="funnel" size={20} color="#ec4899" />
+          <Ionicons name="funnel" size={20} color={theme.colors.accent} />
         </Pressable>
       </View>
 
@@ -296,7 +296,7 @@ export default function DiscoverScreen() {
           />
         ) : (
           <View style={styles.emptyState}>
-            <Ionicons name="checkmark-circle" size={64} color="#ec4899" />
+            <Ionicons name="checkmark-circle" size={64} color={theme.colors.accent} />
             <Text style={styles.emptyTitle}>
               {filteredClimbers.length === 0
                 ? 'No climbers found'

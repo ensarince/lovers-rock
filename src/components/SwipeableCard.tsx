@@ -2,6 +2,7 @@ import { Text } from '@/components/Themed';
 import { theme } from '@/src/theme';
 import { Climber, ClimbingGrade } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef } from 'react';
 import {
   Animated,
@@ -11,6 +12,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+
 interface SwipeableCardProps {
   climber: Climber;
   onAccept: (climber: Climber) => void;
@@ -120,11 +122,21 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
           transform: [{ rotate: rotateInterpolate }],
         },
         pan.getLayout(),
+        styles.cardShadow, 
       ]}>
       <Pressable onPress={onPress} style={styles.card}>
         <Image source={{ uri: getImageUrl() }} style={styles.image} />
 
-        <View style={styles.overlay} />
+        {/* Top gradient overlay */}
+        <LinearGradient
+          colors={['rgba(0,0,0,0.35)', 'transparent']}
+          style={styles.topGradient}
+        />
+        {/* Bottom gradient overlay */}
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.55)']}
+          style={styles.gradientOverlay}
+        />
 
         {/* Accept overlay */}
         <Animated.View
@@ -148,18 +160,15 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
           <Text style={styles.overlayText}>NOPE</Text>
         </Animated.View>
 
-        {/* Content */}
-        <View style={styles.content}>
+        {/* Content in a more transparent panel */}
+        <View style={styles.contentPanel}>
           <Text style={styles.name}>
             {climber.name}, {climber.age}
           </Text>
-
           <Text style={styles.gym}>{climber.home_gym}</Text>
-
           <Text style={styles.bio} numberOfLines={2}>
             {climber.bio}
           </Text>
-
           <View style={styles.badgesContainer}>
             <View
               style={[
@@ -171,7 +180,6 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
                   climber.grade.slice(1)}
               </Text>
             </View>
-
             {climber.climbing_styles.slice(0, 2).map((style) => (
               <View key={style} style={[styles.badge, styles.styleBadge]}>
                 <Text style={styles.badgeText}>
@@ -217,6 +225,13 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     marginHorizontal: 'auto',
   },
+  cardShadow: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 8,
+  },
   card: {
     borderRadius: 16,
     overflow: 'hidden',
@@ -228,13 +243,19 @@ const styles = StyleSheet.create({
     height: '100%',
     position: 'absolute',
   },
-  overlay: {
+  topGradient: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
-    height: '60%',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    top: 0,
+    height: '18%',
+  },
+  gradientOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '28%',
   },
   overlayLabel: {
     position: 'absolute',
@@ -253,29 +274,41 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: 8,
   },
-  content: {
+  contentPanel: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 16,
+    padding: 18,
+    backgroundColor: 'rgba(24,24,28,0.45)', // more transparent
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   name: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '700',
     color: theme.colors.text,
     marginBottom: 4,
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   gym: {
-    fontSize: 13,
+    fontSize: 14,
     color: theme.colors.textSecondary,
     marginBottom: 8,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   bio: {
-    fontSize: 13,
+    fontSize: 14,
     color: theme.colors.text,
-    lineHeight: 18,
-    marginBottom: 12,
+    lineHeight: 20,
+    marginBottom: 14,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   badgesContainer: {
     flexDirection: 'row',

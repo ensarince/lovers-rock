@@ -54,7 +54,7 @@ export const MatchAnimation: React.FC<MatchAnimationProps> = ({
               />
             </View>
           </View>
-          {showContent && (
+          {showContent && climber && (
             <View style={styles.content}>
               <Text style={styles.matchText}>It's a Match!</Text>
               <Text style={styles.subText}>

@@ -120,11 +120,6 @@ export default function MatchesScreen() {
             </Text>
             <Text style={styles.matchGymMinimal}>{item.climber.home_gym}</Text>
           </View>
-          {item.unreadCount > 0 && (
-            <View style={styles.unreadBadgeMinimal}>
-              <Text style={styles.unreadTextMinimal}>{item.unreadCount}</Text>
-            </View>
-          )}
         </View>
 
         <Text style={styles.messagePreviewMinimal} numberOfLines={1}>
