@@ -1,13 +1,14 @@
 import { Text } from '@/components/Themed';
+import { theme } from '@/src/theme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
 import {
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    View,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
 } from 'react-native';
 
 export interface DiscoverFilters {
@@ -99,7 +100,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
           {/* Header */}
           <View style={styles.header}>
             <Pressable onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={28} color="#ffffff" />
+              <Ionicons name="close" size={28} color={theme.colors.text} />
             </Pressable>
             <Text style={styles.headerTitle}>Filters</Text>
             <View style={{ width: 44 }} />
@@ -212,7 +213,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: theme.colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
@@ -224,12 +225,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    borderBottomColor: theme.colors.border,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.colors.text,
   },
   closeButton: {
     width: 44,
@@ -247,7 +248,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.colors.text,
     marginBottom: 12,
   },
   ageInputs: {
@@ -260,22 +261,22 @@ const styles = StyleSheet.create({
   },
   ageLabel: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: theme.colors.textSecondary,
     marginBottom: 4,
   },
   ageDash: {
-    color: '#6b7280',
+    color: theme.colors.textSecondary,
     fontSize: 16,
     marginBottom: 16,
   },
   input: {
-    backgroundColor: '#1f2937',
+    backgroundColor: theme.colors.surface,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: '#ffffff',
+    color: theme.colors.text,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: theme.colors.border,
     fontSize: 14,
   },
   buttonGroup: {
@@ -288,23 +289,23 @@ const styles = StyleSheet.create({
     minWidth: '30%',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: '#1f2937',
+    backgroundColor: theme.colors.surface,
     borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: theme.colors.border,
   },
   filterButtonActive: {
-    backgroundColor: '#ec4899',
-    borderColor: '#ec4899',
+    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
   },
   filterButtonText: {
-    color: '#9ca3af',
+    color: theme.colors.textSecondary,
     fontSize: 12,
     fontWeight: '500',
   },
   filterButtonTextActive: {
-    color: '#ffffff',
+    color: theme.colors.text,
   },
   footer: {
     flexDirection: 'row',
@@ -312,31 +313,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#1f2937',
+    borderTopColor: theme.colors.border,
   },
   resetButton: {
     flex: 1,
-    backgroundColor: '#1f2937',
+    backgroundColor: theme.colors.surface,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: theme.colors.border,
   },
   resetButtonText: {
-    color: '#9ca3af',
+    color: theme.colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
   },
   applyButton: {
     flex: 1,
-    backgroundColor: '#ec4899',
+    backgroundColor: theme.colors.accent,
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
   },
   applyButtonText: {
-    color: '#ffffff',
+    color: theme.colors.text,
     fontSize: 14,
     fontWeight: '600',
   },

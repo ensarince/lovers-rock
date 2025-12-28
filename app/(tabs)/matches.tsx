@@ -2,6 +2,7 @@ import { Text, View } from '@/components/Themed';
 import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import { useAuth } from '@/src/context/AuthContext';
 import { getMatches, Match } from '@/src/services/matchData';
+import { theme } from '@/src/theme'; // Add import for theme
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -51,7 +52,7 @@ export default function MatchesScreen() {
   if (loading) {
     return (
       <View style={styles.centerContainerMinimal}>
-        <ActivityIndicator size="large" color="#ec4899" />
+        <ActivityIndicator size="large" color={theme.colors.accent} />
       </View>
     );
   }
@@ -59,7 +60,7 @@ export default function MatchesScreen() {
   if (matches.length === 0) {
     return (
       <View style={styles.centerContainerMinimal}>
-        <Ionicons name="heart-outline" size={44} color="#a1a1aa" style={{ backgroundColor: '#23232a', borderRadius: 16, padding: 8 }} />
+        <Ionicons name="heart-outline" size={44} color={theme.colors.textSecondary} style={{ backgroundColor: theme.colors.border, borderRadius: 16, padding: 8 }} />
         <Text style={styles.titleMinimal}>No matches yet</Text>
         <Text style={styles.subtitleMinimal}>
           Go discover climbers you like!
@@ -71,7 +72,7 @@ export default function MatchesScreen() {
   if (!isProfileComplete) {
     return (
       <View style={styles.centerContainer}>
-        <Ionicons name="alert-circle" size={64} color="#ec4899" />
+        <Ionicons name="alert-circle" size={64} color={theme.colors.accent} />
         <Text style={styles.emptyTitle}>Complete your profile</Text>
         <Text style={styles.emptySubtitle}>
           Please fill out your profile before viewing matches.
@@ -136,7 +137,7 @@ export default function MatchesScreen() {
         </Text>
       </View>
 
-      <Ionicons name="chevron-forward" size={20} color="#a1a1aa" />
+      <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
     </Pressable>
   );
 
@@ -164,17 +165,20 @@ export default function MatchesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.background,
   },
   centerContainerMinimal: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.background,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 16,
+    backgroundColor: theme.colors.background,
   },
   listContent: {
     paddingVertical: 8,
@@ -182,7 +186,7 @@ const styles = StyleSheet.create({
   matchCardMinimal: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#18181b',
+    backgroundColor: theme.colors.surface,
     marginHorizontal: 18,
     marginVertical: 10,
     borderRadius: 14,
@@ -213,15 +217,15 @@ const styles = StyleSheet.create({
   matchNameMinimal: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#fff',
+    color: theme.colors.text,
   },
   matchGymMinimal: {
     fontSize: 12,
-    color: '#a1a1aa',
+    color: theme.colors.textSecondary,
     marginTop: 2,
   },
   unreadBadgeMinimal: {
-    backgroundColor: '#ec4899',
+    backgroundColor: theme.colors.accent,
     borderRadius: 10,
     minWidth: 20,
     height: 20,
@@ -230,41 +234,41 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   unreadTextMinimal: {
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 12,
     fontWeight: '700',
   },
   messagePreviewMinimal: {
     fontSize: 13,
-    color: '#d1d5db',
+    color: theme.colors.textSecondary,
     marginBottom: 4,
   },
   matchedTimeMinimal: {
     fontSize: 11,
-    color: '#a1a1aa',
+    color: theme.colors.textSecondary,
   },
   titleMinimal: {
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 6,
     marginTop: 10,
-    color: '#fff',
+    color: theme.colors.text,
     letterSpacing: 1.1,
   },
   subtitleMinimal: {
     fontSize: 13,
-    color: '#a1a1aa',
+    color: theme.colors.textSecondary,
   },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
     marginBottom: 6,
-    color: '#fff',
+    color: theme.colors.text,
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#a1a1aa',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginTop: 4,
   },

@@ -1,5 +1,6 @@
 import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
+import { theme } from '@/src/theme'; // Add import for theme
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import {
@@ -69,8 +70,8 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.headerMinimal}>
-        <Ionicons name="person" size={44} color="#fff" style={{ backgroundColor: '#ec4899', borderRadius: 16, padding: 8 }} />
-        <Text style={styles.titleMinimal}>Lovers Rock</Text>
+        <Ionicons name="person" size={44} color={theme.colors.text} style={{ backgroundColor: theme.colors.accent, borderRadius: 16, padding: 8 }} />
+        <Text style={styles.titleMinimal}>ClimbMate</Text>
       </View>
 
       <View style={styles.formMinimal}>
@@ -79,7 +80,7 @@ export default function LoginScreen() {
         <TextInput
           style={styles.inputMinimal}
           placeholder="Email"
-          placeholderTextColor="#a1a1aa"
+          placeholderTextColor={theme.colors.textSecondary}
           value={email}
           onChangeText={setEmail}
           editable={!isLoading}
@@ -91,7 +92,7 @@ export default function LoginScreen() {
           <TextInput
             style={styles.passwordInputMinimal}
             placeholder="Password"
-            placeholderTextColor="#a1a1aa"
+            placeholderTextColor={theme.colors.textSecondary}
             value={password}
             onChangeText={setPassword}
             editable={!isLoading}
@@ -101,7 +102,7 @@ export default function LoginScreen() {
             <Ionicons
               name={showPassword ? 'eye' : 'eye-off'}
               size={20}
-              color="#a1a1aa"
+              color={theme.colors.textSecondary}
             />
           </Pressable>
         </View>
@@ -111,7 +112,7 @@ export default function LoginScreen() {
             <TextInput
               style={styles.passwordInputMinimal}
               placeholder="Confirm Password"
-              placeholderTextColor="#a1a1aa"
+              placeholderTextColor={theme.colors.textSecondary}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               editable={!isLoading}
@@ -121,7 +122,7 @@ export default function LoginScreen() {
               <Ionicons
                 name={showConfirmPassword ? 'eye' : 'eye-off'}
                 size={20}
-                color="#a1a1aa"
+                color={theme.colors.textSecondary}
               />
             </Pressable>
           </View>
@@ -132,7 +133,7 @@ export default function LoginScreen() {
           onPress={isSignup ? handleSignup : handleLogin}
           disabled={isLoading}>
           {isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={theme.colors.text} />
           ) : (
             <Text style={styles.buttonTextMinimal}>{isSignup ? 'Sign Up' : 'Login'}</Text>
           )}
@@ -149,7 +150,7 @@ export default function LoginScreen() {
         style={[styles.googleButtonMinimal, isLoading && styles.buttonDisabledMinimal]}
         onPress={handleGoogleAuth}
         disabled={isLoading}>
-        <Ionicons name="logo-google" size={20} color="#fff" />
+        <Ionicons name="logo-google" size={20} color={theme.colors.text} />
         <Text style={styles.googleButtonTextMinimal}>
           {isSignup ? 'Sign Up' : 'Login'} with Google
         </Text>
@@ -174,6 +175,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 0,
+    backgroundColor: theme.colors.background,
   },
   headerMinimal: {
     alignItems: 'center',
@@ -183,7 +185,7 @@ const styles = StyleSheet.create({
   titleMinimal: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#fff',
+    color: theme.colors.text,
     letterSpacing: 1.2,
     marginTop: 8,
   },
@@ -192,18 +194,18 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   errorMinimal: {
-    color: '#ef4444',
+    color: theme.colors.error,
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 8,
   },
   inputMinimal: {
-    backgroundColor: '#18181b',
+    backgroundColor: theme.colors.surface,
     borderWidth: 0,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 15,
     marginBottom: 4,
     shadowColor: '#000',
@@ -214,7 +216,7 @@ const styles = StyleSheet.create({
   passwordContainerMinimal: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#18181b',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     paddingHorizontal: 16,
     marginBottom: 4,
@@ -222,16 +224,16 @@ const styles = StyleSheet.create({
   passwordInputMinimal: {
     flex: 1,
     paddingVertical: 14,
-    color: '#fff',
+    color: theme.colors.text,
     fontSize: 15,
   },
   buttonMinimal: {
-    backgroundColor: '#ec4899',
+    backgroundColor: theme.colors.accent,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 8,
-    shadowColor: '#ec4899',
+    shadowColor: theme.colors.accent,
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 2,
@@ -240,7 +242,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   buttonTextMinimal: {
-    color: '#fff',
+    color: theme.colors.text,
     fontWeight: '700',
     fontSize: 16,
     letterSpacing: 1.1,
@@ -254,34 +256,34 @@ const styles = StyleSheet.create({
   lineMinimal: {
     flex: 1,
     height: 1,
-    backgroundColor: '#23232a',
+    backgroundColor: theme.colors.border,
   },
   dividerTextMinimal: {
-    color: '#a1a1aa',
+    color: theme.colors.textSecondary,
     fontSize: 12,
     fontWeight: '500',
   },
   googleButtonMinimal: {
     flexDirection: 'row',
-    backgroundColor: '#18181b',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#23232a',
+    borderColor: theme.colors.border,
     marginBottom: 12,
   },
   googleButtonTextMinimal: {
-    color: '#fff',
+    color: theme.colors.text,
     fontWeight: '600',
     fontSize: 15,
     marginLeft: 8,
   },
   footerMinimal: {
     textAlign: 'center',
-    color: '#a1a1aa',
+    color: theme.colors.textSecondary,
     fontSize: 14,
     marginTop: 18,
     fontWeight: '500',

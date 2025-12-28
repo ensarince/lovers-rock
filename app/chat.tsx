@@ -1,18 +1,19 @@
 import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
 import { messageService } from '@/src/services/messageService';
+import { theme } from '@/src/theme';
 import { Message } from '@/src/types/message';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    FlatList,
-    KeyboardAvoidingView,
-    Platform,
-    Pressable,
-    RefreshControl,
-    StyleSheet,
-    TextInput,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  TextInput,
 } from 'react-native';
 
 export default function ChatScreen() {
@@ -165,7 +166,7 @@ export default function ChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#101014',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -173,9 +174,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 50,
     paddingBottom: 16,
-    backgroundColor: '#101014',
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#23232a',
+    borderBottomColor: theme.colors.border,
   },
   backButton: {
     padding: 8,
@@ -184,7 +185,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.colors.text,
     textAlign: 'center',
   },
   headerSpacer: {
@@ -216,23 +217,23 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   ownMessageText: {
-    backgroundColor: '#ec4899',
-    color: '#ffffff',
+    backgroundColor: theme.colors.accent,
+    color: theme.colors.text,
   },
   otherMessageText: {
-    backgroundColor: '#23232a',
-    color: '#ffffff',
+    backgroundColor: theme.colors.surface,
+    color: theme.colors.text,
   },
   timestamp: {
     fontSize: 10,
     marginTop: 4,
   },
   ownTimestamp: {
-    color: '#a1a1aa',
+    color: theme.colors.textSecondary,
     textAlign: 'right',
   },
   otherTimestamp: {
-    color: '#a1a1aa',
+    color: theme.colors.textSecondary,
     textAlign: 'left',
   },
   inputContainer: {
@@ -240,17 +241,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     paddingBottom: Platform.OS === 'ios' ? 34 : 54,
-    backgroundColor: '#18181b',
+    backgroundColor: theme.colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#23232a',
+    borderTopColor: theme.colors.border,
   },
   input: {
     flex: 1,
-    backgroundColor: '#23232a',
+    backgroundColor: theme.colors.background,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    color: '#ffffff',
+    color: theme.colors.text,
     fontSize: 16,
     maxHeight: 100,
     marginRight: 12,
@@ -258,8 +259,8 @@ const styles = StyleSheet.create({
   sendButton: {
     width: 44,
     height: 44,
-    backgroundColor: '#ec4899',
     borderRadius: 22,
+    backgroundColor: theme.colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },

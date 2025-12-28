@@ -1,5 +1,6 @@
 import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
+import { theme } from '@/src/theme'; // Add import for theme
 import { Climber, ClimbingGrade, ClimbingStyle } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
@@ -148,7 +149,7 @@ export default function ProfileScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#ec4899" />
+        <ActivityIndicator size="large" color={theme.colors.accent} />
       </View>
     );
   }
@@ -188,14 +189,14 @@ export default function ProfileScreen() {
             {getAvatarUrl() ? (
               <Image
                 source={{ uri: getAvatarUrl() }}
-                style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: '#ec4899' }}
+                style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: theme.colors.accent }}
               />
             ) : (
-              <Ionicons name="person-circle" size={72} color="#fff" style={{ backgroundColor: '#ec4899', borderRadius: 36, padding: 8 }} />
+              <Ionicons name="person-circle" size={72} color={theme.colors.text} style={{ backgroundColor: theme.colors.accent, borderRadius: 36, padding: 8 }} />
             )}
             {editMode && (
-              <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: '#fff', borderRadius: 12, padding: 2 }}>
-                <Ionicons name="camera" size={18} color="#ec4899" />
+              <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: theme.colors.text, borderRadius: 12, padding: 2 }}>
+                <Ionicons name="camera" size={18} color={theme.colors.accent} />
               </View>
             )}
           </Pressable>
@@ -212,11 +213,11 @@ export default function ProfileScreen() {
             <Text style={styles.labelMinimal}>Name</Text>
             {editMode ? (
               <TextInput
-                style={[styles.valueMinimal, { backgroundColor: '#23232b', borderRadius: 8, padding: 8 }]}
+                style={[styles.valueMinimal, { backgroundColor: theme.colors.surface, borderRadius: 8, padding: 8 }]}
                 value={name}
                 onChangeText={setName}
                 placeholder="Name"
-                placeholderTextColor="#888"
+                placeholderTextColor={theme.colors.textSecondary}
               />
             ) : (
               <Text style={styles.valueMinimal}>{name || 'No name set.'}</Text>
@@ -227,11 +228,11 @@ export default function ProfileScreen() {
             <Text style={styles.labelMinimal}>Age</Text>
             {editMode ? (
               <TextInput
-                style={[styles.valueMinimal, { backgroundColor: '#23232b', borderRadius: 8, padding: 8 }]}
+                style={[styles.valueMinimal, { backgroundColor: theme.colors.surface, borderRadius: 8, padding: 8 }]}
                 value={age}
                 onChangeText={setAge}
                 placeholder="Age"
-                placeholderTextColor="#888"
+                placeholderTextColor={theme.colors.textSecondary}
                 keyboardType="numeric"
               />
             ) : (
@@ -242,19 +243,19 @@ export default function ProfileScreen() {
           <View style={styles.infoCardMinimal}>
             <Text style={styles.labelMinimal}>Grade</Text>
             {editMode ? (
-              <View style={{ backgroundColor: '#23232b', borderRadius: 8 }}>
+              <View style={{ backgroundColor: theme.colors.surface, borderRadius: 8 }}>
                 {CLIMBING_GRADES.map(g => (
                   <Pressable
                     key={g}
                     style={{
                       padding: 8,
-                      backgroundColor: grade === g ? '#ec4899' : 'transparent',
+                      backgroundColor: grade === g ? theme.colors.accent : 'transparent',
                       borderRadius: 8,
                       marginVertical: 2,
                     }}
                     onPress={() => setGrade(g)}
                   >
-                    <Text style={{ color: '#fff' }}>{g.charAt(0).toUpperCase() + g.slice(1)}</Text>
+                    <Text style={{ color: theme.colors.text }}>{g.charAt(0).toUpperCase() + g.slice(1)}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -272,7 +273,7 @@ export default function ProfileScreen() {
                     key={style}
                     style={{
                       padding: 8,
-                      backgroundColor: climbingStyles.includes(style) ? '#ec4899' : '#23232b',
+                      backgroundColor: climbingStyles.includes(style) ? theme.colors.accent : theme.colors.surface,
                       borderRadius: 8,
                       margin: 2,
                     }}
@@ -282,7 +283,7 @@ export default function ProfileScreen() {
                         : [...climbingStyles, style]);
                     }}
                   >
-                    <Text style={{ color: '#fff' }}>{style.charAt(0).toUpperCase() + style.slice(1)}</Text>
+                    <Text style={{ color: theme.colors.text }}>{style.charAt(0).toUpperCase() + style.slice(1)}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -299,11 +300,11 @@ export default function ProfileScreen() {
             <Text style={styles.labelMinimal}>Home Gym</Text>
             {editMode ? (
               <TextInput
-                style={[styles.valueMinimal, { backgroundColor: '#23232b', borderRadius: 8, padding: 8 }]}
+                style={[styles.valueMinimal, { backgroundColor: theme.colors.surface, borderRadius: 8, padding: 8 }]}
                 value={homeGym}
                 onChangeText={setHomeGym}
                 placeholder="Home Gym"
-                placeholderTextColor="#888"
+                placeholderTextColor={theme.colors.textSecondary}
               />
             ) : (
               <Text style={styles.valueMinimal}>{homeGym || 'No home gym set.'}</Text>
@@ -314,12 +315,12 @@ export default function ProfileScreen() {
             <Text style={styles.labelMinimal}>Bio</Text>
             {editMode ? (
               <TextInput
-                style={[styles.valueMinimal, { backgroundColor: '#23232b', borderRadius: 8, padding: 8, minHeight: 40 }]}
+                style={[styles.valueMinimal, { backgroundColor: theme.colors.surface, borderRadius: 8, padding: 8, minHeight: 40 }]}
                 value={bio}
                 onChangeText={setBio}
                 multiline
                 placeholder="Tell us about yourself"
-                placeholderTextColor="#888"
+                placeholderTextColor={theme.colors.textSecondary}
               />
             ) : (
               <Text style={styles.valueMinimal}>{bio || 'No bio set.'}</Text>
@@ -329,25 +330,27 @@ export default function ProfileScreen() {
 
         {editMode ? (
           <Pressable
-            style={[styles.logoutButtonMinimal, saving && styles.buttonDisabledMinimal, { backgroundColor: '#22c55e' }]}
+            style={[styles.logoutButtonMinimal, saving && styles.buttonDisabledMinimal, { backgroundColor: theme.colors.success }]
+            }
             onPress={handleSave}
             disabled={saving}
           >
             {saving ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={theme.colors.text} />
             ) : (
               <>
-                <Ionicons name="save" size={20} color="#fff" />
+                <Ionicons name="save" size={20} color={theme.colors.text} />
                 <Text style={styles.logoutButtonTextMinimal}>Save</Text>
               </>
             )}
           </Pressable>
         ) : (
           <Pressable
-            style={[styles.logoutButtonMinimal, isLoading && styles.buttonDisabledMinimal, { backgroundColor: '#6366f1' }]}
+            style={[styles.logoutButtonMinimal, isLoading && styles.buttonDisabledMinimal, { backgroundColor: theme.colors.edit }]
+            }
             onPress={() => setEditMode(true)}
           >
-            <Ionicons name="create" size={20} color="#fff" />
+            <Ionicons name="create" size={20} color={theme.colors.text} />
             <Text style={styles.logoutButtonTextMinimal}>Edit Profile</Text>
           </Pressable>
         )}
@@ -357,10 +360,10 @@ export default function ProfileScreen() {
           onPress={handleLogout}
           disabled={isLoading}>
           {isLoading ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={theme.colors.text} />
           ) : (
             <>
-              <Ionicons name="log-out" size={20} color="#fff" />
+              <Ionicons name="log-out" size={20} color={theme.colors.text} />
               <Text style={styles.logoutButtonTextMinimal}>Logout</Text>
             </>
           )}
@@ -375,11 +378,13 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 0,
     justifyContent: 'center',
+    backgroundColor: theme.colors.background,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.background,
   },
   headerMinimal: {
     alignItems: 'center',
@@ -389,7 +394,7 @@ const styles = StyleSheet.create({
   titleMinimal: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#fff',
+    color: theme.colors.text,
     letterSpacing: 1.1,
     marginTop: 8,
   },
@@ -399,7 +404,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 24,
   },
   infoCardMinimal: {
-    backgroundColor: '#18181b',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 18,
     marginBottom: 2,
@@ -410,7 +415,7 @@ const styles = StyleSheet.create({
   },
   labelMinimal: {
     fontSize: 11,
-    color: '#a1a1aa',
+    color: theme.colors.textSecondary,
     marginBottom: 2,
     textTransform: 'uppercase',
     fontWeight: '600',
@@ -418,18 +423,18 @@ const styles = StyleSheet.create({
   },
   valueMinimal: {
     fontSize: 15,
-    color: '#fff',
+    color: theme.colors.text,
     fontWeight: '500',
   },
   userIdMinimal: {
     fontSize: 11,
     fontFamily: 'monospace',
-    color: '#a1a1aa',
+    color: theme.colors.textSecondary,
     marginTop: 2,
   },
   logoutButtonMinimal: {
     flexDirection: 'row',
-    backgroundColor: '#ef4444',
+    backgroundColor: theme.colors.error,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
@@ -437,7 +442,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginHorizontal: 24,
     marginBottom: 24,
-    shadowColor: '#ef4444',
+    shadowColor: theme.colors.error,
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 2,
@@ -452,13 +457,13 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   errorText: {
-    color: '#ef4444',
+    color: theme.colors.error,
     fontSize: 16,
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    backgroundColor: '#101014',
+    backgroundColor: theme.colors.background,
     paddingVertical: 24,
   },
 });

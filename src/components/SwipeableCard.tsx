@@ -1,4 +1,5 @@
 import { Text } from '@/components/Themed';
+import { theme } from '@/src/theme';
 import { Climber, ClimbingGrade } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useRef } from 'react';
@@ -10,7 +11,6 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-
 interface SwipeableCardProps {
   climber: Climber;
   onAccept: (climber: Climber) => void;
@@ -202,7 +202,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
             setTimeout(() => setIsAccepting(false), 300);
           }}
           style={[styles.button, styles.acceptButton]}>
-          <Ionicons name="heart" size={28} color="#ec4899" />
+          <Ionicons name="heart" size={28} color={theme.colors.success} />
         </Pressable>
       </View>
     </Animated.View>
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
     height: '100%',
-    backgroundColor: '#1f2937',
+    backgroundColor: theme.colors.surface,
   },
   image: {
     width: '100%',
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: '60%',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   overlayLabel: {
     position: 'absolute',
@@ -263,17 +263,17 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.colors.text,
     marginBottom: 4,
   },
   gym: {
     fontSize: 13,
-    color: '#d1d5db',
+    color: theme.colors.textSecondary,
     marginBottom: 8,
   },
   bio: {
     fontSize: 13,
-    color: '#e5e7eb',
+    color: theme.colors.text,
     lineHeight: 18,
     marginBottom: 12,
   },
@@ -313,11 +313,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   rejectButton: {
-    borderColor: '#ef4444',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: theme.colors.error,
   },
   acceptButton: {
-    borderColor: '#ec4899',
-    backgroundColor: 'rgba(236, 72, 153, 0.1)',
+    borderColor: theme.colors.success,
   },
 });

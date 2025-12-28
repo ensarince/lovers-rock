@@ -1,14 +1,15 @@
 import { Text } from '@/components/Themed';
+import { theme } from '@/src/theme'; // Add import for theme
 import { Climber, ClimbingGrade } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import {
-    Image,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    View,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
 } from 'react-native';
 
 interface ClimberDetailModalProps {
@@ -18,11 +19,11 @@ interface ClimberDetailModalProps {
 }
 
 const gradeColors: Record<ClimbingGrade, string> = {
-  beginner: '#10b981',
-  intermediate: '#f59e0b',
-  advanced: '#ef4444',
-  expert: '#8b5cf6',
-  elite: '#ec4899',
+  beginner: theme.colors.success, // Use theme success
+  intermediate: '#f59e0b', // Keep or map to theme
+  advanced: theme.colors.error,
+  expert: '#8b5cf6', // Keep or map
+  elite: theme.colors.accent,
 };
 
 export const ClimberDetailModal: React.FC<ClimberDetailModalProps> = ({
@@ -43,7 +44,7 @@ export const ClimberDetailModal: React.FC<ClimberDetailModalProps> = ({
           {/* Header with close button */}
           <View style={styles.header}>
             <Pressable onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={28} color="#ffffff" />
+              <Ionicons name="close" size={28} color={theme.colors.text} />
             </Pressable>
             <Text style={styles.headerTitle}>Profile</Text>
             <View style={{ width: 44 }} />
@@ -112,11 +113,11 @@ export const ClimberDetailModal: React.FC<ClimberDetailModalProps> = ({
               {/* Stats */}
               <View style={styles.statsSection}>
                 <View style={styles.stat}>
-                  <Ionicons name="pin" size={20} color="#ec4899" />
+                  <Ionicons name="pin" size={20} color={theme.colors.accent} />
                   <Text style={styles.statText}>{climber.home_gym}</Text>
                 </View>
                 <View style={styles.stat}>
-                  <Ionicons name="person" size={20} color="#ec4899" />
+                  <Ionicons name="person" size={20} color={theme.colors.accent} />
                   <Text style={styles.statText}>{climber.age} years old</Text>
                 </View>
               </View>
@@ -136,7 +137,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: theme.colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
@@ -148,12 +149,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    borderBottomColor: theme.colors.border,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.colors.text,
   },
   closeButton: {
     width: 44,
@@ -167,7 +168,7 @@ const styles = StyleSheet.create({
   profileImage: {
     width: '100%',
     height: 400,
-    backgroundColor: '#1f2937',
+    backgroundColor: theme.colors.surface,
   },
   infoSection: {
     padding: 20,
@@ -181,12 +182,12 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.colors.text,
     marginBottom: 4,
   },
   gym: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: theme.colors.textSecondary,
   },
   bioSection: {
     marginBottom: 24,
@@ -194,12 +195,12 @@ const styles = StyleSheet.create({
   bioLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.colors.text,
     marginBottom: 8,
   },
   bio: {
     fontSize: 14,
-    color: '#d1d5db',
+    color: theme.colors.textSecondary,
     lineHeight: 22,
   },
   section: {
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.colors.text,
     marginBottom: 12,
   },
   badge: {
@@ -224,12 +225,12 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.colors.text,
   },
   styleBadge: {
     backgroundColor: 'rgba(236, 72, 153, 0.2)',
     borderWidth: 1,
-    borderColor: '#ec4899',
+    borderColor: theme.colors.accent,
   },
   stylesContainer: {
     flexDirection: 'row',
@@ -237,7 +238,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statsSection: {
-    backgroundColor: '#1f2937',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 16,
     gap: 12,
@@ -249,6 +250,6 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontSize: 14,
-    color: '#d1d5db',
+    color: theme.colors.textSecondary,
   },
 });

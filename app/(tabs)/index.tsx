@@ -4,6 +4,7 @@ import { MatchAnimation } from '@/src/components/MatchAnimation';
 import { SwipeableCard } from '@/src/components/SwipeableCard';
 import { useAuth } from '@/src/context/AuthContext';
 import { preferenceService } from '@/src/services/preferenceService';
+import { theme } from '@/src/theme'; // Add import for theme
 import { Climber } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useEffect, useState } from 'react';
@@ -334,24 +335,24 @@ export default function DiscoverScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: theme.colors.background,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: theme.colors.background,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 12,
     marginVertical: 12,
-    backgroundColor: '#1f2937',
+    backgroundColor: theme.colors.surface,
     borderRadius: 8,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: theme.colors.border,
   },
   searchIcon: {
     marginRight: 8,
@@ -359,7 +360,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     paddingVertical: 10,
-    color: '#ffffff',
+    color: theme.colors.text,
     fontSize: 14,
   },
   filterButton: {
@@ -380,12 +381,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.colors.text,
     marginTop: 12,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: theme.colors.textSecondary,
   },
   counterContainer: {
     alignItems: 'center',
@@ -393,6 +394,6 @@ const styles = StyleSheet.create({
   },
   counter: {
     fontSize: 12,
-    color: '#6b7280',
+    color: theme.colors.textSecondary,
   },
 });

@@ -1,14 +1,15 @@
 import { Text, View } from '@/components/Themed';
 import { Match } from '@/src/services/matchData';
+import { theme } from '@/src/theme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import {
-    Dimensions,
-    Image,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
+  Dimensions,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -41,7 +42,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color="#ffffff" />
+            <Ionicons name="close" size={24} color={theme.colors.text} />
           </Pressable>
         </View>
 
@@ -95,7 +96,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
             style={styles.messageButton}
             onPress={() => onMessage(match)}
           >
-            <Ionicons name="chatbubble" size={20} color="#ffffff" />
+            <Ionicons name="chatbubble" size={20} color={theme.colors.text} />
             <Text style={styles.messageButtonText}>Message</Text>
           </Pressable>
 
@@ -111,7 +112,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#101014',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -135,7 +136,7 @@ const styles = StyleSheet.create({
     height: width * 0.8,
     borderRadius: width * 0.4,
     borderWidth: 4,
-    borderColor: '#ec4899',
+    borderColor: theme.colors.accent,
   },
   infoContainer: {
     paddingHorizontal: 24,
@@ -144,19 +145,19 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: theme.colors.text,
     textAlign: 'center',
     marginBottom: 8,
   },
   grade: {
     fontSize: 18,
-    color: '#ec4899',
+    color: theme.colors.accent,
     textAlign: 'center',
     marginBottom: 16,
   },
   gym: {
     fontSize: 16,
-    color: '#a1a1aa',
+    color: theme.colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -166,7 +167,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.colors.text,
     marginBottom: 12,
   },
   stylesList: {
@@ -175,13 +176,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   styleChip: {
-    backgroundColor: '#23232a',
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
   },
   styleText: {
-    color: '#ec4899',
+    color: theme.colors.accent,
     fontSize: 14,
     fontWeight: '500',
   },
@@ -190,7 +191,7 @@ const styles = StyleSheet.create({
   },
   bio: {
     fontSize: 16,
-    color: '#d1d5db',
+    color: theme.colors.textSecondary,
     lineHeight: 24,
   },
   actionsContainer: {
@@ -202,23 +203,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 34,
     paddingTop: 16,
-    backgroundColor: '#101014',
+    backgroundColor: theme.colors.background,
     borderTopWidth: 1,
-    borderTopColor: '#23232a',
+    borderTopColor: theme.colors.border,
   },
   messageButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ec4899',
+    backgroundColor: theme.colors.accent,
     paddingVertical: 16,
     borderRadius: 12,
     marginRight: 12,
     gap: 8,
   },
   messageButtonText: {
-    color: '#ffffff',
+    color: theme.colors.text,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -226,7 +227,7 @@ const styles = StyleSheet.create({
     width: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#23232a',
+    backgroundColor: theme.colors.surface,
     paddingVertical: 16,
     borderRadius: 12,
   },

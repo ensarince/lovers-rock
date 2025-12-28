@@ -2,6 +2,7 @@ import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
 import { getMatches } from '@/src/services/matchData';
 import { messageService } from '@/src/services/messageService';
+import { theme } from '@/src/theme';
 import { Conversation } from '@/src/types/message';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
@@ -116,14 +117,14 @@ export default function MessagesScreen() {
                 </View>
             )}
 
-            <Ionicons name="chevron-forward" size={16} color="#a1a1aa" />
+            <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
         </Pressable>
     );
 
     if (loading) {
         return (
             <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color="#ec4899" />
+                <ActivityIndicator size="large" color={theme.colors.accent} />
             </View>
         );
     }
@@ -131,7 +132,7 @@ export default function MessagesScreen() {
     if (conversations.length === 0) {
         return (
             <View style={styles.centerContainer}>
-                <Ionicons name="chatbubble-outline" size={64} color="#a1a1aa" />
+                <Ionicons name="chatbubble-outline" size={64} color={theme.colors.textSecondary} />
                 <Text style={styles.title}>No conversations yet</Text>
                 <Text style={styles.subtitle}>
                     Start chatting with your matches!
@@ -152,8 +153,8 @@ export default function MessagesScreen() {
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
-                        tintColor="#ffffff"
-                        colors={['#ffffff']}
+                        tintColor={theme.colors.text}
+                        colors={[theme.colors.text]}
                     />
                 }
             />
@@ -164,24 +165,25 @@ export default function MessagesScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#101014',
+        backgroundColor: theme.colors.background,
     },
     centerContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
         padding: 24,
+        backgroundColor: theme.colors.background,
     },
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#ffffff',
+        color: theme.colors.text,
         marginTop: 16,
         marginBottom: 8,
     },
     subtitle: {
         fontSize: 16,
-        color: '#a1a1aa',
+        color: theme.colors.textSecondary,
         textAlign: 'center',
     },
     listContent: {
@@ -193,17 +195,17 @@ const styles = StyleSheet.create({
         padding: 16,
         marginHorizontal: 16,
         marginVertical: 4,
-        backgroundColor: '#1a1a1e',
+        backgroundColor: theme.colors.surface,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#23232a',
+        borderColor: theme.colors.border,
     },
     avatar: {
         width: 50,
         height: 50,
         borderRadius: 25,
         marginRight: 12,
-        backgroundColor: '#23232a',
+        backgroundColor: theme.colors.surface,
     },
     conversationContent: {
         flex: 1,
@@ -219,18 +221,18 @@ const styles = StyleSheet.create({
     climberName: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#ffffff',
+        color: theme.colors.text,
     },
     timestamp: {
         fontSize: 12,
-        color: '#a1a1aa',
+        color: theme.colors.textSecondary,
     },
     lastMessage: {
         fontSize: 14,
-        color: '#d1d5db',
+        color: theme.colors.textSecondary,
     },
     unreadBadge: {
-        backgroundColor: '#ec4899',
+        backgroundColor: theme.colors.accent,
         borderRadius: 10,
         minWidth: 20,
         height: 20,
@@ -240,7 +242,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 6,
     },
     unreadText: {
-        color: '#ffffff',
+        color: theme.colors.background,
         fontSize: 12,
         fontWeight: '600',
     },
