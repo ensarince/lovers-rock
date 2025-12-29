@@ -261,7 +261,6 @@ export default function DiscoverScreen() {
   const hasMoreClimbers = currentIndex < filteredClimbers.length - 1;
   const allCardsSeen = currentIndex >= filteredClimbers.length;
 
-
   return (
     <View style={styles.container}>
       {/* Search and Filter Bar */}

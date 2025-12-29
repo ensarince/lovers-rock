@@ -5,16 +5,16 @@ import { Climber, ClimbingGrade, ClimbingStyle } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
+import * as Updates from 'expo-updates';
 import PocketBase from 'pocketbase';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
-  Image,
+  Alert, DevSettings, Image,
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
+  TextInput
 } from 'react-native';
 
 const pb = new PocketBase(`http://${process.env.EXPO_PUBLIC_IP}:8090`);
@@ -51,6 +51,8 @@ export default function ProfileScreen() {
   const [grade, setGrade] = useState<ClimbingGrade>(typedUser?.grade || 'beginner');
   const [climbingStyles, setClimbingStyles] = useState<ClimbingStyle[]>(typedUser?.climbing_styles || []);
   const [homeGym, setHomeGym] = useState(typedUser?.home_gym || '');
+  // intent: array of 'partner' | 'date'
+  const [intent, setIntent] = useState<string[]>(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
   // Remove photo state for display, only use for upload
   const [photo, setPhoto] = useState<string | null>(null);
   const [avatar, setAvatar] = useState(typedUser?.avatar || '');
@@ -69,6 +71,7 @@ export default function ProfileScreen() {
     setClimbingStyles(typedUser?.climbing_styles || []);
     setHomeGym(typedUser?.home_gym || '');
     setAvatar(typedUser?.avatar || '');
+    setIntent(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
     setPhoto(null);
   }, [user]);
 
@@ -120,6 +123,8 @@ export default function ProfileScreen() {
         formData.append('grade', grade);
         formData.append('climbing_styles', JSON.stringify(climbingStyles));
         formData.append('home_gym', homeGym);
+        // intent as array, not stringified
+        intent.forEach((val) => formData.append('intent', val));
         // @ts-ignore
         formData.append('avatar', avatarFile);
         await pb.collection('users').update(user?.id!, formData);
@@ -131,12 +136,21 @@ export default function ProfileScreen() {
           grade,
           climbing_styles: climbingStyles,
           home_gym: homeGym,
+          intent,
         };
         await pb.collection('users').update(user?.id!, formData);
       }
       setEditMode(false);
       setPhoto(null); // Reset photo after save
       Alert.alert('Profile updated!');
+      // Force app reload to update tabs if intent changed
+      try {
+        await Updates.reloadAsync();
+      } catch (err) {
+        if (DevSettings && DevSettings.reload) {
+          DevSettings.reload();
+        }
+      }
     } catch (e: any) {
       let errorMsg = 'Failed to update profile.';
       if (e?.message) errorMsg += '\n' + e.message;
@@ -163,23 +177,23 @@ export default function ProfileScreen() {
   }
 
   // Always show the avatar from the DB unless a new photo is picked
- const getAvatarUrl = () => {
-  // 1. Priority: Locally picked photo (blob/uri)
-  if (photo) return photo;
+  const getAvatarUrl = () => {
+    // 1. Priority: Locally picked photo (blob/uri)
+    if (photo) return photo;
 
-  // 2. Use the filename from state or the user object
-  const filename = avatar || typedUser?.avatar;
-  const userId = typedUser?.id;
+    // 2. Use the filename from state or the user object
+    const filename = avatar || typedUser?.avatar;
+    const userId = typedUser?.id;
 
-  // 3. Manually construct the URL if we have the necessary parts
-  if (filename && userId) {
-    const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
-    // PocketBase file path format: /api/files/COLLECTION_ID_OR_NAME/RECORD_ID/FILENAME
-    return `${baseUrl}/api/files/users/${userId}/${filename}?thumb=100x100`;
-  }
+    // 3. Manually construct the URL if we have the necessary parts
+    if (filename && userId) {
+      const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      // PocketBase file path format: /api/files/COLLECTION_ID_OR_NAME/RECORD_ID/FILENAME
+      return `${baseUrl}/api/files/users/${userId}/${filename}?thumb=100x100`;
+    }
 
-  return '';
-};
+    return '';
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
@@ -264,6 +278,43 @@ export default function ProfileScreen() {
             )}
           </View>
 
+          <View style={styles.infoCardMinimal}>
+            <Text style={styles.labelMinimal}>Intent</Text>
+            {editMode ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {['partner', 'date'].map(opt => (
+                  <Pressable
+                    key={opt}
+                    style={{
+                      padding: 8,
+                      backgroundColor: intent.includes(opt) ? theme.colors.accent : theme.colors.surface,
+                      borderRadius: 8,
+                      margin: 2,
+                    }}
+                    onPress={() => {
+                      setIntent(intent.includes(opt)
+                        ? intent.filter(i => i !== opt)
+                        : [...intent, opt]);
+                    }}
+                  >
+                    <Text style={{ color: theme.colors.text }}>
+                      {opt === 'partner' ? 'Climbing Partner' : 'Dating'}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.valueMinimal}>
+                {intent.length === 0
+                  ? 'Not set'
+                  : intent.length === 2
+                  ? 'Climbing Partner, Dating'
+                  : intent[0] === 'partner'
+                  ? 'Climbing Partner'
+                  : 'Dating'}
+              </Text>
+            )}
+          </View>
           <View style={styles.infoCardMinimal}>
             <Text style={styles.labelMinimal}>Climbing Styles</Text>
             {editMode ? (

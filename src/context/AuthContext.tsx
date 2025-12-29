@@ -1,6 +1,7 @@
 import { authService } from '@/src/services/authService';
 import { preferenceService } from '@/src/services/preferenceService';
 import { Climber } from '@/src/types/climber'; // <-- Use Climber type
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 // Remove User interface, use Climber everywhere
@@ -38,27 +39,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     bio: record.bio || '',
     email: record.email || '',
     avatar: record.avatar || '',
+    intent: Array.isArray(record.intent) ? record.intent : [],
   });
 
   // Check if user is already authenticated on app start
   useEffect(() => {
     const checkAuth = async () => {
-      if (authService.isAuthenticated()) {
-        const currentUser = authService.getCurrentUser();
-        const currentToken = authService.getToken?.() || null;
-        setUser(currentUser ? mapToClimber(currentUser) : null);
-        setToken(currentToken);
-        
-        // Reset preferences and sync for existing user
-        if (currentUser && currentToken) {
-          preferenceService.reset();
-          await preferenceService.syncPreferences(currentToken, currentUser.id);
-          setPreferencesSynced(true);
+      // Try to restore from AsyncStorage first
+      try {
+        const storedUser = await AsyncStorage.getItem('user');
+        const storedToken = await AsyncStorage.getItem('token');
+        if (storedUser && storedToken) {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser ? mapToClimber(parsedUser) : null);
+          setToken(storedToken);
+          // Reset preferences and sync for existing user
+          if (parsedUser && storedToken) {
+            preferenceService.reset();
+            await preferenceService.syncPreferences(storedToken, parsedUser.id);
+            setPreferencesSynced(true);
+          }
+        } else if (authService.isAuthenticated()) {
+          const currentUser = authService.getCurrentUser();
+          const currentToken = authService.getToken?.() || null;
+          setUser(currentUser ? mapToClimber(currentUser) : null);
+          setToken(currentToken);
+          // Reset preferences and sync for existing user
+          if (currentUser && currentToken) {
+            preferenceService.reset();
+            await preferenceService.syncPreferences(currentToken, currentUser.id);
+            setPreferencesSynced(true);
+          }
         }
+      } catch (err) {
+        // Optionally log error
       }
       setIsLoading(false);
     };
-
     checkAuth();
   }, []);
 
@@ -67,8 +84,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setPreferencesSynced(false);
     try {
       const authData = await authService.login(email, password);
-      setUser(mapToClimber(authData.record));
+      const climberUser = mapToClimber(authData.record);
+      setUser(climberUser);
       setToken(authData.token);
+      await AsyncStorage.setItem('user', JSON.stringify(climberUser));
+      await AsyncStorage.setItem('token', authData.token);
       // Reset preferences and sync for the new user
       preferenceService.reset();
       await preferenceService.syncPreferences(authData.token, authData.record.id);
@@ -97,8 +117,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setPreferencesSynced(false);
     try {
       const authData = await authService.loginWithGoogle();
-      setUser(mapToClimber(authData.record));
+      const climberUser = mapToClimber(authData.record);
+      setUser(climberUser);
       setToken(authData.token);
+      await AsyncStorage.setItem('user', JSON.stringify(climberUser));
+      await AsyncStorage.setItem('token', authData.token);
       // Reset preferences and sync for the new user
       preferenceService.reset();
       await preferenceService.syncPreferences(authData.token, authData.record.id);
@@ -110,11 +133,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
     authService.logout();
     setUser(null);
     setToken(null);
     setPreferencesSynced(false);
+    await AsyncStorage.removeItem('user');
+    await AsyncStorage.removeItem('token');
     // Reset preference service when logging out
     preferenceService.reset();
   };
