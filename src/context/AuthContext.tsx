@@ -8,6 +8,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 
 interface AuthContextType {
   user: Climber | null;
+  setUser: React.Dispatch<React.SetStateAction<Climber | null>>;
   isLoading: boolean;
   isAuthenticated: boolean;
   token: string | null;
@@ -148,6 +149,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     <AuthContext.Provider
       value={{
         user,
+        setUser,
         isLoading,
         isAuthenticated: user !== null,
         token,

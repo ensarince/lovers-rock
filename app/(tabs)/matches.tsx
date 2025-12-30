@@ -1,8 +1,9 @@
 import { Text, View } from '@/components/Themed';
 import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import { useAuth } from '@/src/context/AuthContext';
-import { getMatches, Match } from '@/src/services/matchData';
+import { getMatches } from '@/src/services/matchData';
 import { theme } from '@/src/theme'; // Add import for theme
+import { Match } from '@/src/types/match';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -21,6 +22,12 @@ export default function MatchesScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const { user, token } = useAuth();
 
+  // Split matches by type (assume backend provides match.type: 'dating' | 'partner')
+  const hasDatingIntent = user && (Array.isArray(user.intent) ? user.intent.includes('date') : user.intent === 'date');
+  const hasPartnerIntent = user && (Array.isArray(user.intent) ? user.intent.includes('partner') : user.intent === 'partner');
+  const datingMatches = hasDatingIntent ? matches.filter(m => m.type === 'dating') : [];
+  const partnerMatches = hasPartnerIntent ? matches.filter(m => m.type === 'partner') : [];
+
   const isProfileComplete = user &&
     user.name &&
     typeof user.age === 'number' &&
@@ -30,24 +37,27 @@ export default function MatchesScreen() {
     user.bio &&
     user.email;
 
-  useEffect(() => {
-    const fetchMatches = async () => {
-      try {
-        setLoading(true);
-        if (!token || !user?.id) return;
-        const data = await getMatches(token, user.id);
-        setMatches(data);
-      } catch (err) {
-        console.error('Failed to load matches:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    useEffect(() => {
+      const fetchMatches = async () => {
+        try {
+          setLoading(true);
+          if (!token || !user?.id) return;
 
-    if (token && user?.id) {
-      fetchMatches();
-    }
-  }, [token, user?.id]);
+          // getMatches already returns mutual matches
+          const allMatches = await getMatches(token, user.id);
+
+          setMatches(allMatches);
+        } catch (err) {
+          console.error('Failed to load matches:', err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      if (token && user?.id) {
+        fetchMatches();
+      }
+    }, [token, user?.id]);
 
   if (loading) {
     return (
@@ -138,14 +148,48 @@ export default function MatchesScreen() {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        data={matches}
-        renderItem={renderMatch}
-        keyExtractor={(item) => item.id}
-        showsVerticalScrollIndicator={false}
-        scrollEnabled={true}
-        contentContainerStyle={styles.listContent}
-      />
+      {/* Dating Matches Section (only if intent) */}
+      {hasDatingIntent && (
+        <>
+          <Text style={[styles.titleMinimal, { marginLeft: 18, marginTop: 12 }]}>Dating Matches</Text>
+          {datingMatches.length === 0 ? (
+            <Text style={[styles.subtitleMinimal, { marginLeft: 18 }]}>No dating matches yet.</Text>
+          ) : (
+            <FlatList
+              data={datingMatches}
+              renderItem={renderMatch}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={false}
+              contentContainerStyle={styles.listContent}
+            />
+          )}
+        </>
+      )}
+
+      {/* Partner Matches Section (only if intent) */}
+      {hasPartnerIntent && (
+        <>
+          <Text style={[styles.titleMinimal, { marginLeft: 18, marginTop: 24 }]}>Partner Matches</Text>
+          {partnerMatches.length === 0 ? (
+            <Text style={[styles.subtitleMinimal, { marginLeft: 18 }]}>No partner matches yet.</Text>
+          ) : (
+            <FlatList
+              data={partnerMatches}
+              renderItem={renderMatch}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={false}
+              contentContainerStyle={styles.listContent}
+            />
+          )}
+        </>
+      )}
+
+      {/* If neither intent, show nothing or a message */}
+      {!hasDatingIntent && !hasPartnerIntent && (
+        <Text style={[styles.subtitleMinimal, { marginLeft: 18, marginTop: 24 }]}>Enable Dating or Partner intent in your profile to see matches.</Text>
+      )}
 
       <MatchDetailModal
         visible={modalVisible}

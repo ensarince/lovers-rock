@@ -1,16 +1,17 @@
 import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
-import { theme } from '@/src/theme'; // Add import for theme
+import { theme } from '@/src/theme';
 import { Climber, ClimbingGrade, ClimbingStyle } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import * as Updates from 'expo-updates';
 import PocketBase from 'pocketbase';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert, DevSettings, Image,
+  Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -36,7 +37,7 @@ const CLIMBING_STYLES: ClimbingStyle[] = [
 ];
 
 export default function ProfileScreen() {
-  const { user, logout, isLoading, isAuthenticated, token } = useAuth();
+  const { user, setUser, logout, isLoading, isAuthenticated, token } = useAuth();
   const typedUser = user as Climber | null;
   const router = useRouter();
 
@@ -142,15 +143,30 @@ export default function ProfileScreen() {
       }
       setEditMode(false);
       setPhoto(null); // Reset photo after save
-      Alert.alert('Profile updated!');
-      // Force app reload to update tabs if intent changed
-      try {
-        await Updates.reloadAsync();
-      } catch (err) {
-        if (DevSettings && DevSettings.reload) {
-          DevSettings.reload();
+      // Fetch latest user from backend and update context/cache
+      if (user?.id && token) {
+        try {
+          const latestUser = await pb.collection('users').getOne(user.id, { headers: { Authorization: token } });
+          // Map to Climber type
+          const mappedUser: Climber = {
+            id: latestUser.id,
+            name: latestUser.name || '',
+            age: typeof latestUser.age === 'number' ? latestUser.age : 0,
+            grade: latestUser.grade || 'beginner',
+            climbing_styles: Array.isArray(latestUser.climbing_styles) ? latestUser.climbing_styles : [],
+            home_gym: latestUser.home_gym || '',
+            bio: latestUser.bio || '',
+            email: latestUser.email || '',
+            avatar: latestUser.avatar || '',
+            intent: Array.isArray(latestUser.intent) ? latestUser.intent : [],
+          };
+          setUser(mappedUser);
+          await AsyncStorage.setItem('user', JSON.stringify(mappedUser));
+        } catch (err) {
+          // Optionally handle error
         }
       }
+      Alert.alert('Profile updated!');
     } catch (e: any) {
       let errorMsg = 'Failed to update profile.';
       if (e?.message) errorMsg += '\n' + e.message;
@@ -164,14 +180,6 @@ export default function ProfileScreen() {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color={theme.colors.accent} />
-      </View>
-    );
-  }
-
-  if (!user) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Please log in to view your profile</Text>
       </View>
     );
   }
@@ -194,6 +202,14 @@ export default function ProfileScreen() {
 
     return '';
   };
+
+  if (!user) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>Please log in to view your profile</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
@@ -308,10 +324,10 @@ export default function ProfileScreen() {
                 {intent.length === 0
                   ? 'Not set'
                   : intent.length === 2
-                  ? 'Climbing Partner, Dating'
-                  : intent[0] === 'partner'
-                  ? 'Climbing Partner'
-                  : 'Dating'}
+                    ? 'Climbing Partner, Dating'
+                    : intent[0] === 'partner'
+                      ? 'Climbing Partner'
+                      : 'Dating'}
               </Text>
             )}
           </View>

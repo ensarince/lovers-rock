@@ -46,9 +46,9 @@ export default function DiscoverScreen() {
       try {
         setLoading(true);
         if (!token) return;
-        
+
         // Preferences are already synced by AuthContext on login
-        
+
         // Fetch climbers
         const data = await getAllAccounts(token);
 
@@ -75,7 +75,7 @@ export default function DiscoverScreen() {
           });
 
         setClimbers(normalized);
-        
+
         // Initially show all climbers, filter later when preferences are synced
         setFilteredClimbers(normalized);
         setError(null);
@@ -109,31 +109,6 @@ export default function DiscoverScreen() {
       setFilteredClimbers(filtered);
     }
   }, [searchText, activeFilters]);
-
-  // Helper to check if user profile is complete
-  const isProfileComplete =
-    user &&
-    user.name &&
-    typeof user.age === 'number' &&
-    user.grade &&
-    Array.isArray(user.climbing_styles) && user.climbing_styles.length > 0 &&
-    user.home_gym &&
-    user.bio &&
-    user.email;
-
-  // Show prompt if profile is incomplete
-  if (!isProfileComplete) {
-    return (
-      <View style={styles.centerContainer}>
-        <Ionicons name="alert-circle" size={64} color="#ec4899" />
-        <Text style={styles.emptyTitle}>Complete your profile</Text>
-        <Text style={styles.emptySubtitle}>
-          Please fill out your profile before discovering other climbers.
-        </Text>
-        {/* Optionally, add a button to navigate to Edit Profile */}
-      </View>
-    );
-  }
 
   const applyFiltersAndSearch = (
     baseClimbers: Climber[],
@@ -183,21 +158,18 @@ export default function DiscoverScreen() {
     setActiveFilters(filters);
   };
 
-  if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#ec4899" />
-      </View>
-    );
-  }
 
-  if (error) {
-    return (
-      <View style={styles.centerContainer}>
-        {/* Error message can be added here */}
-      </View>
-    );
-  }
+  // Helper to check if user profile is complete
+  const isProfileComplete =
+    user &&
+    user.name &&
+    typeof user.age === 'number' &&
+    user.grade &&
+    Array.isArray(user.climbing_styles) && user.climbing_styles.length > 0 &&
+    user.home_gym &&
+    user.bio &&
+    user.email;
+
 
   const handleAccept = async (climber: Climber) => {
     if (!user?.id) {
@@ -208,16 +180,15 @@ export default function DiscoverScreen() {
       console.error('❌ No token available for liking!');
       return;
     }
-    
+
     // Check if already liked
     if (preferenceService.isAccepted(climber.id)) {
-      console.log(`⚠️ Already liked ${climber.name}, skipping`);
       setCurrentIndex((prev) => prev + 1);
       return;
     }
-    
+
     await preferenceService.accept(climber, token, user.id);
-    
+
     // Check if this creates a mutual match
     try {
       const allUsers = await getAllAccounts(token);
@@ -233,13 +204,13 @@ export default function DiscoverScreen() {
     } catch (error) {
       console.error('Error checking for match:', error);
     }
-    
+
     // Update filtered climbers to exclude the newly liked user
     setFilteredClimbers(prev => {
       const filtered = prev.filter(c => c.id !== climber.id);
       return filtered;
     });
-    
+
     setCurrentIndex((prev) => {
       const newIndex = prev + 1;
       return newIndex;
@@ -248,18 +219,59 @@ export default function DiscoverScreen() {
 
   const handleReject = (climber: Climber) => {
     preferenceService.reject(climber);
-    
+
     // Update filtered climbers to exclude the rejected user (they don't want to see them again)
     setFilteredClimbers(prev => prev.filter(c => c.id !== climber.id));
-    
+
     setCurrentIndex((prev) => prev + 1);
     console.log('Rejected:', climber.name);
   };
 
-  const currentClimber =
-    filteredClimbers.length > 0 ? filteredClimbers[currentIndex] : null;
-  const hasMoreClimbers = currentIndex < filteredClimbers.length - 1;
-  const allCardsSeen = currentIndex >= filteredClimbers.length;
+  const currentClimber = filteredClimbers.length > 0 ? filteredClimbers[currentIndex] : null;
+
+  // Only show content if user intent includes 'date'
+  const hasDatingIntent = user && (Array.isArray(user.intent) ? user.intent.includes('date') : user.intent === 'date');
+  if (!hasDatingIntent) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
+        <Ionicons name="heart-dislike" size={64} color={theme.colors.border} />
+        <Text style={{ fontSize: 18, color: theme.colors.text, marginTop: 16, textAlign: 'center' }}>
+          Enable "Dating" in your profile to use this page.
+        </Text>
+      </View>
+    );
+  }
+
+  // Show prompt if profile is incomplete
+  if (!isProfileComplete) {
+    return (
+      <View style={styles.centerContainer}>
+        <Ionicons name="alert-circle" size={64} color="#ec4899" />
+        <Text style={styles.emptyTitle}>Complete your profile</Text>
+        <Text style={styles.emptySubtitle}>
+          Please fill out your profile before discovering other climbers.
+        </Text>
+        {/* Optionally, add a button to navigate to Edit Profile */}
+      </View>
+    );
+  }
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#ec4899" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.centerContainer}>
+        {/* Error message can be added here */}
+        <Text>{error}</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
