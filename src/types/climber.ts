@@ -15,5 +15,5 @@ export interface Climber {
   avatar?: string;
   liked_users?: string[];
   image_url?: string; // For displaying avatar URL
-  intent?: ('date' | 'partner')[]; // User intent field as array
+  intent: 'partner' | 'date' | Array<'partner' | 'date'>;
 }

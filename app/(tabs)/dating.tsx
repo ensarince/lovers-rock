@@ -41,6 +41,18 @@ export default function DiscoverScreen() {
     }
   }, [filteredClimbers.length]);
 
+  // Helper to check if user profile is complete
+  const isProfileComplete =
+    user &&
+    user.name &&
+    typeof user.age === 'number' &&
+    user.grade &&
+    Array.isArray(user.climbing_styles) && user.climbing_styles.length > 0 &&
+    user.home_gym &&
+    user.bio &&
+    user.avatar !== "" &&
+    user.email;
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -52,31 +64,43 @@ export default function DiscoverScreen() {
         // Fetch climbers
         const data = await getAllAccounts(token);
 
+        // 1. Only users with 'date' intent
+        // 2. Exclude self
+        // 3. Only users with complete profiles
+        const filtered = data.filter(
+          (c) =>
+            c.id !== user?.id &&
+            Array.isArray(c.intent) && c.intent.includes('date') &&
+            c.name !== '' &&
+            typeof c.age === 'number' &&
+            c.grade &&
+            Array.isArray(c.climbing_styles) && c.climbing_styles.length > 0 &&
+            c.home_gym !== '' &&
+            c.bio !== '' &&
+            c.avatar !== '' &&
+            c.email !== ''
+        );
+
         // Normalize climbing_styles and avatar URL for each climber
-        const normalized = data
-          // Exclude the current user from the list
-          .filter((c) => c.id !== user?.id)
-          .map((c) => {
-            const climbing_styles = typeof c.climbing_styles === 'string'
-              ? JSON.parse(c.climbing_styles)
-              : c.climbing_styles || [];
+        const normalized = filtered.map((c) => {
+          const climbing_styles = typeof c.climbing_styles === 'string'
+            ? JSON.parse(c.climbing_styles)
+            : c.climbing_styles || [];
 
-            let avatarUrl = '';
-            if (c.avatar && c.id) {
-              const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
-              avatarUrl = `${baseUrl}/api/files/users/${c.id}/${c.avatar}?thumb=100x100`;
-            }
+          let avatarUrl = '';
+          if (c.avatar && c.id) {
+            const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+            avatarUrl = `${baseUrl}/api/files/users/${c.id}/${c.avatar}?thumb=100x100`;
+          }
 
-            return {
-              ...c,
-              climbing_styles,
-              image_url: avatarUrl,
-            };
-          });
+          return {
+            ...c,
+            climbing_styles,
+            image_url: avatarUrl,
+          };
+        });
 
         setClimbers(normalized);
-
-        // Initially show all climbers, filter later when preferences are synced
         setFilteredClimbers(normalized);
         setError(null);
       } catch (err) {
@@ -115,7 +139,19 @@ export default function DiscoverScreen() {
     search: string,
     filters: DiscoverFilters
   ) => {
-    let result = [...baseClimbers];
+    // Only include users with 'date' intent and complete profiles
+    let result = baseClimbers.filter(
+      (c) =>
+        Array.isArray(c.intent) && c.intent.includes('date') &&
+        c.name !== '' &&
+        typeof c.age === 'number' &&
+        c.grade &&
+        Array.isArray(c.climbing_styles) && c.climbing_styles.length > 0 &&
+        c.home_gym !== '' &&
+        c.bio !== '' &&
+        c.avatar !== '' &&
+        c.email !== ''
+    );
 
     // Filter by search text
     if (search.trim()) {
@@ -157,18 +193,6 @@ export default function DiscoverScreen() {
   const handleApplyFilters = (filters: DiscoverFilters) => {
     setActiveFilters(filters);
   };
-
-
-  // Helper to check if user profile is complete
-  const isProfileComplete =
-    user &&
-    user.name &&
-    typeof user.age === 'number' &&
-    user.grade &&
-    Array.isArray(user.climbing_styles) && user.climbing_styles.length > 0 &&
-    user.home_gym &&
-    user.bio &&
-    user.email;
 
 
   const handleAccept = async (climber: Climber) => {
@@ -397,6 +421,7 @@ const styles = StyleSheet.create({
   },
   emptySubtitle: {
     fontSize: 14,
+    textAlign: 'center',
     color: theme.colors.textSecondary,
   },
   counterContainer: {

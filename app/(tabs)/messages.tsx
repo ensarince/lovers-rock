@@ -34,8 +34,7 @@ export default function MessagesScreen() {
     const loadConversations = async () => {
         if (!user?.id || !token) return;
 
-        try {
-            setLoading(true);
+        try {           setLoading(true);
             const matches = await getMatches(token, user.id);
 
             const conversationsWithMessages = await Promise.all(

@@ -27,6 +27,18 @@ export default function PartnerScreen() {
   const [acceptingRequestIds, setAcceptingRequestIds] = useState<string[]>([]);
   const [searchText, setSearchText] = useState('');
 
+  // Helper to check if user profile is complete
+  const isProfileComplete =
+    user !== null &&
+    user.name !== '' &&
+    typeof user.age === 'number' &&
+    user.grade &&
+    Array.isArray(user.climbing_styles) && user.climbing_styles.length > 0 &&
+    user.home_gym !== '' &&
+    user.bio !== '' &&
+    user.email !== '' &&
+    user.avatar !== "";
+
   // Fetch incoming partner requests for the current user
   const fetchIncomingRequests = async () => {
     if (!user || !token) return;
@@ -73,7 +85,19 @@ export default function PartnerScreen() {
           // If both liked each other, it's a match, so filter out
           return !(iLikeThem && theyLikeMe);
         });
+        // Only include users with complete profiles
+        filtered = filtered.filter((c) =>
+          c.name !== '' &&
+          typeof c.age === 'number' &&
+          c.grade &&
+          Array.isArray(c.climbing_styles) && c.climbing_styles.length > 0 &&
+          c.home_gym !== '' &&
+          c.bio !== '' &&
+          c.email !== '' &&
+          c.avatar !== ''
+        );
         setPartners(filtered);
+
         setError(null);
       } catch (e) {
         setError('Failed to load partners');
@@ -180,6 +204,20 @@ export default function PartnerScreen() {
         <Text style={{ fontSize: 18, color: theme.colors.text, marginTop: 16, textAlign: 'center' }}>
           Enable "Climbing Partner" in your profile to use this page.
         </Text>
+      </View>
+    );
+  }
+
+  // Show prompt if profile is incomplete
+  if (!isProfileComplete) {
+    return (
+      <View style={styles.centerContainer}>
+        <Ionicons name="alert-circle" size={64} color="#ec4899" />
+        <Text style={styles.emptyTitle}>Complete your profile</Text>
+        <Text style={styles.emptySubtitle}>
+          Please fill out your profile before discovering other climbers.
+        </Text>
+        {/* Optionally, add a button to navigate to Edit Profile */}
       </View>
     );
   }
@@ -380,5 +418,16 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     fontSize: 16,
     textAlign: 'center',
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginTop: 12,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    color: theme.colors.textSecondary,
   },
 });
