@@ -4,8 +4,6 @@ import { Climber } from '@/src/types/climber'; // <-- Use Climber type
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-// Remove User interface, use Climber everywhere
-
 interface AuthContextType {
   user: Climber | null;
   setUser: React.Dispatch<React.SetStateAction<Climber | null>>;
@@ -102,15 +100,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const register = async (email: string, password: string) => {
-    setIsLoading(true);
+    /* setIsLoading(true) */;
     try {
       await authService.register(email, password, password);
       await login(email, password);
-    } catch (error) {
-      throw error;
-    } finally {
+    } catch (error: any) {
+      const errorMessage = error?.message || error?.response?.message || 'Registration failed';
+      throw new Error(errorMessage);
+    } /* finally {
       setIsLoading(false);
-    }
+    } */
   };
 
   const loginWithGoogle = async () => {

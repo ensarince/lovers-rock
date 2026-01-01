@@ -57,6 +57,8 @@ export default function LoginScreen() {
       await register(email, password);
     } catch (err: any) {
       setError(err.message || 'Signup failed');
+      console.log("Signup error:", err);
+      console.log('Caught error in handleSignup:', err);
     }
   };
 
