@@ -106,7 +106,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
             <Text style={styles.messageButtonText}>Message</Text>
           </Pressable>
 
-          <Pressable style={styles.moreButton} onPress={() => {}}>
+          <Pressable style={styles.moreButton} onPress={() => { }}>
             <Ionicons name="ellipsis-horizontal" size={20} color="#a1a1aa" />
           </Pressable>
         </View>
@@ -127,6 +127,7 @@ const createStyles = (theme: typeof themeLight) =>
       paddingHorizontal: 16,
       paddingTop: 50,
       paddingBottom: 16,
+      backgroundColor: "transparent"
     },
     closeButton: {
       padding: 8,
@@ -137,6 +138,7 @@ const createStyles = (theme: typeof themeLight) =>
     imageContainer: {
       alignItems: 'center',
       paddingVertical: 20,
+      backgroundColor: "transparent"
     },
     profileImage: {
       width: width * 0.8,
@@ -147,7 +149,8 @@ const createStyles = (theme: typeof themeLight) =>
     },
     infoContainer: {
       paddingHorizontal: 24,
-      paddingBottom: 100, // Space for action buttons
+      paddingBottom: 100,
+      backgroundColor: "transparent"
     },
     name: {
       fontSize: 28,
@@ -170,6 +173,7 @@ const createStyles = (theme: typeof themeLight) =>
     },
     stylesContainer: {
       marginBottom: 24,
+      backgroundColor: "transparent"
     },
     sectionTitle: {
       fontSize: 18,
@@ -181,6 +185,7 @@ const createStyles = (theme: typeof themeLight) =>
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: 8,
+      backgroundColor: "transparent"
     },
     styleChip: {
       backgroundColor: theme.colors.surface,
@@ -195,6 +200,7 @@ const createStyles = (theme: typeof themeLight) =>
     },
     bioContainer: {
       marginBottom: 24,
+      backgroundColor: "transparent"
     },
     bio: {
       fontSize: 16,

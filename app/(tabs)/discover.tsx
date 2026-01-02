@@ -683,6 +683,7 @@ const createStyles = (theme: typeof themeLight) =>
       alignItems: 'center',
       justifyContent: 'center',
       gap: 12,
+      backgroundColor: 'transparent',
     },
     emptyTitle: {
       fontSize: 20,

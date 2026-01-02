@@ -125,7 +125,7 @@ export default function ChatScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={goBack} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#ffffff" />
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>{climberName}</Text>
         <View style={styles.headerSpacer} />
@@ -227,6 +227,11 @@ const createStyles = (theme: typeof themeLight) =>
       borderRadius: 18,
       fontSize: 16,
       lineHeight: 20,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 3,
+      elevation: 2,
     },
     ownMessageText: {
       backgroundColor: theme.colors.accent,

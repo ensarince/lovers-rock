@@ -317,7 +317,7 @@ export default function ProfileScreen() {
           <View style={styles.infoCardMinimal}>
             <Text style={styles.labelMinimal}>Intent</Text>
             {editMode ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, backgroundColor: "transparent" }}>
                 {['partner', 'date'].map(opt => (
                   <Pressable
                     key={opt}
@@ -354,7 +354,8 @@ export default function ProfileScreen() {
           <View style={styles.infoCardMinimal}>
             <Text style={styles.labelMinimal}>Climbing Styles</Text>
             {editMode ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              <View style={{
+                flexDirection: 'row', flexWrap: 'wrap', gap: 8, backgroundColor: "transparent" }}>
                 {CLIMBING_STYLES.map(style => (
                   <Pressable
                     key={style}
