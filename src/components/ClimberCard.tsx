@@ -2,7 +2,7 @@ import { Text, View } from '@/components/Themed';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import { Dimensions, Image, Pressable, StyleSheet } from 'react-native';
-import { theme } from '../theme';
+import { theme } from '../themeDark';
 import { Climber } from '../types/climber';
 
 const { width } = Dimensions.get('window');

@@ -2,8 +2,9 @@ import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
 import { getMatches } from '@/src/services/matchData';
 import { messageService } from '@/src/services/messageService';
-import { theme } from '@/src/theme';
-import { Conversation } from '@/src/types/message';
+import { theme as themeDark } from '@/src/themeDark';
+import { theme as themeLight } from '@/src/themeLight';
+import type { Conversation } from '@/src/types/message';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useState } from 'react';
@@ -20,7 +21,13 @@ export default function MessagesScreen() {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const { user, token } = useAuth();
+    const { user, token, darkMode } = useAuth();
+    const theme = darkMode ? themeDark : themeLight;
+    const styles = createStyles(theme);
+
+    // Check intents
+    const hasDatingIntent = user && (Array.isArray(user.intent) ? user.intent.includes('date') : user.intent === 'date');
+    const hasPartnerIntent = user && (Array.isArray(user.intent) ? user.intent.includes('partner') : user.intent === 'partner');
 
     useFocusEffect(
         React.useCallback(() => {
@@ -34,7 +41,8 @@ export default function MessagesScreen() {
     const loadConversations = async () => {
         if (!user?.id || !token) return;
 
-        try {           setLoading(true);
+        try {
+            setLoading(true);
             const matches = await getMatches(token, user.id);
 
             const conversationsWithMessages = await Promise.all(
@@ -60,7 +68,8 @@ export default function MessagesScreen() {
                             matchId: match.id,
                             climber: match.climber,
                             lastMessage,
-                            unreadCount
+                            unreadCount,
+                            matchType: (match.type as 'dating' | 'partner') || 'dating'
                         };
                     } catch (error) {
                         console.error('Error loading messages for match:', match.id, error);
@@ -68,7 +77,8 @@ export default function MessagesScreen() {
                             matchId: match.id,
                             climber: match.climber,
                             lastMessage: undefined,
-                            unreadCount: 0
+                            unreadCount: 0,
+                            matchType: (match.type as 'dating' | 'partner') || 'dating'
                         };
                     }
                 })
@@ -106,6 +116,12 @@ export default function MessagesScreen() {
         // Only show unread badge if there are unread messages and the last message is not sent by the user
         const showUnread = item.unreadCount > 0;
 
+        // Determine if we should show this conversation based on intents
+        const shouldShow = (item.matchType === 'dating' && hasDatingIntent) ||
+            (item.matchType === 'partner' && hasPartnerIntent);
+
+        if (!shouldShow) return null;
+
         return (
             <Pressable style={styles.conversationItem} onPress={() => openChat(item)}>
                 <Image
@@ -115,7 +131,17 @@ export default function MessagesScreen() {
 
                 <View style={styles.conversationContent}>
                     <View style={styles.headerRow}>
-                        <Text style={styles.climberName}>{item.climber.name}</Text>
+                        <View style={styles.nameAndBadgeRow}>
+                            <Text style={styles.climberName}>{item.climber.name}</Text>
+                            <View style={[
+                                styles.matchTypeBadge,
+                                item.matchType === 'dating' ? styles.datingBadge : styles.partnerBadge
+                            ]}>
+                                <Text style={styles.matchTypeBadgeText}>
+                                    {item.matchType === 'dating' ? '💕' : '🤝'}
+                                </Text>
+                            </View>
+                        </View>
                         {item.lastMessage && (
                             <Text style={styles.timestamp}>
                                 {new Date(item.lastMessage.created).toLocaleDateString()}
@@ -180,18 +206,19 @@ export default function MessagesScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: theme.colors.background,
-    },
-    centerContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 24,
-        backgroundColor: theme.colors.background,
-    },
+const createStyles = (theme: typeof themeLight) =>
+    StyleSheet.create({
+        container: {
+            flex: 1,
+            backgroundColor: theme.colors.background,
+        },
+        centerContainer: {
+            flex: 1,
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 24,
+            backgroundColor: theme.colors.background,
+        },
     title: {
         fontSize: 24,
         fontWeight: 'bold',
@@ -236,10 +263,38 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 4,
     },
+    nameAndBadgeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: 'transparent',
+    },
     climberName: {
         fontSize: 16,
         fontWeight: '600',
         color: theme.colors.text,
+    },
+    matchTypeBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    datingBadge: {
+        backgroundColor: '#FF69B4' + '20',
+        borderWidth: 1,
+        borderColor: '#FF69B4' + '40',
+    },
+    partnerBadge: {
+        backgroundColor: '#4169E1' + '20',
+        borderWidth: 1,
+        borderColor: '#4169E1' + '40',
+    },
+    matchTypeBadgeText: {
+        fontSize: 12,
+        fontWeight: '600',
+        backgroundColor: 'transparent',
     },
     timestamp: {
         fontSize: 12,

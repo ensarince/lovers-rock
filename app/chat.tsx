@@ -1,7 +1,8 @@
 import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
 import { messageService } from '@/src/services/messageService';
-import { theme } from '@/src/theme';
+import { theme as themeDark } from '@/src/themeDark';
+import { theme as themeLight } from '@/src/themeLight';
 import { Message } from '@/src/types/message';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -22,7 +23,9 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
-  const { user, token } = useAuth();
+  const { user, token, darkMode } = useAuth();
+  const theme = darkMode ? themeDark : themeLight;
+  const styles = createStyles(theme);
   const { matchId, climberName, climberId } = useLocalSearchParams();
   const router = useRouter();
   const flatListRef = useRef<FlatList>(null);
@@ -105,6 +108,14 @@ export default function ChatScreen() {
     router.back();
   };
 
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -163,108 +174,109 @@ export default function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 50,
-    paddingBottom: 16,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.text,
-    textAlign: 'center',
-  },
-  headerSpacer: {
-    width: 40,
-  },
-  messagesList: {
-    flex: 1,
-  },
-  messagesContent: {
-    padding: 16,
-    paddingBottom: 20,
-  },
-  messageContainer: {
-    marginBottom: 12,
-    maxWidth: '80%',
-    backgroundColor: 'transparent',
-  },
-  ownMessage: {
-    alignSelf: 'flex-end',
-  },
-  otherMessage: {
-    alignSelf: 'flex-start',
-  },
-  messageText: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 18,
-    fontSize: 16,
-    lineHeight: 20,
-  },
-  ownMessageText: {
-    backgroundColor: theme.colors.accent,
-    color: theme.colors.text,
-  },
-  otherMessageText: {
-    backgroundColor: theme.colors.surface,
-    color: theme.colors.text,
-  },
-  timestamp: {
-    fontSize: 10,
-    marginTop: 4,
-  },
-  ownTimestamp: {
-    color: theme.colors.textSecondary,
-    textAlign: 'right',
-  },
-  otherTimestamp: {
-    color: theme.colors.textSecondary,
-    textAlign: 'left',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 54,
-    backgroundColor: theme.colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    color: theme.colors.text,
-    fontSize: 16,
-    maxHeight: 100,
-    marginRight: 12,
-  },
-  sendButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.colors.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sendButtonDisabled: {
-    backgroundColor: '#374151',
-  },
-});
+const createStyles = (theme: typeof themeLight) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingTop: 50,
+      paddingBottom: 16,
+      backgroundColor: theme.colors.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    backButton: {
+      padding: 8,
+    },
+    headerTitle: {
+      flex: 1,
+      fontSize: 18,
+      fontWeight: '600',
+      color: theme.colors.text,
+      textAlign: 'center',
+    },
+    headerSpacer: {
+      width: 40,
+    },
+    messagesList: {
+      flex: 1,
+    },
+    messagesContent: {
+      padding: 16,
+      paddingBottom: 20,
+    },
+    messageContainer: {
+      marginBottom: 12,
+      maxWidth: '80%',
+      backgroundColor: 'transparent',
+    },
+    ownMessage: {
+      alignSelf: 'flex-end',
+    },
+    otherMessage: {
+      alignSelf: 'flex-start',
+    },
+    messageText: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 18,
+      fontSize: 16,
+      lineHeight: 20,
+    },
+    ownMessageText: {
+      backgroundColor: theme.colors.accent,
+      color: theme.colors.text,
+    },
+    otherMessageText: {
+      backgroundColor: theme.colors.surface,
+      color: theme.colors.text,
+    },
+    timestamp: {
+      fontSize: 10,
+      marginTop: 4,
+    },
+    ownTimestamp: {
+      color: theme.colors.textSecondary,
+      textAlign: 'right',
+    },
+    otherTimestamp: {
+      color: theme.colors.textSecondary,
+      textAlign: 'left',
+    },
+    inputContainer: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      paddingBottom: Platform.OS === 'ios' ? 34 : 54,
+      backgroundColor: theme.colors.surface,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
+    },
+    input: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      borderRadius: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      color: theme.colors.text,
+      fontSize: 16,
+      maxHeight: 100,
+      marginRight: 12,
+    },
+    sendButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: theme.colors.accent,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    sendButtonDisabled: {
+      backgroundColor: '#374151',
+    },
+  });

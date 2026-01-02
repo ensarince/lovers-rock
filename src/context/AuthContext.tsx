@@ -1,6 +1,6 @@
 import { authService } from '@/src/services/authService';
 import { preferenceService } from '@/src/services/preferenceService';
-import { Climber } from '@/src/types/climber'; // <-- Use Climber type
+import { Climber } from '@/src/types/climber';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
@@ -11,6 +11,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   token: string | null;
   preferencesSynced: boolean;
+  darkMode: boolean;
+  setDarkMode: (value: boolean) => void;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
@@ -26,6 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [preferencesSynced, setPreferencesSynced] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
 
   // Helper to map any record to Climber type with defaults
   const mapToClimber = (record: any): Climber => ({
@@ -48,6 +51,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const storedUser = await AsyncStorage.getItem('user');
         const storedToken = await AsyncStorage.getItem('token');
+        const storedDarkMode = await AsyncStorage.getItem('darkMode');
+        
+        if (storedDarkMode) {
+          setDarkMode(JSON.parse(storedDarkMode));
+        }
+        
         if (storedUser && storedToken) {
           const parsedUser = JSON.parse(storedUser);
           setUser(parsedUser ? mapToClimber(parsedUser) : null);
@@ -153,6 +162,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         isAuthenticated: user !== null,
         token,
         preferencesSynced,
+        darkMode,
+        setDarkMode,
         login,
         register,
         loginWithGoogle,

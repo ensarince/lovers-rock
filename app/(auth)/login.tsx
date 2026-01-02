@@ -1,6 +1,7 @@
 import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
-import { theme } from '@/src/theme'; // Add import for theme
+import { theme as themeDark } from '@/src/themeDark';
+import { theme as themeLight } from '@/src/themeLight';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import {
@@ -10,10 +11,11 @@ import {
   StyleSheet,
   TextInput,
 } from 'react-native';
-// import img_logo from "../../assets/images/logo.png";
 
 export default function LoginScreen() {
-  const { login, register, loginWithGoogle, isLoading } = useAuth();
+  const { login, register, loginWithGoogle, isLoading, darkMode } = useAuth();
+  const theme = darkMode ? themeDark : themeLight;
+  const styles = createStyles(theme);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -177,123 +179,127 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 0,
-    backgroundColor: theme.colors.background,
-  },
-  headerMinimal: {
-    alignItems: 'center',
-    marginBottom: 32,
-    gap: 8,
-  },
-  titleMinimal: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: theme.colors.text,
-    letterSpacing: 1.2,
-    marginTop: 8,
-  },
-  formMinimal: {
-    gap: 18,
-    marginBottom: 24,
-  },
-  errorMinimal: {
-    color: theme.colors.error,
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  inputMinimal: {
-    backgroundColor: theme.colors.surface,
-    borderWidth: 0,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    color: theme.colors.text,
-    fontSize: 15,
-    marginBottom: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  passwordContainerMinimal: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginBottom: 4,
-  },
-  passwordInputMinimal: {
-    flex: 1,
-    paddingVertical: 14,
-    color: theme.colors.text,
-    fontSize: 15,
-  },
-  buttonMinimal: {
-    backgroundColor: theme.colors.accent,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-    shadowColor: theme.colors.accent,
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  buttonDisabledMinimal: {
-    opacity: 0.5,
-  },
-  buttonTextMinimal: {
-    color: theme.colors.text,
-    fontWeight: '700',
-    fontSize: 16,
-    letterSpacing: 1.1,
-  },
-  dividerMinimal: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginVertical: 18,
-  },
-  lineMinimal: {
-    flex: 1,
-    height: 1,
-    backgroundColor: theme.colors.border,
-  },
-  dividerTextMinimal: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  googleButtonMinimal: {
-    flexDirection: 'row',
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    marginBottom: 12,
-  },
-  googleButtonTextMinimal: {
-    color: theme.colors.text,
-    fontWeight: '600',
-    fontSize: 15,
-    marginLeft: 8,
-  },
-  footerMinimal: {
-    textAlign: 'center',
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-    marginTop: 18,
-    fontWeight: '500',
-  },
-});
+const createStyles = (theme: typeof themeLight) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingHorizontal: 24,
+      paddingVertical: 0,
+      backgroundColor: theme.colors.background,
+    },
+    headerMinimal: {
+      alignItems: 'center',
+      marginBottom: 32,
+      gap: 8,
+      backgroundColor: "transparent"
+    },
+    titleMinimal: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: theme.colors.text,
+      letterSpacing: 1.2,
+      marginTop: 8,
+    },
+    formMinimal: {
+      gap: 18,
+      marginBottom: 24,
+      backgroundColor: "transparent"
+    },
+    errorMinimal: {
+      color: theme.colors.error,
+      fontSize: 14,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    inputMinimal: {
+      backgroundColor: theme.colors.surface,
+      borderWidth: 0,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      color: theme.colors.text,
+      fontSize: 15,
+      marginBottom: 4,
+      shadowColor: '#000',
+      shadowOpacity: 0.04,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    passwordContainerMinimal: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      marginBottom: 4,
+    },
+    passwordInputMinimal: {
+      flex: 1,
+      paddingVertical: 14,
+      color: theme.colors.text,
+      fontSize: 15,
+    },
+    buttonMinimal: {
+      backgroundColor: theme.colors.accent,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      marginTop: 8,
+      shadowColor: theme.colors.accent,
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 2,
+    },
+    buttonDisabledMinimal: {
+      opacity: 0.5,
+    },
+    buttonTextMinimal: {
+      color: theme.colors.text,
+      fontWeight: '700',
+      fontSize: 16,
+      letterSpacing: 1.1,
+    },
+    dividerMinimal: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginVertical: 18,
+      backgroundColor: "transparent"
+    },
+    lineMinimal: {
+      flex: 1,
+      height: 1,
+      backgroundColor: theme.colors.border,
+    },
+    dividerTextMinimal: {
+      color: theme.colors.textSecondary,
+      fontSize: 12,
+      fontWeight: '500',
+    },
+    googleButtonMinimal: {
+      flexDirection: 'row',
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      marginBottom: 12,
+    },
+    googleButtonTextMinimal: {
+      color: theme.colors.text,
+      fontWeight: '600',
+      fontSize: 15,
+      marginLeft: 8,
+    },
+    footerMinimal: {
+      textAlign: 'center',
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      marginTop: 18,
+      fontWeight: '500',
+    },
+  });

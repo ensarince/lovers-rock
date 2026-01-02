@@ -1,5 +1,7 @@
 import { Text } from '@/components/Themed';
-import { theme } from '@/src/theme'; // Add import for theme
+import { useAuth } from '@/src/context/AuthContext';
+import { theme as themeDark } from '@/src/themeDark';
+import { theme as themeLight } from '@/src/themeLight';
 import { Climber, ClimbingGrade } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
@@ -18,19 +20,23 @@ interface ClimberDetailModalProps {
   onClose: () => void;
 }
 
-const gradeColors: Record<ClimbingGrade, string> = {
-  beginner: theme.colors.success, // Use theme success
-  intermediate: '#f59e0b', // Keep or map to theme
-  advanced: theme.colors.error,
-  expert: '#8b5cf6', // Keep or map
-  elite: theme.colors.accent,
-};
-
 export const ClimberDetailModal: React.FC<ClimberDetailModalProps> = ({
   climber,
   visible,
   onClose,
 }) => {
+  const { darkMode } = useAuth();
+  const theme = darkMode ? themeDark : themeLight;
+  const styles = createStyles(theme);
+
+  const gradeColors: Record<ClimbingGrade, string> = {
+    beginner: theme.colors.success,
+    intermediate: '#f59e0b',
+    advanced: theme.colors.error,
+    expert: '#8b5cf6',
+    elite: theme.colors.accent,
+  };
+
   if (!climber) return null;
 
   return (
@@ -129,127 +135,128 @@ export const ClimberDetailModal: React.FC<ClimberDetailModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingTop: 40,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.text,
-  },
-  closeButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    flex: 1,
-  },
-  profileImage: {
-    width: '100%',
-    height: 400,
-    backgroundColor: theme.colors.surface,
-  },
-  infoSection: {
-    padding: 20,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-  },
-  name: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: theme.colors.text,
-    marginBottom: 4,
-  },
-  gym: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-  },
-  bioSection: {
-    marginBottom: 24,
-  },
-  bioLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginBottom: 8,
-  },
-  bio: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    lineHeight: 22,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginBottom: 12,
-  },
-  badge: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
-    alignSelf: 'flex-start',
-  },
-  largeBadge: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  badgeText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.text,
-  },
-  styleBadge: {
-    backgroundColor: 'rgba(236, 72, 153, 0.2)',
-    borderWidth: 1,
-    borderColor: theme.colors.accent,
-  },
-  stylesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  statsSection: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    gap: 12,
-  },
-  stat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  statText: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-  },
-});
+const createStyles = (theme: typeof themeLight) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      paddingTop: 40,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      overflow: 'hidden',
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    closeButton: {
+      width: 44,
+      height: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    content: {
+      flex: 1,
+    },
+    profileImage: {
+      width: '100%',
+      height: 400,
+      backgroundColor: theme.colors.surface,
+    },
+    infoSection: {
+      padding: 20,
+    },
+    nameRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 20,
+    },
+    name: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginBottom: 4,
+    },
+    gym: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+    },
+    bioSection: {
+      marginBottom: 24,
+    },
+    bioLabel: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 8,
+    },
+    bio: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      lineHeight: 22,
+    },
+    section: {
+      marginBottom: 24,
+    },
+    label: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 12,
+    },
+    badge: {
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 24,
+      alignSelf: 'flex-start',
+    },
+    largeBadge: {
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+    },
+    badgeText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    styleBadge: {
+      backgroundColor: 'rgba(236, 72, 153, 0.2)',
+      borderWidth: 1,
+      borderColor: theme.colors.accent,
+    },
+    stylesContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    statsSection: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      gap: 12,
+    },
+    stat: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    statText: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+    },
+  });

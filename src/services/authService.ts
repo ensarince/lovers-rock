@@ -35,6 +35,7 @@ export const authService = {
         email,
         password,
         passwordConfirm,
+        intent: ['date', 'partner'], // Default both enabled
       });
       return data;
     } catch (error: any) {

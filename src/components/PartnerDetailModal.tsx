@@ -1,4 +1,6 @@
-import { theme } from '@/src/theme';
+import { useAuth } from '@/src/context/AuthContext';
+import { theme as themeDark } from '@/src/themeDark';
+import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
 import React from 'react';
 import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -12,6 +14,10 @@ interface PartnerDetailModalProps {
 }
 
 export default function PartnerDetailModal({ visible, climber, onClose, onSendRequest, requestSent }: PartnerDetailModalProps) {
+  const { darkMode } = useAuth();
+  const theme = darkMode ? themeDark : themeLight;
+  const styles = createStyles(theme);
+
   // Always render the modal, but show empty content if no climber
   const getImageUrl = () => {
     if (climber && climber.avatar && climber.id) {
@@ -62,62 +68,63 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modal: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 16,
-    padding: 24,
-    width: '85%',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    color: theme.colors.text,
-  },
-  detail: {
-    fontSize: 15,
-    color: theme.colors.textSecondary,
-    marginBottom: 6,
-  },
-  closeButton: {
-    marginTop: 18,
-    backgroundColor: theme.colors.border,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-  },
-  closeButtonText: {
-    color: theme.colors.text,
-    fontWeight: '600',
-  },
-   profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 16,
-    backgroundColor: '#eee',
-  },
-  requestButton: {
-    marginTop: 12,
-    backgroundColor: theme.colors.accent,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 22,
-  },
-  requestButtonSent: {
-    backgroundColor: theme.colors.success,
-  },
-  requestButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-});
+const createStyles = (theme: typeof themeLight) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.3)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    modal: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      padding: 24,
+      width: '85%',
+      alignItems: 'center',
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: 'bold',
+      marginBottom: 12,
+      color: theme.colors.text,
+    },
+    detail: {
+      fontSize: 15,
+      color: theme.colors.textSecondary,
+      marginBottom: 6,
+    },
+    closeButton: {
+      marginTop: 18,
+      backgroundColor: theme.colors.border,
+      borderRadius: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 18,
+    },
+    closeButtonText: {
+      color: theme.colors.text,
+      fontWeight: '600',
+    },
+    profileImage: {
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      marginBottom: 16,
+      backgroundColor: '#eee',
+    },
+    requestButton: {
+      marginTop: 12,
+      backgroundColor: theme.colors.accent,
+      borderRadius: 8,
+      paddingVertical: 10,
+      paddingHorizontal: 22,
+    },
+    requestButtonSent: {
+      backgroundColor: theme.colors.success,
+    },
+    requestButtonText: {
+      color: '#fff',
+      fontWeight: '700',
+      fontSize: 16,
+    },
+  });

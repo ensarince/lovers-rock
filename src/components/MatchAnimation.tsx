@@ -2,7 +2,7 @@ import { Text, View } from '@/components/Themed';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet } from 'react-native';
-import { theme } from '../theme';
+import { theme } from '../themeDark';
 import { Climber } from '../types/climber';
 
 interface MatchAnimationProps {

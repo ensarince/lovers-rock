@@ -1,8 +1,12 @@
-import { theme } from '@/src/theme';
+import { useAuth } from '@/src/context/AuthContext';
+import { theme as themeDark } from '@/src/themeDark';
+import { theme as themeLight } from '@/src/themeLight';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 
 export default function TabLayout() {
+  const { darkMode } = useAuth();
+  const theme = darkMode ? themeDark : themeLight;
   return (
     <Tabs
       screenOptions={{
@@ -22,25 +26,12 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="dating"
+        name="discover"
         options={{
-          title: 'Dating',
+          title: 'Discover',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'search' : 'search-outline'}
-              color={color}
-              size={24}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="partner"
-        options={{
-          title: 'Partner',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'people' : 'people-outline'}
               color={color}
               size={24}
             />

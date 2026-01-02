@@ -1,5 +1,7 @@
 import { Text } from '@/components/Themed';
-import { theme } from '@/src/theme';
+import { useAuth } from '@/src/context/AuthContext';
+import { theme as themeDark } from '@/src/themeDark';
+import { theme as themeLight } from '@/src/themeLight';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
 import {
@@ -47,6 +49,10 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   onApplyFilters,
   currentFilters,
 }) => {
+  const { darkMode } = useAuth();
+  const theme = darkMode ? themeDark : themeLight;
+  const styles = createStyles(theme);
+
   const [selectedGrades, setSelectedGrades] = useState<string[]>(
     currentFilters.grade || []
   );
@@ -205,140 +211,141 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingTop: 40,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    overflow: 'hidden',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.colors.text,
-  },
-  closeButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  section: {
-    marginVertical: 16,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.text,
-    marginBottom: 12,
-  },
-  ageInputs: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  ageInput: {
-    flex: 1,
-  },
-  ageLabel: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    marginBottom: 4,
-  },
-  ageDash: {
-    color: theme.colors.textSecondary,
-    fontSize: 16,
-    marginBottom: 16,
-  },
-  input: {
-    backgroundColor: theme.colors.surface,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: theme.colors.text,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    fontSize: 14,
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  filterButton: {
-    flex: 1,
-    minWidth: '30%',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    backgroundColor: theme.colors.surface,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  filterButtonActive: {
-    backgroundColor: theme.colors.accent,
-    borderColor: theme.colors.accent,
-  },
-  filterButtonText: {
-    color: theme.colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  filterButtonTextActive: {
-    color: theme.colors.text,
-  },
-  footer: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-  },
-  resetButton: {
-    flex: 1,
-    backgroundColor: theme.colors.surface,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  resetButtonText: {
-    color: theme.colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  applyButton: {
-    flex: 1,
-    backgroundColor: theme.colors.accent,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  applyButtonText: {
-    color: theme.colors.text,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});
+const createStyles = (theme: typeof themeLight) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      paddingTop: 40,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      overflow: 'hidden',
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    closeButton: {
+      width: 44,
+      height: 44,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: 16,
+    },
+    section: {
+      marginVertical: 16,
+    },
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 12,
+    },
+    ageInputs: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    ageInput: {
+      flex: 1,
+    },
+    ageLabel: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      marginBottom: 4,
+    },
+    ageDash: {
+      color: theme.colors.textSecondary,
+      fontSize: 16,
+      marginBottom: 16,
+    },
+    input: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      color: theme.colors.text,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      fontSize: 14,
+    },
+    buttonGroup: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    filterButton: {
+      flex: 1,
+      minWidth: '30%',
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 8,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    filterButtonActive: {
+      backgroundColor: theme.colors.accent,
+      borderColor: theme.colors.accent,
+    },
+    filterButtonText: {
+      color: theme.colors.textSecondary,
+      fontSize: 12,
+      fontWeight: '500',
+    },
+    filterButtonTextActive: {
+      color: theme.colors.text,
+    },
+    footer: {
+      flexDirection: 'row',
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
+    },
+    resetButton: {
+      flex: 1,
+      backgroundColor: theme.colors.surface,
+      paddingVertical: 12,
+      borderRadius: 8,
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    resetButtonText: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    applyButton: {
+      flex: 1,
+      backgroundColor: theme.colors.accent,
+      paddingVertical: 12,
+      borderRadius: 8,
+      alignItems: 'center',
+    },
+    applyButtonText: {
+      color: theme.colors.text,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+  });

@@ -17,4 +17,5 @@ export interface Conversation {
   };
   lastMessage?: Message;
   unreadCount: number;
+  matchType: 'dating' | 'partner';
 }

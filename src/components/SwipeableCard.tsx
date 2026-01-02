@@ -1,5 +1,5 @@
 import { Text } from '@/components/Themed';
-import { theme } from '@/src/theme';
+import { theme } from '@/src/themeDark';
 import { Climber, ClimbingGrade } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';

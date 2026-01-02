@@ -42,4 +42,6 @@ yarn-error.*
 /android
 
 #pocketbase folder
-Pocketbase/
+pocketbase/
+
+brainstorm/
