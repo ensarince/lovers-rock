@@ -9,6 +9,7 @@ import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -57,7 +58,7 @@ export default function DiscoverScreen() {
   // Toggle between dating and partner finding
   const [isDatingMode, setIsDatingMode] = useState(true);
 
-  const { token, user, preferencesSynced, darkMode } = useAuth();
+  const { token, user, preferencesSynced, darkMode, setUser } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
 
@@ -159,6 +160,20 @@ export default function DiscoverScreen() {
     const loadPartnerData = async () => {
       try {
         if (!token || !user) return;
+        
+        // Fetch fresh user data to get latest liked_users
+        const userRes = await fetch(`${POCKETBASE_URL}/api/collections/users/records/${user.id}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (userRes.ok) {
+          const freshUser = await userRes.json();
+          setUser({ ...user, liked_users: freshUser.liked_users });
+        }
+        
         const data = await getAllAccounts(token);
         // Only show users with 'partner' intent, exclude self
         let filtered = data.filter(
@@ -322,13 +337,11 @@ export default function DiscoverScreen() {
   };
 
   // Send partner request
-  const handleSendPartnerRequest = async (climber: Climber) => {
+  const handleSendPartnerRequest = async (climber: Climber, isRemoving?: boolean) => {
     if (!user || !token) {
       return;
     }
-    if (acceptedUserIds.includes(climber.id)) {
-      return;
-    }
+    
     try {
       // Fetch my own user record
       const res = await fetch(`${POCKETBASE_URL}/api/collections/users/records/${user.id}`, {
@@ -345,7 +358,14 @@ export default function DiscoverScreen() {
       else if (typeof me.liked_users === 'string') {
         try { likedUsers = JSON.parse(me.liked_users); } catch { likedUsers = []; }
       }
-      if (!likedUsers.includes(climber.id)) likedUsers.push(climber.id);
+      
+      // Add or remove climber from liked_users
+      if (isRemoving) {
+        likedUsers = likedUsers.filter(id => id !== climber.id);
+      } else {
+        if (!likedUsers.includes(climber.id)) likedUsers.push(climber.id);
+      }
+      
       // PATCH my liked_users
       const patchRes = await fetch(`${POCKETBASE_URL}/api/collections/users/records/${user.id}`, {
         method: 'PATCH',
@@ -355,8 +375,11 @@ export default function DiscoverScreen() {
         },
         body: JSON.stringify({ liked_users: likedUsers }),
       });
-      setRequestSentIds((prev) => [...prev, climber.id]);
-      setAcceptedUserIds((prev) => [...prev, climber.id]);
+      
+      // Update context
+      const updatedUser = { ...user, liked_users: likedUsers };
+      setUser(updatedUser);
+      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
     } catch (e) {
       console.log('Error in handleSendPartnerRequest', e);
     }
@@ -616,7 +639,6 @@ export default function DiscoverScreen() {
         climber={partnerModalVisible ? selectedPartner : null}
         onClose={closePartnerModal}
         onSendRequest={handleSendPartnerRequest}
-        requestSent={selectedPartner ? requestSentIds.includes(selectedPartner.id) : false}
       />
     </View>
   );

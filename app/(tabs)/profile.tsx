@@ -307,7 +307,7 @@ export default function ProfileScreen() {
                     { color: intent.includes(opt) ? '#fff' : theme.colors.text },
                   ]}
                 >
-                  {opt === 'partner' ? '🧗 Climbing Partner' : '💕 Dating'}
+                  {opt === 'partner' ? '🧗 Climbing Partner' : '💕 Climbing Date'}
                 </Text>
               </Pressable>
             ))}

@@ -9,15 +9,25 @@ interface PartnerDetailModalProps {
   visible: boolean;
   climber: Climber | null;
   onClose: () => void;
-  onSendRequest: (climber: Climber) => void;
-  requestSent?: boolean;
+  onSendRequest: (climber: Climber, isRemoving?: boolean) => void;
 }
 
-export default function PartnerDetailModal({ visible, climber, onClose, onSendRequest, requestSent }: PartnerDetailModalProps) {
-  const { darkMode } = useAuth();
+export default function PartnerDetailModal({ visible, climber, onClose, onSendRequest }: PartnerDetailModalProps) {
+  const { darkMode, user } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
   const [imageExpanded, setImageExpanded] = React.useState(false);
+  const [isRequestSent, setIsRequestSent] = React.useState(false);
+
+  // Check if climber is in liked_users when climber changes
+  React.useEffect(() => {
+    if (climber && user && Array.isArray(user.liked_users)) {
+      const isLiked = user.liked_users.includes(climber.id);
+      setIsRequestSent(isLiked);
+    } else {
+      setIsRequestSent(false);
+    }
+  }, [climber, user]);
 
   // Always render the modal, but show empty content if no climber
   const getImageUrl = () => {
@@ -27,8 +37,7 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
     }
     return undefined;
   };
-  React.useEffect(() => {
-  }, [visible, climber, requestSent]);
+
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
@@ -53,13 +62,12 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                 <Text style={styles.closeButtonText}>Close</Text>
               </Pressable>
               <Pressable
-                style={[styles.requestButton, requestSent && styles.requestButtonSent]}
+                style={[styles.requestButton, isRequestSent && styles.requestButtonSent]}
                 onPress={() => {
-                  onSendRequest(climber);
+                  onSendRequest(climber, isRequestSent);
                 }}
-                disabled={requestSent}
               >
-                <Text style={styles.requestButtonText}>{requestSent ? 'Request Sent' : 'Send Partner Request'}</Text>
+                <Text style={styles.requestButtonText}>{isRequestSent ? 'Request Sent' : 'Send Partner Request'}</Text>
               </Pressable>
             </>
           ) : (
