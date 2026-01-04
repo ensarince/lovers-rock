@@ -17,6 +17,7 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
   const { darkMode } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
+  const [imageExpanded, setImageExpanded] = React.useState(false);
 
   // Always render the modal, but show empty content if no climber
   const getImageUrl = () => {
@@ -35,7 +36,9 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
           {climber ? (
             <>
               {getImageUrl() ? (
-                <Image source={{ uri: getImageUrl() }} style={styles.profileImage} />
+                <Pressable onPress={() => setImageExpanded(true)}>
+                  <Image source={{ uri: getImageUrl() }} style={styles.profileImage} />
+                </Pressable>
               ) : (
                 <View style={[styles.profileImage, { backgroundColor: '#ccc', alignItems: 'center', justifyContent: 'center' }]}> 
                   <Text style={{ color: '#fff', fontSize: 32 }}>?</Text>
@@ -64,6 +67,15 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
           )}
         </View>
       </View>
+      
+      {/* Expanded Image Modal */}
+      <Modal visible={imageExpanded} transparent animationType="fade">
+        <Pressable style={styles.expandedImageOverlay} onPress={() => setImageExpanded(false)}>
+          {getImageUrl() && (
+            <Image source={{ uri: getImageUrl() }} style={styles.expandedImage} />
+          )}
+        </Pressable>
+      </Modal>
     </Modal>
   );
 }
@@ -126,5 +138,16 @@ const createStyles = (theme: typeof themeLight) =>
       color: '#fff',
       fontWeight: '700',
       fontSize: 16,
+    },
+    expandedImageOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.95)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    expandedImage: {
+      width: '100%',
+      height: '100%',
+      resizeMode: 'contain',
     },
   });

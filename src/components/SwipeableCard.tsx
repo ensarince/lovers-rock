@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     width: '90%',
     height: '80%',
     maxHeight: 600,
-    marginBottom: 30,
+    marginBottom: 80,
     marginHorizontal: 'auto',
   },
   cardShadow: {

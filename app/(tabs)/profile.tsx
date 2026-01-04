@@ -50,6 +50,7 @@ export default function ProfileScreen() {
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
+  const [imageExpanded, setImageExpanded] = useState(false);
 
   // Profile fields
   const [name, setName] = useState(typedUser?.name || '');
@@ -95,6 +96,35 @@ export default function ProfileScreen() {
   const handleDarkModeToggle = async (value: boolean) => {
     setDarkMode(value);
     await AsyncStorage.setItem('darkMode', JSON.stringify(value));
+  };
+
+  const handleIntentChange = async (selectedIntent: string) => {
+    try {
+      const newIntent: string[] = intent.includes(selectedIntent)
+        ? intent.filter(i => i !== selectedIntent)
+        : [...intent, selectedIntent];
+
+      setIntent(newIntent);
+
+      // Save to database immediately
+      await pb.collection('users').update(user?.id!, {
+        intent: newIntent,
+      });
+      if (user) {
+        const updatedUser: Climber = {
+          ...user,
+          intent: newIntent as ("partner" | "date")[],
+        };
+        setUser(updatedUser);
+        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+    } catch (e: any) {
+      let errorMsg = 'Failed to update intent.';
+      if (e?.message) errorMsg += '\n' + e.message;
+      Alert.alert('Error', errorMsg);
+      // Revert on error
+      setIntent(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
+    }
   };
 
   const pickImage = async () => {
@@ -227,7 +257,7 @@ export default function ProfileScreen() {
       <View style={styles.containerMinimal}>
         <View style={styles.headerWithSettingsRow}>
           <View style={styles.headerMinimal}>
-            <Pressable onPress={editMode ? pickImage : undefined}>
+            <Pressable onPress={editMode ? pickImage : () => setImageExpanded(true)}>
               {getAvatarUrl() ? (
                 <Image
                   source={{ uri: getAvatarUrl() }}
@@ -251,6 +281,37 @@ export default function ProfileScreen() {
           >
             <Ionicons name="settings" size={24} color={theme.colors.text} />
           </Pressable>
+        </View>
+
+        {/* Intent Selection Card */}
+        <View style={[styles.intentCard, { marginHorizontal: 24, marginBottom: 24 }]}>
+          <Text style={[styles.intentTitle, { color: theme.colors.text }]}>What are you looking for?</Text>
+          <View style={{
+            flexDirection: 'row', gap: 12, justifyContent: 'center', flexWrap: 'wrap', backgroundColor: "transparent"
+          }}>
+            {['partner', 'date'].map(opt => (
+              <Pressable
+                key={opt}
+                style={[
+                  styles.intentOptionCard,
+                  {
+                    backgroundColor: intent.includes(opt) ? theme.colors.accent : theme.colors.surface,
+                    borderColor: intent.includes(opt) ? theme.colors.accent : theme.colors.border,
+                  },
+                ]}
+                onPress={() => handleIntentChange(opt)}
+              >
+                <Text
+                  style={[
+                    styles.intentOptionText,
+                    { color: intent.includes(opt) ? '#fff' : theme.colors.text },
+                  ]}
+                >
+                  {opt === 'partner' ? '🧗 Climbing Partner' : '💕 Dating'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
 
         <View style={styles.userInfoMinimal}>
@@ -315,47 +376,11 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.infoCardMinimal}>
-            <Text style={styles.labelMinimal}>Intent</Text>
-            {editMode ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, backgroundColor: "transparent" }}>
-                {['partner', 'date'].map(opt => (
-                  <Pressable
-                    key={opt}
-                    style={{
-                      padding: 8,
-                      backgroundColor: intent.includes(opt) ? theme.colors.accent : theme.colors.surface,
-                      borderRadius: 8,
-                      margin: 2,
-                    }}
-                    onPress={() => {
-                      setIntent(intent.includes(opt)
-                        ? intent.filter(i => i !== opt)
-                        : [...intent, opt]);
-                    }}
-                  >
-                    <Text style={{ color: theme.colors.text }}>
-                      {opt === 'partner' ? 'Climbing Partner' : 'Dating'}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.valueMinimal}>
-                {intent.length === 0
-                  ? 'Not set'
-                  : intent.length === 2
-                    ? 'Climbing Partner, Dating'
-                    : intent[0] === 'partner'
-                      ? 'Climbing Partner'
-                      : 'Dating'}
-              </Text>
-            )}
-          </View>
-          <View style={styles.infoCardMinimal}>
             <Text style={styles.labelMinimal}>Climbing Styles</Text>
             {editMode ? (
               <View style={{
-                flexDirection: 'row', flexWrap: 'wrap', gap: 8, backgroundColor: "transparent" }}>
+                flexDirection: 'row', flexWrap: 'wrap', gap: 8, backgroundColor: "transparent"
+              }}>
                 {CLIMBING_STYLES.map(style => (
                   <Pressable
                     key={style}
@@ -457,6 +482,15 @@ export default function ProfileScreen() {
           )}
         </Pressable>
       </View>
+
+      {/* Expanded Avatar Modal */}
+      <Modal visible={imageExpanded} transparent animationType="fade">
+        <Pressable style={styles.expandedImageOverlay} onPress={() => setImageExpanded(false)}>
+          {getAvatarUrl() && (
+            <Image source={{ uri: getAvatarUrl() }} style={styles.expandedImage} />
+          )}
+        </Pressable>
+      </Modal>
 
       {/* Settings Modal */}
       <Modal
@@ -641,5 +675,45 @@ const createStyles = (theme: typeof themeLight) =>
       top: 16,
       right: 16,
       padding: 8,
-    }
+    },
+    expandedImageOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.95)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    expandedImage: {
+      width: '100%',
+      height: '100%',
+      resizeMode: 'contain',
+    },
+    intentCard: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      padding: 18,
+      shadowColor: '#000',
+      shadowOpacity: 0.04,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    intentTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      marginBottom: 12,
+      textAlign: 'center',
+    },
+    intentOptionCard: {
+      borderWidth: 2,
+      borderRadius: 10,
+      paddingVertical: 8,
+      paddingHorizontal: 8,
+      minWidth: '45%',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    intentOptionText: {
+      fontSize: 16,
+      fontWeight: '600',
+      textAlign: 'center',
+    },
   });

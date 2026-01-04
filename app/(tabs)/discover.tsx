@@ -94,7 +94,7 @@ export default function DiscoverScreen() {
     };
     fetchAccepted();
   }, [user?.id, token, requestSentIds]);
-
+  
   // Load dating mode data
   useEffect(() => {
     const loadDatingData = async () => {
@@ -661,7 +661,7 @@ const createStyles = (theme: typeof themeLight) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginHorizontal: 12,
+      marginHorizontal: 20,
       marginVertical: 8,
       paddingHorizontal: 0,
       paddingVertical: 0,
