@@ -95,7 +95,7 @@ export default function DiscoverScreen() {
     };
     fetchAccepted();
   }, [user?.id, token, requestSentIds]);
-  
+
   // Load dating mode data
   useEffect(() => {
     const loadDatingData = async () => {
@@ -160,7 +160,7 @@ export default function DiscoverScreen() {
     const loadPartnerData = async () => {
       try {
         if (!token || !user) return;
-        
+
         // Fetch fresh user data to get latest liked_users
         const userRes = await fetch(`${POCKETBASE_URL}/api/collections/users/records/${user.id}`, {
           method: 'GET',
@@ -173,7 +173,7 @@ export default function DiscoverScreen() {
           const freshUser = await userRes.json();
           setUser({ ...user, liked_users: freshUser.liked_users });
         }
-        
+
         const data = await getAllAccounts(token);
         // Only show users with 'partner' intent, exclude self
         let filtered = data.filter(
@@ -341,7 +341,7 @@ export default function DiscoverScreen() {
     if (!user || !token) {
       return;
     }
-    
+
     try {
       // Fetch my own user record
       const res = await fetch(`${POCKETBASE_URL}/api/collections/users/records/${user.id}`, {
@@ -358,14 +358,14 @@ export default function DiscoverScreen() {
       else if (typeof me.liked_users === 'string') {
         try { likedUsers = JSON.parse(me.liked_users); } catch { likedUsers = []; }
       }
-      
+
       // Add or remove climber from liked_users
       if (isRemoving) {
         likedUsers = likedUsers.filter(id => id !== climber.id);
       } else {
         if (!likedUsers.includes(climber.id)) likedUsers.push(climber.id);
       }
-      
+
       // PATCH my liked_users
       const patchRes = await fetch(`${POCKETBASE_URL}/api/collections/users/records/${user.id}`, {
         method: 'PATCH',
@@ -375,13 +375,13 @@ export default function DiscoverScreen() {
         },
         body: JSON.stringify({ liked_users: likedUsers }),
       });
-      
+
       // Update context
       const updatedUser = { ...user, liked_users: likedUsers };
       setUser(updatedUser);
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
     } catch (e) {
-      console.log('Error in handleSendPartnerRequest', e);
+      if (process.env.EXPO_DEV_MODE) console.log('Error in handleSendPartnerRequest', e);
     }
   };
 
@@ -445,7 +445,7 @@ export default function DiscoverScreen() {
     setFilteredClimbers(prev => prev.filter(c => c.id !== climber.id));
 
     setCurrentIndex((prev) => prev + 1);
-    console.log('Rejected:', climber.name);
+    if (process.env.EXPO_DEV_MODE) console.log('Rejected:', climber.name);
   };
 
   const currentClimber = filteredClimbers.length > 0 ? filteredClimbers[currentIndex] : null;

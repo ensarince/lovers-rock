@@ -15,7 +15,7 @@ interface AuthContextType {
   setDarkMode: (value: boolean) => void;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
+  //loginWithGoogle: () => Promise<void>;
   logout: () => void;
 }
 
@@ -52,11 +52,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const storedUser = await AsyncStorage.getItem('user');
         const storedToken = await AsyncStorage.getItem('token');
         const storedDarkMode = await AsyncStorage.getItem('darkMode');
-        
+
         if (storedDarkMode) {
           setDarkMode(JSON.parse(storedDarkMode));
         }
-        
+
         if (storedUser && storedToken) {
           const parsedUser = JSON.parse(storedUser);
           setUser(parsedUser ? mapToClimber(parsedUser) : null);
@@ -88,7 +88,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const login = async (email: string, password: string) => {
-    setIsLoading(true);
     setPreferencesSynced(false);
     try {
       const authData = await authService.login(email, password);
@@ -101,10 +100,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       preferenceService.reset();
       await preferenceService.syncPreferences(authData.token, authData.record.id);
       setPreferencesSynced(true);
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 1000);
     } catch (error) {
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -121,8 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } */
   };
 
-  const loginWithGoogle = async () => {
-    setIsLoading(true);
+  /* const loginWithGoogle = async () => {
     setPreferencesSynced(false);
     try {
       const authData = await authService.loginWithGoogle();
@@ -135,12 +135,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       preferenceService.reset();
       await preferenceService.syncPreferences(authData.token, authData.record.id);
       setPreferencesSynced(true);
+      setIsLoading(true);
+      setIsLoading(false);
     } catch (error) {
       throw error;
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }; */
 
   const logout = async () => {
     authService.logout();
@@ -166,7 +166,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setDarkMode,
         login,
         register,
-        loginWithGoogle,
+        /* loginWithGoogle, */
         logout,
       }}>
       {children}

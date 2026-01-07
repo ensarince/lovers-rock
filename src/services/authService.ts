@@ -5,23 +5,25 @@ let pb = new PocketBase(POCKETBASE_URL);
 
 // Verify PocketBase connection on startup
 const verifyConnection = async () => {
-  console.log('🔍 Attempting to connect to:', POCKETBASE_URL);
+  if (process.env.EXPO_DEV_MODE) console.log('🔍 Attempting to connect to:', POCKETBASE_URL);
   try {
-    console.log('📡 Sending fetch request...');
+    if (process.env.EXPO_DEV_MODE) console.log('📡 Sending fetch request...');
     const response = await fetch(`${POCKETBASE_URL}/api/health`, {
       method: 'GET',
     });
-    console.log('📊 Response received:', response.status, response.statusText);
+    if (process.env.EXPO_DEV_MODE) console.log('📊 Response received:', response.status, response.statusText);
     if (response.ok) {
-      console.log('✓ Connected to PocketBase');
+      if (process.env.EXPO_DEV_MODE) console.log('✓ Connected to PocketBase');
     } else {
-      console.warn('⚠ PocketBase responded with status:', response.status);
+      if (process.env.EXPO_DEV_MODE) console.warn('⚠ PocketBase responded with status:', response.status);
     }
   } catch (error: any) {
-    console.error('✗ Fetch failed');
-    console.error('Error type:', error.constructor.name);
-    console.error('Error message:', error.message);
-    console.error('URL attempted:', POCKETBASE_URL);
+    if (process.env.EXPO_DEV_MODE) {
+      console.error('✗ Fetch failed');
+      console.error('Error type:', error.constructor.name);
+      console.error('Error message:', error.message);
+      console.error('URL attempted:', POCKETBASE_URL);
+    }
   }
 };
 
@@ -60,17 +62,17 @@ export const authService = {
   },
 
   // Google OAuth login
-  async loginWithGoogle() {
-    try {
-      const authData = await pb
-        .collection('users')
-        .authWithOAuth2({ provider: 'google' });
-      return authData;
-    } catch (error: any) {
-      throw new Error(error.message || 'Google login failed');
-    }
-  },
-
+  /*   async loginWithGoogle() {
+      try {
+        const authData = await pb
+          .collection('users')
+          .authWithOAuth2({ provider: 'google' });
+        return authData;
+      } catch (error: any) {
+        throw new Error(error.message || 'Google login failed');
+      }
+    },
+   */
   // Logout
   logout() {
     pb.authStore.clear();

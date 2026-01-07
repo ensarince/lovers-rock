@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 
 export default function LoginScreen() {
-  const { login, register, loginWithGoogle, isLoading, darkMode } = useAuth();
+  const { login, register, /* loginWithGoogle, */ isLoading, darkMode } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
   const [email, setEmail] = useState('');
@@ -59,19 +59,21 @@ export default function LoginScreen() {
       await register(email, password);
     } catch (err: any) {
       setError(err.message || 'Signup failed');
-      console.log("Signup error:", err);
-      console.log('Caught error in handleSignup:', err);
+      if (process.env.EXPO_DEV_MODE) {
+        console.log("Signup error:", err);
+        console.log('Caught error in handleSignup:', err);
+      }
     }
   };
 
-  const handleGoogleAuth = async () => {
+  /* const handleGoogleAuth = async () => {
     try {
       setError(null);
       await loginWithGoogle();
     } catch (err: any) {
       setError(err.message || 'Google authentication failed');
     }
-  };
+  }; */
 
   return (
     <View style={styles.container}>
@@ -150,7 +152,7 @@ export default function LoginScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.dividerMinimal}>
+      {/* <View style={styles.dividerMinimal}>
         <View style={styles.lineMinimal} />
         <Text style={styles.dividerTextMinimal}>or</Text>
         <View style={styles.lineMinimal} />
@@ -164,7 +166,7 @@ export default function LoginScreen() {
         <Text style={styles.googleButtonTextMinimal}>
           {isSignup ? 'Sign Up' : 'Login'} with Google
         </Text>
-      </Pressable>
+      </Pressable> */}
 
       <Pressable onPress={() => {
         setIsSignup(!isSignup);
@@ -233,6 +235,10 @@ const createStyles = (theme: typeof themeLight) =>
       borderRadius: 12,
       paddingHorizontal: 16,
       marginBottom: 4,
+      shadowColor: '#000',
+      shadowOpacity: 0.04,
+      shadowRadius: 2,
+      elevation: 1,
     },
     passwordInputMinimal: {
       flex: 1,

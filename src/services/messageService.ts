@@ -70,7 +70,7 @@ export class MessageService {
   subscribeToMessages(userId: string, callback: (message: Message) => void) {
     // TODO: Implement real-time subscriptions for React Native
     // EventSource is not available in React Native, so we'll use polling or another approach
-    console.log('Real-time subscriptions not implemented for React Native yet');
+    if (process.env.EXPO_DEV_MODE) console.log('Real-time subscriptions not implemented for React Native yet');
     return () => {}; // Return empty unsubscribe function
   }
 

@@ -16,7 +16,7 @@ class PreferenceService {
   // Sync preferences with server
   async syncPreferences(token: string | null, userId: string): Promise<void> {
     if (!token) {
-      console.log('⚠️ No token for syncing preferences');
+      if (process.env.EXPO_DEV_MODE) console.log('⚠️ No token for syncing preferences');
       return;
     }
     
