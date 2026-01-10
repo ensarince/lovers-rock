@@ -146,7 +146,7 @@ export default function DiscoverScreen() {
         setError(null);
       } catch (err) {
         setError('Failed to load climbers');
-        console.error(err);
+        if (process.env.EXPO_DEV_MODE) console.error(err);
       }
     };
 
@@ -388,11 +388,11 @@ export default function DiscoverScreen() {
 
   const handleAccept = async (climber: Climber) => {
     if (!user?.id) {
-      console.error('❌ No user ID available for liking!');
+      if (process.env.EXPO_DEV_MODE) console.error('❌ No user ID available for liking!');
       return;
     }
     if (!token) {
-      console.error('❌ No token available for liking!');
+      if (process.env.EXPO_DEV_MODE) console.error('❌ No token available for liking!');
       return;
     }
 
@@ -420,7 +420,7 @@ export default function DiscoverScreen() {
         }
       }
     } catch (error) {
-      console.error('Error checking for match:', error);
+      if (process.env.EXPO_DEV_MODE) console.error('Error checking for match:', error);
     }
 
     // Update filtered climbers to exclude the newly liked user

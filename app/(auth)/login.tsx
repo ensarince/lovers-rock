@@ -1,5 +1,6 @@
 import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
+import { authService } from '@/src/services/authService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -23,6 +24,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
+  const [verificationStep, setVerificationStep] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -38,31 +40,56 @@ export default function LoginScreen() {
     }
   };
 
-  const handleSignup = async () => {
+  const handleSignup = async () => {    
     if (!email || !password || !confirmPassword) {
+      if (process.env.EXPO_DEV_MODE) console.log('❌ Missing fields:', { email: !!email, password: !!password, confirmPassword: !!confirmPassword });
       setError('Please fill in all fields');
       return;
     }
 
     if (password !== confirmPassword) {
+      if (process.env.EXPO_DEV_MODE) console.log('❌ Passwords do not match');
       setError('Passwords do not match');
       return;
     }
 
     if (password.length < 6) {
+      if (process.env.EXPO_DEV_MODE) console.log('❌ Password too short');
       setError('Password must be at least 6 characters');
       return;
     }
 
     try {
+      if (process.env.EXPO_DEV_MODE) console.log('📝 Starting signup for:', email);
       setError(null);
       await register(email, password);
-    } catch (err: any) {
-      setError(err.message || 'Signup failed');
-      if (process.env.EXPO_DEV_MODE) {
-        console.log("Signup error:", err);
-        console.log('Caught error in handleSignup:', err);
+      
+      try {
+        await authService.requestVerification(email);
+      } catch (verifyErr: any) {
+        if (process.env.EXPO_DEV_MODE) console.warn('⚠️ Verification email failed:', verifyErr.message);
       }
+      
+      setVerificationStep(true);
+      setPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      if (process.env.EXPO_DEV_MODE) console.error('❌ Signup error:', err.message);
+      setError(err.message || 'Signup failed');
+    }
+  };
+
+  const handleLoginAfterVerification = async () => {
+    try {
+      setError(null);
+      await login(email, password);
+      // Reset verification state
+      setVerificationStep(false);
+      setEmail('');
+      setPassword('');
+      setConfirmPassword('');
+    } catch (err: any) {
+      setError(err.message || 'Login failed');
     }
   };
 
@@ -86,7 +113,36 @@ export default function LoginScreen() {
         <Text style={styles.titleMinimal}>ClimbMate</Text>
       </View>
 
-      <View style={styles.formMinimal}>
+      {verificationStep ? (
+        // Email Verification Screen
+        <View style={styles.formMinimal}>
+          <Text style={styles.verificationTitleMinimal}>Check Your Email</Text>
+          <Text style={styles.verificationSubtitleMinimal}>
+            We've sent a verification link to {email}. Click the link in the email to verify your account.
+          </Text>
+
+          {error && <Text style={styles.errorMinimal}>{error}</Text>}
+
+          <Pressable
+            style={styles.buttonMinimal}
+            onPress={() => {
+              setVerificationStep(false);
+              setIsSignup(false);
+              setEmail('');
+              setPassword('');
+              setConfirmPassword('');
+              setError(null);
+            }}>
+            <Text style={styles.buttonTextMinimal}>Back to Login</Text>
+          </Pressable>
+
+          <Text style={styles.verificationInfoMinimal}>
+            Once you've verified your email, return here and log in with your credentials.
+          </Text>
+        </View>
+      ) : (
+        // Login/Signup Screen
+        <View style={styles.formMinimal}>
         {error && <Text style={styles.errorMinimal}>{error}</Text>}
 
         <TextInput
@@ -150,39 +206,67 @@ export default function LoginScreen() {
             <Text style={styles.buttonTextMinimal}>{isSignup ? 'Sign Up' : 'Login'}</Text>
           )}
         </Pressable>
-      </View>
+        </View>
+      )}
 
-      {/* <View style={styles.dividerMinimal}>
-        <View style={styles.lineMinimal} />
-        <Text style={styles.dividerTextMinimal}>or</Text>
-        <View style={styles.lineMinimal} />
-      </View>
+      {!verificationStep && (
+        <>
+          {/* Divider and Google button commented out */}
+          {/* <View style={styles.dividerMinimal}>
+            <View style={styles.lineMinimal} />
+            <Text style={styles.dividerTextMinimal}>or</Text>
+            <View style={styles.lineMinimal} />
+          </View>
 
-      <Pressable
-        style={[styles.googleButtonMinimal, isLoading && styles.buttonDisabledMinimal]}
-        onPress={handleGoogleAuth}
-        disabled={isLoading}>
-        <Ionicons name="logo-google" size={20} color={theme.colors.text} />
-        <Text style={styles.googleButtonTextMinimal}>
-          {isSignup ? 'Sign Up' : 'Login'} with Google
-        </Text>
-      </Pressable> */}
+          <Pressable
+            style={[styles.googleButtonMinimal, isLoading && styles.buttonDisabledMinimal]}
+            onPress={handleGoogleAuth}
+            disabled={isLoading}>
+            <Ionicons name="logo-google" size={20} color={theme.colors.text} />
+            <Text style={styles.googleButtonTextMinimal}>
+              {isSignup ? 'Sign Up' : 'Login'} with Google
+            </Text>
+          </Pressable> */}
 
-      <Pressable onPress={() => {
-        setIsSignup(!isSignup);
-        setError(null);
-        setConfirmPassword('');
-      }}>
-        <Text style={styles.footerMinimal}>
-          {isSignup ? 'Already have an account? Login' : "Don't have an account? Sign up"}
-        </Text>
-      </Pressable>
+          <Pressable onPress={() => {
+            setIsSignup(!isSignup);
+            setError(null);
+            setConfirmPassword('');
+          }}>
+            <Text style={styles.footerMinimal}>
+              {isSignup ? 'Already have an account? Login' : "Don't have an account? Sign up"}
+            </Text>
+          </Pressable>
+        </>
+      )}
     </View>
   );
 }
 
 const createStyles = (theme: typeof themeLight) =>
   StyleSheet.create({
+    verificationTitleMinimal: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    verificationSubtitleMinimal: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 24,
+      lineHeight: 20,
+    },
+    verificationInfoMinimal: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 16,
+      fontStyle: 'italic',
+      opacity: 0.8,
+    },
     container: {
       flex: 1,
       justifyContent: 'center',

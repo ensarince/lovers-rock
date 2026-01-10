@@ -90,11 +90,11 @@ export default function MatchesScreen() {
               setDatingLikedHint(dateLikers[0]);
             }
           } catch (e) {
-            console.error('Error fetching dating likers:', e);
+            if (process.env.EXPO_DEV_MODE) console.error('Error fetching dating likers:', e);
           }
         }
       } catch (err) {
-        console.error('Failed to load matches:', err);
+        if (process.env.EXPO_DEV_MODE) console.error('Failed to load matches:', err);
       } finally {
         setLoading(false);
       }
@@ -132,7 +132,7 @@ export default function MatchesScreen() {
       const updatedMatches = await getMatches(token!, user!.id);
       setMatches(updatedMatches);
     } catch (err) {
-      console.error('Failed to accept request:', err);
+      if (process.env.EXPO_DEV_MODE) console.error('Failed to accept request:', err);
     } finally {
       setAcceptingRequestIds(prev => prev.filter(id => id !== request.id));
     }

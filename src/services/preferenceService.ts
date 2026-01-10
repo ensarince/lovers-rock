@@ -60,7 +60,7 @@ class PreferenceService {
       }));
       
     } catch (error) {
-      console.error('❌ Failed to sync preferences:', error);
+      if (process.env.EXPO_DEV_MODE) console.error('❌ Failed to sync preferences:', error);
     }
   }
 
@@ -85,7 +85,7 @@ class PreferenceService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Failed to save preferences:', response.status, errorText);
+        if (process.env.EXPO_DEV_MODE) console.error('❌ Failed to save preferences:', response.status, errorText);
         throw new Error('Failed to save preferences');
       }
       
@@ -109,13 +109,13 @@ class PreferenceService {
         console.warn('⚠️ Could not verify save:', verifyError);
       }
     } catch (error) {
-      console.error('❌ Failed to save preferences to server:', error);
+      if (process.env.EXPO_DEV_MODE) console.error('❌ Failed to save preferences to server:', error);
     }
   }
 
   async accept(climber: Climber, token?: string | null, userId?: string): Promise<void> {
     if (!userId) {
-      console.error('❌ No userId provided to accept method!');
+      if (process.env.EXPO_DEV_MODE) console.error('❌ No userId provided to accept method!');
       return;
     }
     

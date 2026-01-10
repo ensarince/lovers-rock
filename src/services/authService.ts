@@ -39,6 +39,8 @@ export const authService = {
         passwordConfirm,
         intent: ['date', 'partner'], // Default both enabled
       });
+      // Clear auth store so user is not auto-logged in
+      pb.authStore.clear();
       return data;
     } catch (error: any) {
       throw new Error(error.message || 'Registration failed');
@@ -48,15 +50,14 @@ export const authService = {
   // Login with email/password
   async login(email: string, password: string) {
     try {
-      console.log('🔐 Attempting login with:', email);
       const authData = await pb
         .collection('users')
         .authWithPassword(email, password);
-      console.log('✓ Login successful');
+      if (process.env.EXPO_DEV_MODE) console.log('✓ Login successful');
       return authData;
     } catch (error: any) {
-      console.error('❌ Login error:', error);
-      console.error('Error response:', error.response);
+      if (process.env.EXPO_DEV_MODE) console.error('❌ Login error:', error);
+      if (process.env.EXPO_DEV_MODE) console.error('Error response:', error.response);
       throw new Error(error.message || 'Invalid email or password');
     }
   },
@@ -73,6 +74,37 @@ export const authService = {
       }
     },
    */
+  // Request email verification (sends verification email)
+  async requestVerification(email: string) {
+    try {
+      if (process.env.EXPO_DEV_MODE) console.log('📧 Requesting verification for:', email);
+      await pb.collection('users').requestVerification(email);
+      if (process.env.EXPO_DEV_MODE) console.log('✓ Verification email requested');
+    } catch (error: any) {
+      if (process.env.EXPO_DEV_MODE) {
+        console.error('❌ Verification request error:', error);
+        console.error('Error message:', error.message);
+        console.error('Error details:', error.response || error);
+      }
+      throw new Error(error.message || 'Failed to send verification email');
+    }
+  },
+
+  // Confirm email verification with token
+  async confirmVerification(token: string) {
+    try {
+      if (process.env.EXPO_DEV_MODE) console.log('🔐 Confirming verification with token');
+      await pb.collection('users').confirmVerification(token);
+      if (process.env.EXPO_DEV_MODE) console.log('✓ Email verified successfully');
+    } catch (error: any) {
+      if (process.env.EXPO_DEV_MODE) {
+        console.error('❌ Verification confirm error:', error);
+        console.error('Error message:', error.message);
+      }
+      throw new Error(error.message || 'Invalid or expired verification token');
+    }
+  },
+
   // Logout
   logout() {
     pb.authStore.clear();

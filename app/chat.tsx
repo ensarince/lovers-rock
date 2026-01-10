@@ -56,7 +56,7 @@ export default function ChatScreen() {
         flatListRef.current?.scrollToEnd({ animated: false });
       }, 100);
     } catch (error) {
-      console.error('Failed to load messages:', error);
+      if (process.env.EXPO_DEV_MODE) console.error('Failed to load messages:', error);
     } finally {
       setLoading(false);
     }
@@ -83,7 +83,7 @@ export default function ChatScreen() {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error) {
-      console.error('Failed to send message:', error);
+      if (process.env.EXPO_DEV_MODE) console.error('Failed to send message:', error);
     } finally {
       setSending(false);
     }

@@ -91,6 +91,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setPreferencesSynced(false);
     try {
       const authData = await authService.login(email, password);
+      
+      // Check if email is verified (PocketBase uses 'verified' field)
+      if (!authData.record.verified) {
+        throw new Error('Please verify your email before logging in. Check your inbox for the verification link.');
+      }
+      
       const climberUser = mapToClimber(authData.record);
       setUser(climberUser);
       setToken(authData.token);
@@ -113,7 +119,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     /* setIsLoading(true) */;
     try {
       await authService.register(email, password, password);
-      await login(email, password);
+      // Don't auto-login after register - let the user verify email first
+      // User will login after verification
     } catch (error: any) {
       const errorMessage = error?.message || error?.response?.message || 'Registration failed';
       throw new Error(errorMessage);
