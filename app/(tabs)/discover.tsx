@@ -161,7 +161,7 @@ export default function DiscoverScreen() {
       try {
         if (!token || !user) return;
 
-        // Fetch fresh user data to get latest liked_users
+        // Fetch fresh user data to get latest liked_users_partner AND liked_users_dating
         const userRes = await fetch(`${POCKETBASE_URL}/api/collections/users/records/${user.id}`, {
           method: 'GET',
           headers: {
@@ -169,9 +169,23 @@ export default function DiscoverScreen() {
             Authorization: `Bearer ${token}`,
           },
         });
+        
+        let likedUsersDating: string[] = [];
         if (userRes.ok) {
           const freshUser = await userRes.json();
-          setUser({ ...user, liked_users: freshUser.liked_users });
+          setUser({ ...user, liked_users_partner: freshUser.liked_users_partner });
+          
+          // Parse liked_users_dating to filter them out from partner finding
+          const likedUsersDatingRaw = freshUser.liked_users_dating;
+          if (Array.isArray(likedUsersDatingRaw)) {
+            likedUsersDating = likedUsersDatingRaw;
+          } else if (typeof likedUsersDatingRaw === 'string') {
+            try {
+              likedUsersDating = JSON.parse(likedUsersDatingRaw);
+            } catch {
+              likedUsersDating = [];
+            }
+          }
         }
 
         const data = await getAllAccounts(token);
@@ -179,19 +193,21 @@ export default function DiscoverScreen() {
         let filtered = data.filter(
           (c) => c.id !== user.id && Array.isArray(c.intent) && c.intent.includes('partner')
         );
-        // Remove users who are already matched/connected (mutual like)
+        // Remove users who are already matched/connected (mutual like in partner mode)
         filtered = filtered.filter((c) => {
-          const theirLikes = Array.isArray(c.liked_users)
-            ? c.liked_users
-            : typeof c.liked_users === 'string'
-              ? (() => { try { return JSON.parse(c.liked_users); } catch { return []; } })()
+          const theirLikesPartner = Array.isArray(c.liked_users_partner)
+            ? c.liked_users_partner
+            : typeof c.liked_users_partner === 'string'
+              ? (() => { try { return JSON.parse(c.liked_users_partner); } catch { return []; } })()
               : [];
           const iLikeThem = acceptedUserIds.includes(c.id);
-          const theyLikeMe = theirLikes.includes(user.id);
-          // If both liked each other, it's a match, so filter out
+          const theyLikeMe = theirLikesPartner.includes(user.id);
+          // If both liked each other in partner mode, it's a match, so filter out
           return !(iLikeThem && theyLikeMe);
         });
-        // OPTION B: Filter out users already interacted with in dating mode
+        // Filter out users already liked in dating mode (from database)
+        filtered = filtered.filter((c) => !likedUsersDating.includes(c.id));
+        // Also filter out users interacted with in this session (for additional safety)
         filtered = filtered.filter((c) => !datingInteractionIds.includes(c.id));
         // Only include users with complete profiles
         filtered = filtered.filter((c) =>
@@ -353,32 +369,36 @@ export default function DiscoverScreen() {
       });
       if (!res.ok) throw new Error('Failed to fetch current user');
       const me = await res.json();
-      let likedUsers: string[] = [];
-      if (Array.isArray(me.liked_users)) likedUsers = me.liked_users;
-      else if (typeof me.liked_users === 'string') {
-        try { likedUsers = JSON.parse(me.liked_users); } catch { likedUsers = []; }
+      let likedUsersPartner: string[] = [];
+      if (Array.isArray(me.liked_users_partner)) likedUsersPartner = me.liked_users_partner;
+      else if (typeof me.liked_users_partner === 'string') {
+        try { likedUsersPartner = JSON.parse(me.liked_users_partner); } catch { likedUsersPartner = []; }
       }
 
-      // Add or remove climber from liked_users
+      // Add or remove climber from liked_users_partner
       if (isRemoving) {
-        likedUsers = likedUsers.filter(id => id !== climber.id);
+        likedUsersPartner = likedUsersPartner.filter(id => id !== climber.id);
       } else {
-        if (!likedUsers.includes(climber.id)) likedUsers.push(climber.id);
+        if (!likedUsersPartner.includes(climber.id)) likedUsersPartner.push(climber.id);
       }
 
-      // PATCH my liked_users
+      // PATCH my liked_users_partner
       const patchRes = await fetch(`${POCKETBASE_URL}/api/collections/users/records/${user.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ liked_users: likedUsers }),
+        body: JSON.stringify({ liked_users_partner: likedUsersPartner }),
       });
 
       // Update context
-      const updatedUser = { ...user, liked_users: likedUsers };
+      const updatedUser = { ...user, liked_users_partner: likedUsersPartner };
       setUser(updatedUser);
+      
+      // Update acceptedUserIds state for UI consistency
+      setAcceptedUserIds(likedUsersPartner);
+      
       await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
     } catch (e) {
       if (process.env.EXPO_DEV_MODE) console.log('Error in handleSendPartnerRequest', e);
@@ -396,25 +416,26 @@ export default function DiscoverScreen() {
       return;
     }
 
-    // Check if already liked
-    if (preferenceService.isAccepted(climber.id)) {
+    // Check if already liked for dating mode
+    if (isDatingMode && preferenceService.isAcceptedForDating(climber.id)) {
       setCurrentIndex((prev) => prev + 1);
       return;
     }
 
-    // OPTION B: Track this user as interacted in dating mode
+    // Track this user as interacted in dating mode
     setDatingInteractionIds(prev => [...prev, climber.id]);
 
-    await preferenceService.accept(climber, token, user.id);
+    // IMPORTANT: Pass 'dating' intent when accepting in dating mode
+    await preferenceService.accept(climber, token, user.id, 'dating');
 
     // Check if this creates a mutual match
     try {
       const allUsers = await getAllAccounts(token);
       const likedUser = allUsers.find(u => u.id === climber.id);
       if (likedUser) {
-        const likedUserLiked = likedUser.liked_users || [];
-        if (likedUserLiked.includes(user.id)) {
-          // It's a match! Show animation
+        const likedUserLikedDating = likedUser.liked_users_dating || [];
+        if (likedUserLikedDating.includes(user.id)) {
+          // It's a dating match! Show animation
           setMatchedClimber(climber);
           setMatchAnimationVisible(true);
         }

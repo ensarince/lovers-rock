@@ -3,13 +3,13 @@ import { useAuth } from '@/src/context/AuthContext';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import Slider from '@react-native-community/slider';
 import React, { useState } from 'react';
 import {
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from 'react-native';
 
@@ -59,8 +59,8 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   const [selectedStyles, setSelectedStyles] = useState<string[]>(
     currentFilters.styles || []
   );
-  const [minAge, setMinAge] = useState(currentFilters.minAge?.toString() || '18');
-  const [maxAge, setMaxAge] = useState(currentFilters.maxAge?.toString() || '80');
+  const [minAge, setMinAge] = useState(currentFilters.minAge || 18);
+  const [maxAge, setMaxAge] = useState(currentFilters.maxAge || 80);
 
   const toggleGrade = (grade: string) => {
     setSelectedGrades((prev) =>
@@ -80,8 +80,8 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     onApplyFilters({
       grade: selectedGrades.length > 0 ? selectedGrades : undefined,
       styles: selectedStyles.length > 0 ? selectedStyles : undefined,
-      minAge: parseInt(minAge) || undefined,
-      maxAge: parseInt(maxAge) || undefined,
+      minAge: minAge !== 18 ? minAge : undefined,
+      maxAge: maxAge !== 80 ? maxAge : undefined,
     });
     onClose();
   };
@@ -89,8 +89,8 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   const handleReset = () => {
     setSelectedGrades([]);
     setSelectedStyles([]);
-    setMinAge('18');
-    setMaxAge('80');
+    setMinAge(18);
+    setMaxAge(80);
     onApplyFilters({});
     onClose();
   };
@@ -115,29 +115,64 @@ export const FilterModal: React.FC<FilterModalProps> = ({
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             {/* Age Range */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Age Range</Text>
-              <View style={styles.ageInputs}>
-                <View style={styles.ageInput}>
-                  <Text style={styles.ageLabel}>Min</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={minAge}
-                    onChangeText={setMinAge}
-                    keyboardType="numeric"
-                    maxLength={2}
-                  />
-                </View>
-                <Text style={styles.ageDash}>-</Text>
-                <View style={styles.ageInput}>
-                  <Text style={styles.ageLabel}>Max</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={maxAge}
-                    onChangeText={setMaxAge}
-                    keyboardType="numeric"
-                    maxLength={2}
-                  />
-                </View>
+              <View style={styles.ageHeader}>
+                <Text style={styles.sectionTitle}>Age Range</Text>
+                <Text style={styles.ageValue}>{Math.round(minAge)} - {Math.round(maxAge)}</Text>
+              </View>
+              <View style={styles.dualSliderContainer}>
+                {/* Background Track */}
+                <View style={styles.trackBackground} />
+                
+                {/* Selected Range Highlight */}
+                <View
+                  style={[
+                    styles.selectedRangeTrack,
+                    {
+                      left: `${((minAge - 18) / 82) * 100}%`,
+                      right: `${((100 - maxAge) / 82) * 100}%`,
+                    },
+                  ]}
+                />
+                
+                {/* Min Slider (Lower Z-index when not active) */}
+                <Slider
+                  style={styles.sliderTrack}
+                  minimumValue={18}
+                  maximumValue={100}
+                  value={minAge}
+                  onValueChange={(value) => {
+                    if (value <= maxAge) {
+                      setMinAge(value);
+                    }
+                  }}
+                  step={1}
+                  thumbTintColor={theme.colors.accent}
+                  minimumTrackTintColor="transparent"
+                  maximumTrackTintColor="transparent"
+                />
+
+                {/* Max Slider (Higher Z-index) */}
+                <Slider
+                  style={[styles.sliderTrack, styles.sliderTrackTop]}
+                  minimumValue={18}
+                  maximumValue={100}
+                  value={maxAge}
+                  onValueChange={(value) => {
+                    if (value >= minAge) {
+                      setMaxAge(value);
+                    }
+                  }}
+                  step={1}
+                  thumbTintColor={theme.colors.accent}
+                  minimumTrackTintColor="transparent"
+                  maximumTrackTintColor="transparent"
+                />
+              </View>
+              
+              {/* Age Labels */}
+              <View style={styles.ageLabelsRow}>
+                <Text style={styles.ageLabel}>18</Text>
+                <Text style={styles.ageLabel}>100</Text>
               </View>
             </View>
 
@@ -258,33 +293,61 @@ const createStyles = (theme: typeof themeLight) =>
       color: theme.colors.text,
       marginBottom: 12,
     },
-    ageInputs: {
+    ageHeader: {
       flexDirection: 'row',
+      justifyContent: 'space-between',
       alignItems: 'center',
-      gap: 12,
     },
-    ageInput: {
-      flex: 1,
+    ageValue: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.accent,
+    },
+    dualSliderContainer: {
+      height: 50,
+      justifyContent: 'center',
+    },
+    trackBackground: {
+      position: 'absolute',
+      height: 6,
+      backgroundColor: theme.colors.border,
+      borderRadius: 3,
+      width: '100%',
+      top: 22,
+      opacity: 0.3,
+    },
+    selectedRangeTrack: {
+      position: 'absolute',
+      height: 6,
+      backgroundColor: theme.colors.accent,
+      borderRadius: 3,
+      top: 22,
+      zIndex: 4,
+    },
+    sliderTrack: {
+      position: 'absolute',
+      width: '100%',
+      height: 50,
+      zIndex: 5,
+    },
+    sliderTrackTop: {
+      zIndex: 6,
+    },
+    ageLabelsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: 2,
     },
     ageLabel: {
       fontSize: 12,
       color: theme.colors.textSecondary,
-      marginBottom: 4,
+      fontWeight: '500',
     },
-    ageDash: {
-      color: theme.colors.textSecondary,
-      fontSize: 16,
-      marginBottom: 16,
-    },
-    input: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      color: theme.colors.text,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      fontSize: 14,
+    sliderWrapper: {
+      width: '100%',
+      height: 80,
+      justifyContent: 'center',
+      paddingHorizontal: 10,
     },
     buttonGroup: {
       flexDirection: 'row',

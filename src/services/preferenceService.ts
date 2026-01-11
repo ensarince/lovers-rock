@@ -6,10 +6,13 @@ export interface UserPreference {
   climberId: string;
   action: 'accept' | 'reject';
   timestamp: number;
+  intent?: 'dating' | 'partner'; // Track which intent this like was for
 }
 
 class PreferenceService {
   private acceptedClimbers: Set<string> = new Set();
+  private acceptedClimbersForDating: Set<string> = new Set();
+  private acceptedClimbersForPartner: Set<string> = new Set();
   private rejectedClimbers: Set<string> = new Set();
   private preferences: UserPreference[] = [];
 
@@ -38,26 +41,67 @@ class PreferenceService {
       }
 
       const userData = await response.json();
+      
+      // Parse dating likes
+      let likedUsersDating: string[] = [];
+      const likedUsersDatingRaw = userData.liked_users_dating;
+      if (Array.isArray(likedUsersDatingRaw)) {
+        likedUsersDating = likedUsersDatingRaw;
+      } else if (typeof likedUsersDatingRaw === 'string') {
+        try {
+          likedUsersDating = JSON.parse(likedUsersDatingRaw);
+        } catch (e) {
+          likedUsersDating = [];
+        }
+      }
+
+      // Parse partner likes
+      let likedUsersPartner: string[] = [];
+      const likedUsersPartnerRaw = userData.liked_users_partner;
+      if (Array.isArray(likedUsersPartnerRaw)) {
+        likedUsersPartner = likedUsersPartnerRaw;
+      } else if (typeof likedUsersPartnerRaw === 'string') {
+        try {
+          likedUsersPartner = JSON.parse(likedUsersPartnerRaw);
+        } catch (e) {
+          likedUsersPartner = [];
+        }
+      }
+
+      // For backward compatibility, also check legacy liked_users field
+      let legacyLikedUsers: string[] = [];
       const likedUsersRaw = userData.liked_users;
-      let likedUsers: string[] = [];
       if (Array.isArray(likedUsersRaw)) {
-        likedUsers = likedUsersRaw;
+        legacyLikedUsers = likedUsersRaw;
       } else if (typeof likedUsersRaw === 'string') {
         try {
-          likedUsers = JSON.parse(likedUsersRaw);
+          legacyLikedUsers = JSON.parse(likedUsersRaw);
         } catch (e) {
-          likedUsers = [];
+          legacyLikedUsers = [];
         }
-      } else {
-        likedUsers = [];
       }
-      // Update local state from server
-      this.acceptedClimbers = new Set(likedUsers);
-      this.preferences = likedUsers.map((id: string) => ({
-        climberId: id,
-        action: 'accept' as const,
-        timestamp: Date.now(),
-      }));
+
+      // Update local state
+      this.acceptedClimbersForDating = new Set(likedUsersDating);
+      this.acceptedClimbersForPartner = new Set(likedUsersPartner);
+      // For backward compatibility, merge legacy likes into both
+      this.acceptedClimbers = new Set([...likedUsersDating, ...likedUsersPartner, ...legacyLikedUsers]);
+      
+      // Update preferences tracking
+      this.preferences = [
+        ...likedUsersDating.map((id: string) => ({
+          climberId: id,
+          action: 'accept' as const,
+          timestamp: Date.now(),
+          intent: 'dating' as const,
+        })),
+        ...likedUsersPartner.map((id: string) => ({
+          climberId: id,
+          action: 'accept' as const,
+          timestamp: Date.now(),
+          intent: 'partner' as const,
+        })),
+      ];
       
     } catch (error) {
       if (process.env.EXPO_DEV_MODE) console.error('❌ Failed to sync preferences:', error);
@@ -65,9 +109,19 @@ class PreferenceService {
   }
 
   // Save preference to server
-  private async saveToServer(token: string, userId: string): Promise<void> {
+  private async saveToServer(token: string, userId: string, intent?: 'dating' | 'partner'): Promise<void> {
     try {
-      const likedUsers = Array.from(this.acceptedClimbers);
+      const updateData: Record<string, any> = {};
+
+      if (intent === 'dating') {
+        updateData.liked_users_dating = Array.from(this.acceptedClimbersForDating);
+      } else if (intent === 'partner') {
+        updateData.liked_users_partner = Array.from(this.acceptedClimbersForPartner);
+      } else {
+        // If no intent specified, update both
+        updateData.liked_users_dating = Array.from(this.acceptedClimbersForDating);
+        updateData.liked_users_partner = Array.from(this.acceptedClimbersForPartner);
+      }
 
       const response = await fetch(
         `${POCKETBASE_URL}/api/collections/users/records/${userId}`,
@@ -77,9 +131,7 @@ class PreferenceService {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            liked_users: JSON.stringify(likedUsers),
-          }),
+          body: JSON.stringify(updateData),
         }
       );
 
@@ -89,7 +141,7 @@ class PreferenceService {
         throw new Error('Failed to save preferences');
       }
       
-      // Verify the save worked by fetching the data back
+      // Verify the save worked
       try {
         const verifyResponse = await fetch(
           `${POCKETBASE_URL}/api/collections/users/records/${userId}`,
@@ -104,6 +156,7 @@ class PreferenceService {
         
         if (verifyResponse.ok) {
           const verifyData = await verifyResponse.json();
+          if (process.env.EXPO_DEV_MODE) console.log('✅ Preferences saved successfully');
         }
       } catch (verifyError) {
         console.warn('⚠️ Could not verify save:', verifyError);
@@ -113,23 +166,38 @@ class PreferenceService {
     }
   }
 
-  async accept(climber: Climber, token?: string | null, userId?: string): Promise<void> {
+  async accept(climber: Climber, token?: string | null, userId?: string, intent?: 'dating' | 'partner'): Promise<void> {
     if (!userId) {
       if (process.env.EXPO_DEV_MODE) console.error('❌ No userId provided to accept method!');
       return;
     }
     
+    // Track in appropriate set based on intent
+    if (intent === 'dating') {
+      this.acceptedClimbersForDating.add(climber.id);
+      this.acceptedClimbersForPartner.delete(climber.id);
+    } else if (intent === 'partner') {
+      this.acceptedClimbersForPartner.add(climber.id);
+      this.acceptedClimbersForDating.delete(climber.id);
+    } else {
+      // Default to dating if no intent specified (backward compatibility)
+      this.acceptedClimbersForDating.add(climber.id);
+    }
+    
+    // Also update the combined set
     this.acceptedClimbers.add(climber.id);
     this.rejectedClimbers.delete(climber.id);
+    
     this.preferences.push({
       climberId: climber.id,
       action: 'accept',
       timestamp: Date.now(),
+      intent: intent || 'dating',
     });
 
     // Save to server if token and userId provided
     if (token && userId) {
-      await this.saveToServer(token, userId);
+      await this.saveToServer(token, userId, intent);
     } else {
       console.warn('⚠️ Not saving to server - missing token or userId');
     }
@@ -149,6 +217,14 @@ class PreferenceService {
     return Array.from(this.acceptedClimbers);
   }
 
+  getAcceptedForDating(): string[] {
+    return Array.from(this.acceptedClimbersForDating);
+  }
+
+  getAcceptedForPartner(): string[] {
+    return Array.from(this.acceptedClimbersForPartner);
+  }
+
   getRejected(): string[] {
     return Array.from(this.rejectedClimbers);
   }
@@ -161,6 +237,14 @@ class PreferenceService {
     return this.acceptedClimbers.has(climberId);
   }
 
+  isAcceptedForDating(climberId: string): boolean {
+    return this.acceptedClimbersForDating.has(climberId);
+  }
+
+  isAcceptedForPartner(climberId: string): boolean {
+    return this.acceptedClimbersForPartner.has(climberId);
+  }
+
   isRejected(climberId: string): boolean {
     return this.rejectedClimbers.has(climberId);
   }
@@ -171,6 +255,8 @@ class PreferenceService {
 
   reset(): void {
     this.acceptedClimbers.clear();
+    this.acceptedClimbersForDating.clear();
+    this.acceptedClimbersForPartner.clear();
     this.rejectedClimbers.clear();
     this.preferences = [];
   }

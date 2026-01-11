@@ -19,10 +19,12 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
   const [imageExpanded, setImageExpanded] = React.useState(false);
   const [isRequestSent, setIsRequestSent] = React.useState(false);
 
-  // Check if climber is in liked_users when climber changes
+  // Check if climber is in liked_users_partner when climber changes
   React.useEffect(() => {
-    if (climber && user && Array.isArray(user.liked_users)) {
-      const isLiked = user.liked_users.includes(climber.id);
+    if (climber && user) {
+      // Check the new liked_users_partner field
+      const likedUsersPartner = user.liked_users_partner || [];
+      const isLiked = Array.isArray(likedUsersPartner) ? likedUsersPartner.includes(climber.id) : false;
       setIsRequestSent(isLiked);
     } else {
       setIsRequestSent(false);
@@ -63,8 +65,10 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
               </Pressable>
               <Pressable
                 style={[styles.requestButton, isRequestSent && styles.requestButtonSent]}
-                onPress={() => {
+                onPress={async () => {
                   onSendRequest(climber, isRequestSent);
+                  // Immediately toggle the button state for instant feedback
+                  setIsRequestSent(!isRequestSent);
                 }}
               >
                 <Text style={styles.requestButtonText}>{isRequestSent ? 'Request Sent' : 'Send Partner Request'}</Text>

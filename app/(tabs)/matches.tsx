@@ -11,12 +11,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet
+    ActivityIndicator,
+    FlatList,
+    Image,
+    Pressable,
+    ScrollView,
+    StyleSheet
 } from 'react-native';
 
 type FilterChip = 'all' | 'requests' | 'dating' | 'partner' | 'sessions';
@@ -72,16 +72,16 @@ export default function MatchesScreen() {
         if (hasDatingIntent) {
           try {
             const allUsers = await getAllAccounts(token);
-            // Find users with 'date' intent who have liked you and you haven't liked back yet
+            // Find users with 'date' intent who have liked you in dating mode and you haven't liked back yet
             const dateLikers = allUsers.filter((u: Climber) => {
-              const theirLikes = Array.isArray(u.liked_users)
-                ? u.liked_users
-                : typeof u.liked_users === 'string'
-                  ? (() => { try { return JSON.parse(u.liked_users); } catch { return []; } })()
+              const theirLikesDating = Array.isArray(u.liked_users_dating)
+                ? u.liked_users_dating
+                : typeof u.liked_users_dating === 'string'
+                  ? (() => { try { return JSON.parse(u.liked_users_dating); } catch { return []; } })()
                   : [];
               return (
                 Array.isArray(u.intent) && u.intent.includes('date') &&
-                theirLikes.includes(user.id) &&
+                theirLikesDating.includes(user.id) &&
                 !allMatches.some(m => m.climber.id === u.id && m.type === 'dating')
               );
             });
