@@ -264,7 +264,7 @@ export default function DiscoverScreen() {
       );
     }
     if (activeFilters.grade && activeFilters.grade.length > 0) {
-      result = result.filter((c) => activeFilters.grade!.includes(c.grade));
+      result = result.filter((c) => activeFilters.grade!.includes(c.grade.general_level));
     }
     if (activeFilters.styles && activeFilters.styles.length > 0) {
       result = result.filter((c) =>
@@ -309,9 +309,9 @@ export default function DiscoverScreen() {
       );
     }
 
-    // Filter by grade
+    // Filter by grade (now checking general_level against filter values)
     if (filters.grade && filters.grade.length > 0) {
-      result = result.filter((c) => filters.grade!.includes(c.grade));
+      result = result.filter((c) => filters.grade!.includes(c.grade.general_level));
     }
 
     // Filter by styles
@@ -621,7 +621,7 @@ export default function DiscoverScreen() {
                   <View style={styles.partnerInfo}>
                     <Text style={styles.partnerName}>{item.name}</Text>
                     <Text style={styles.partnerDetail}>Gym: {item.home_gym}</Text>
-                    <Text style={styles.partnerDetail}>Grade: {item.grade}</Text>
+                    <Text style={styles.partnerDetail}>Grade: {item.grade.value ? `${item.grade.value} (${item.grade.system})` : item.grade.general_level}</Text>
                     <Text style={styles.partnerDetail}>
                       Styles: {Array.isArray(item.climbing_styles) ? item.climbing_styles.join(', ') : ''}
                     </Text>

@@ -1,34 +1,58 @@
-import { Text, View } from '@/components/Themed';
+
+import { Text } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
+import { createDefaultGrade, formatGradeDisplay, getExampleGrades } from '@/src/services/gradeService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
-import { Climber, ClimbingGrade, ClimbingStyle } from '@/src/types/climber';
+import { Climber, ClimbingGrade, ClimbingStyle, GeneralLevel, GradeSystem } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import PocketBase from 'pocketbase';
 import { useEffect, useState } from 'react';
+
 import {
   ActivityIndicator,
   Alert,
   Image,
+  ImageBackground,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Switch,
-  TextInput
+  TextInput,
+  View
 } from 'react-native';
+
+const getStyleImage = (style: ClimbingStyle) => {
+  const imageMap: Record<ClimbingStyle, any> = {
+    bouldering: require('../../assets/images/boulder.png'),
+    sport: require('../../assets/images/sport.png'),
+    trad: require('../../assets/images/trad.png'),
+    gym: require('../../assets/images/gym.png'),
+    outdoor: require('../../assets/images/outdoor.png'),
+  };
+  return imageMap[style];
+};
 
 const pb = new PocketBase(`http://${process.env.EXPO_PUBLIC_IP}:8090`);
 
-const CLIMBING_GRADES: ClimbingGrade[] = [
+const GENERAL_LEVELS: GeneralLevel[] = [
   'beginner',
   'intermediate',
   'advanced',
   'expert',
   'elite',
+];
+
+const GRADE_SYSTEMS: GradeSystem[] = [
+  'unknown',
+  'v-scale',
+  'font',
+  'french',
+  'uiaa',
 ];
 
 const CLIMBING_STYLES: ClimbingStyle[] = [
@@ -56,7 +80,12 @@ export default function ProfileScreen() {
   const [name, setName] = useState(typedUser?.name || '');
   const [bio, setBio] = useState(typedUser?.bio || '');
   const [age, setAge] = useState(typedUser?.age ? String(typedUser.age) : '');
-  const [grade, setGrade] = useState<ClimbingGrade>(typedUser?.grade || 'beginner');
+  const [grade, setGrade] = useState<ClimbingGrade>(() => {
+    if (typedUser?.grade && typeof typedUser.grade === 'object' && typedUser.grade.general_level) {
+      return typedUser.grade;
+    }
+    return createDefaultGrade();
+  });
   const [climbingStyles, setClimbingStyles] = useState<ClimbingStyle[]>(typedUser?.climbing_styles || []);
   const [homeGym, setHomeGym] = useState(typedUser?.home_gym || '');
   // intent: array of 'partner' | 'date'
@@ -64,6 +93,8 @@ export default function ProfileScreen() {
   // Remove photo state for display, only use for upload
   const [photo, setPhoto] = useState<string | null>(null);
   const [avatar, setAvatar] = useState(typedUser?.avatar || '');
+  // Grade edit state
+  const [showGradeSystemModal, setShowGradeSystemModal] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -75,7 +106,11 @@ export default function ProfileScreen() {
     setName(typedUser?.name || '');
     setBio(typedUser?.bio || '');
     setAge(typedUser?.age ? String(typedUser.age) : '');
-    setGrade(typedUser?.grade || 'beginner');
+    setGrade(
+      typedUser?.grade && typeof typedUser.grade === 'object' && typedUser.grade.general_level
+        ? typedUser.grade
+        : createDefaultGrade()
+    );
     setClimbingStyles(typedUser?.climbing_styles || []);
     setHomeGym(typedUser?.home_gym || '');
     setAvatar(typedUser?.avatar || '');
@@ -156,13 +191,20 @@ export default function ProfileScreen() {
         };
       }
 
+      // Ensure grade has all required fields
+      const gradeToSave = {
+        system: grade.system || 'unknown',
+        value: grade.value || '',
+        general_level: grade.general_level || 'beginner',
+      };
+
       let formData: any;
       if (avatarFile) {
         formData = new FormData();
         formData.append('name', name);
         formData.append('bio', bio);
         formData.append('age', age);
-        formData.append('grade', grade);
+        formData.append('grade', JSON.stringify(gradeToSave));
         formData.append('climbing_styles', JSON.stringify(climbingStyles));
         formData.append('home_gym', homeGym);
         // intent as array, not stringified
@@ -175,7 +217,7 @@ export default function ProfileScreen() {
           name,
           bio,
           age: Number(age),
-          grade,
+          grade: gradeToSave,
           climbing_styles: climbingStyles,
           home_gym: homeGym,
           intent,
@@ -188,12 +230,25 @@ export default function ProfileScreen() {
       if (user?.id && token) {
         try {
           const latestUser = await pb.collection('users').getOne(user.id, { headers: { Authorization: token } });
+          // Parse grade if it's a string (JSON)
+          let parsedGrade = createDefaultGrade();
+          if (latestUser.grade) {
+            if (typeof latestUser.grade === 'string') {
+              try {
+                parsedGrade = JSON.parse(latestUser.grade);
+              } catch {
+                parsedGrade = createDefaultGrade();
+              }
+            } else {
+              parsedGrade = latestUser.grade;
+            }
+          }
           // Map to Climber type
           const mappedUser: Climber = {
             id: latestUser.id,
             name: latestUser.name || '',
             age: typeof latestUser.age === 'number' ? latestUser.age : 0,
-            grade: latestUser.grade || 'beginner',
+            grade: parsedGrade,
             climbing_styles: Array.isArray(latestUser.climbing_styles) ? latestUser.climbing_styles : [],
             home_gym: latestUser.home_gym || '',
             bio: latestUser.bio || '',
@@ -212,6 +267,8 @@ export default function ProfileScreen() {
       let errorMsg = 'Failed to update profile.';
       if (e?.message) errorMsg += '\n' + e.message;
       if (e?.response) errorMsg += '\n' + JSON.stringify(e.response, null, 2);
+      if (e?.data) errorMsg += '\n' + JSON.stringify(e.data, null, 2);
+      console.error('Save error details:', e);
       Alert.alert('Error', errorMsg);
     }
     setSaving(false);
@@ -351,27 +408,61 @@ export default function ProfileScreen() {
             )}
           </View>
 
-          <View style={styles.infoCardMinimal}>
-            <Text style={styles.labelMinimal}>Grade</Text>
+          <View style={[styles.infoCardMinimal]}>
+            <Text style={styles.labelMinimal}>Climbing Grade</Text>
             {editMode ? (
-              <View style={{ backgroundColor: theme.colors.surface, borderRadius: 8 }}>
-                {CLIMBING_GRADES.map(g => (
-                  <Pressable
-                    key={g}
-                    style={{
-                      padding: 8,
-                      backgroundColor: grade === g ? theme.colors.accent : 'transparent',
-                      borderRadius: 8,
-                      marginVertical: 2,
-                    }}
-                    onPress={() => setGrade(g)}
-                  >
-                    <Text style={{ color: theme.colors.text }}>{g.charAt(0).toUpperCase() + g.slice(1)}</Text>
-                  </Pressable>
-                ))}
+              <View style={{ backgroundColor: "transparent" }}>
+                <Pressable
+                  style={{
+                    padding: 12,
+                    backgroundColor: theme.colors.accent,
+                    borderRadius: 8,
+                    marginBottom: 12,
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                  onPress={() => setShowGradeSystemModal(true)}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '600' }}>
+                    {formatGradeDisplay(grade)}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={20} color="#fff" />
+                </Pressable>
+
+                {/* General Level Quick Select */}
+                <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.textSecondary, marginBottom: 8 }}>
+                  General Level
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12, backgroundColor: "transparent" }}>
+                  {GENERAL_LEVELS.map(level => (
+                    <Pressable
+                      key={level}
+                      style={{
+                        paddingVertical: 8,
+                        paddingHorizontal: 12,
+                        backgroundColor: grade.general_level === level ? theme.colors.accent : theme.colors.surface,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: theme.colors.border,
+                      }}
+                      onPress={() => setGrade({ ...grade, general_level: level })}
+                    >
+                      <Text
+                        style={{
+                          color: grade.general_level === level ? '#fff' : theme.colors.text,
+                          fontSize: 12,
+                          fontWeight: '500',
+                        }}
+                      >
+                        {level.charAt(0).toUpperCase() + level.slice(1)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
               </View>
             ) : (
-              <Text style={styles.valueMinimal}>{grade.charAt(0).toUpperCase() + grade.slice(1)}</Text>
+              <Text style={styles.valueMinimal}>{formatGradeDisplay(grade)}</Text>
             )}
           </View>
 
@@ -379,16 +470,18 @@ export default function ProfileScreen() {
             <Text style={styles.labelMinimal}>Climbing Styles</Text>
             {editMode ? (
               <View style={{
-                flexDirection: 'row', flexWrap: 'wrap', gap: 8, backgroundColor: "transparent"
+                flexDirection: 'row', flexWrap: 'wrap', gap: 12, backgroundColor: "transparent"
               }}>
                 {CLIMBING_STYLES.map(style => (
                   <Pressable
                     key={style}
                     style={{
-                      padding: 8,
-                      backgroundColor: climbingStyles.includes(style) ? theme.colors.accent : theme.colors.surface,
-                      borderRadius: 8,
-                      margin: 2,
+                      borderRadius: 12,
+                      borderWidth: 2,
+                      borderColor: climbingStyles.includes(style) ? theme.colors.accent : theme.colors.border,
+                      width: '19%',
+                      aspectRatio: 1,
+                      overflow: 'hidden',
                     }}
                     onPress={() => {
                       setClimbingStyles(climbingStyles.includes(style)
@@ -396,7 +489,34 @@ export default function ProfileScreen() {
                         : [...climbingStyles, style]);
                     }}
                   >
-                    <Text style={{ color: theme.colors.text }}>{style.charAt(0).toUpperCase() + style.slice(1)}</Text>
+                    <ImageBackground
+                      source={getStyleImage(style)}
+                      resizeMode="cover"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      {climbingStyles.includes(style) && (
+                        <View style={{
+                          ...StyleSheet.absoluteFillObject,
+                          backgroundColor: 'rgba(0,0,0,0.5)',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        }}>
+                          <Text style={{ 
+                            color: '#fff',
+                            fontSize: 11,
+                            fontWeight: '700',
+                            textAlign: 'center',
+                          }}>
+                            {style.charAt(0).toUpperCase() + style.slice(1)}
+                          </Text>
+                        </View>
+                      )}
+                    </ImageBackground>
                   </Pressable>
                 ))}
               </View>
@@ -490,6 +610,96 @@ export default function ProfileScreen() {
             <Image source={{ uri: getAvatarUrl() }} style={styles.expandedImage} />
           )}
         </Pressable>
+      </Modal>
+
+      {/* Grade System Selection Modal */}
+      <Modal
+        visible={showGradeSystemModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowGradeSystemModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
+          <View
+            style={{
+              backgroundColor: theme.colors.background,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              padding: 20,
+              paddingBottom: 40,
+            }}
+          >
+            <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 16, color: theme.colors.text }}>
+              Select Grade System
+            </Text>
+
+            {GRADE_SYSTEMS.map(system => (
+              <Pressable
+                key={system}
+                onPress={() => {
+                  setGrade({ ...grade, system });
+                  setShowGradeSystemModal(false);
+                }}
+                style={{
+                  padding: 16,
+                  borderBottomWidth: 1,
+                  borderBottomColor: theme.colors.border,
+                }}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: "transparent" }}>
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      fontWeight: grade.system === system ? '700' : '500',
+                      color: grade.system === system ? theme.colors.accent : theme.colors.text,
+                    }}
+                  >
+                    {system === 'unknown' ? 'General Level Only' : system.toUpperCase()}
+                  </Text>
+                  {grade.system === system && (
+                    <Ionicons name="checkmark" size={20} color={theme.colors.accent} />
+                  )}
+                </View>
+              </Pressable>
+            ))}
+
+            {/* Grade value input if not unknown */}
+            {grade.system !== 'unknown' && (
+              <View style={{ marginTop: 20, backgroundColor: "transparent" }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 8, color: theme.colors.text }}>
+                  Enter your grade (e.g., {getExampleGrades(grade.system)[0]})
+                </Text>
+                <TextInput
+                  style={{
+                    backgroundColor: theme.colors.surface,
+                    borderRadius: 8,
+                    padding: 12,
+                    color: theme.colors.text,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                  }}
+                  value={grade.value}
+                  onChangeText={(value) => setGrade({ ...grade, value })}
+                  placeholder="e.g., V5, 7A, 6a+"
+                  placeholderTextColor={theme.colors.textSecondary}
+                />
+              </View>
+            )}
+
+            <Pressable
+              onPress={() => setShowGradeSystemModal(false)}
+              style={{
+                marginTop: 20,
+                paddingVertical: 12,
+                backgroundColor: theme.colors.accent,
+                borderRadius: 8,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '600' }}>Done</Text>
+            </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Settings Modal */}

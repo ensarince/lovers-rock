@@ -1,4 +1,5 @@
 import { authService } from '@/src/services/authService';
+import { createDefaultGrade } from '@/src/services/gradeService';
 import { preferenceService } from '@/src/services/preferenceService';
 import { Climber } from '@/src/types/climber';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -31,18 +32,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [darkMode, setDarkMode] = useState(false);
 
   // Helper to map any record to Climber type with defaults
-  const mapToClimber = (record: any): Climber => ({
-    id: record.id,
-    name: record.name || '',
-    age: typeof record.age === 'number' ? record.age : 0,
-    grade: record.grade || 'beginner',
-    climbing_styles: Array.isArray(record.climbing_styles) ? record.climbing_styles : [],
-    home_gym: record.home_gym || '',
-    bio: record.bio || '',
-    email: record.email || '',
-    avatar: record.avatar || '',
-    intent: Array.isArray(record.intent) ? record.intent : [],
-  });
+  const mapToClimber = (record: any): Climber => {
+    let parsedGrade = createDefaultGrade();
+    if (record.grade) {
+      if (typeof record.grade === 'string') {
+        try {
+          parsedGrade = JSON.parse(record.grade);
+        } catch {
+          parsedGrade = createDefaultGrade();
+        }
+      } else {
+        parsedGrade = record.grade;
+      }
+    }
+    
+    return {
+      id: record.id,
+      name: record.name || '',
+      age: typeof record.age === 'number' ? record.age : 0,
+      grade: parsedGrade,
+      climbing_styles: Array.isArray(record.climbing_styles) ? record.climbing_styles : [],
+      home_gym: record.home_gym || '',
+      bio: record.bio || '',
+      email: record.email || '',
+      avatar: record.avatar || '',
+      intent: Array.isArray(record.intent) ? record.intent : [],
+    };
+  };
 
   // Check if user is already authenticated on app start
   useEffect(() => {

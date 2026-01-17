@@ -36,7 +36,6 @@ const CLIMBING_STYLES = [
   'bouldering',
   'sport',
   'trad',
-  'speed',
   'gym',
   'outdoor',
 ];

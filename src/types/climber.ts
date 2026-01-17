@@ -1,6 +1,15 @@
-export type ClimbingStyle = 'bouldering' | 'sport' | 'trad' | 'gym' | 'outdoor' | 'speed';
 
-export type ClimbingGrade = 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'elite';
+export type GradeSystem = 'v-scale' | 'font' | 'french' | 'uiaa' | 'unknown';
+
+export type GeneralLevel = 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'elite';
+
+export type ClimbingStyle = 'bouldering' | 'sport' | 'trad' | 'gym' | 'outdoor';
+
+export interface ClimbingGrade {
+  system: GradeSystem;           // 'v-scale', 'font', 'french', 'uiaa', 'unknown'
+  value: string;                 // 'V5', '7A', '6a+', 'VI', etc.
+  general_level: GeneralLevel;   // 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'elite'
+}
 
 
 export interface Climber {

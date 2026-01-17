@@ -1,17 +1,18 @@
 import { Text } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
+import { formatGradeDisplay } from '@/src/services/gradeService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber, ClimbingGrade } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import {
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
+    Image,
+    Modal,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    View,
 } from 'react-native';
 
 interface ClimberDetailModalProps {
@@ -90,12 +91,11 @@ export const ClimberDetailModal: React.FC<ClimberDetailModalProps> = ({
                     styles.badge,
                     styles.largeBadge,
                     {
-                      backgroundColor: gradeColors[climber.grade],
+                      backgroundColor: gradeColors[climber.grade?.general_level || 'beginner'],
                     },
                   ]}>
                   <Text style={styles.badgeText}>
-                    {climber.grade.charAt(0).toUpperCase() +
-                      climber.grade.slice(1)}
+                    {formatGradeDisplay(climber.grade)}
                   </Text>
                 </View>
               </View>

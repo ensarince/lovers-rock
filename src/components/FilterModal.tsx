@@ -2,19 +2,32 @@ import { Text } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
+import { ClimbingStyle, GeneralLevel } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
 import {
+  ImageBackground,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
-  View,
+  View
 } from 'react-native';
 import RangeSlider from 'react-native-fast-range-slider';
 
+const getStyleImage = (style: ClimbingStyle) => {
+  const imageMap: Record<ClimbingStyle, any> = {
+    bouldering: require('../../assets/images/boulder.png'),
+    sport: require('../../assets/images/sport.png'),
+    trad: require('../../assets/images/trad.png'),
+    gym: require('../../assets/images/gym.png'),
+    outdoor: require('../../assets/images/outdoor.png'),
+  };
+  return imageMap[style];
+};
+
 export interface DiscoverFilters {
-  grade?: string[];
+  grade?: GeneralLevel[];
   styles?: string[];
   maxAge?: number;
   minAge?: number;
@@ -27,7 +40,7 @@ interface FilterModalProps {
   currentFilters: DiscoverFilters;
 }
 
-const CLIMBING_GRADES = [
+const GENERAL_LEVELS: GeneralLevel[] = [
   'beginner',
   'intermediate',
   'advanced',
@@ -38,7 +51,6 @@ const CLIMBING_STYLES = [
   'bouldering',
   'sport',
   'trad',
-  'speed',
   'gym',
   'outdoor',
 ];
@@ -53,20 +65,23 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
 
-  const [selectedGrades, setSelectedGrades] = useState<string[]>(
-    currentFilters.grade || []
-  );
+  const [minDifficulty, setMinDifficulty] = useState<number>(() => {
+    if (currentFilters.grade && Array.isArray(currentFilters.grade) && currentFilters.grade.length > 0) {
+      return GENERAL_LEVELS.indexOf(currentFilters.grade[0]);
+    }
+    return 0;
+  });
+  const [maxDifficulty, setMaxDifficulty] = useState<number>(() => {
+    if (currentFilters.grade && Array.isArray(currentFilters.grade) && currentFilters.grade.length > 0) {
+      return GENERAL_LEVELS.indexOf(currentFilters.grade[currentFilters.grade.length - 1]);
+    }
+    return GENERAL_LEVELS.length - 1;
+  });
   const [selectedStyles, setSelectedStyles] = useState<string[]>(
     currentFilters.styles || []
   );
   const [minAge, setMinAge] = useState(currentFilters.minAge || 18);
   const [maxAge, setMaxAge] = useState(currentFilters.maxAge || 80);
-
-  const toggleGrade = (grade: string) => {
-    setSelectedGrades((prev) =>
-      prev.includes(grade) ? prev.filter((g) => g !== grade) : [...prev, grade]
-    );
-  };
 
   const toggleStyle = (style: string) => {
     setSelectedStyles((prev) =>
@@ -77,8 +92,9 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   };
 
   const handleApply = () => {
+    const gradeRange = GENERAL_LEVELS.slice(minDifficulty, maxDifficulty + 1);
     onApplyFilters({
-      grade: selectedGrades.length > 0 ? selectedGrades : undefined,
+      grade: gradeRange.length > 0 ? (gradeRange as GeneralLevel[]) : undefined,
       styles: selectedStyles.length > 0 ? selectedStyles : undefined,
       minAge: minAge !== 18 ? minAge : undefined,
       maxAge: maxAge !== 80 ? maxAge : undefined,
@@ -87,7 +103,8 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   };
 
   const handleReset = () => {
-    setSelectedGrades([]);
+    setMinDifficulty(0);
+    setMaxDifficulty(GENERAL_LEVELS.length - 1);
     setSelectedStyles([]);
     setMinAge(18);
     setMaxAge(80);
@@ -149,51 +166,75 @@ export const FilterModal: React.FC<FilterModalProps> = ({
               </View>
             </View>
 
-            {/* Climbing Grades */}
+            {/* Climbing Difficulty Spectrum */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Climbing Level</Text>
-              <View style={styles.buttonGroup}>
-                {CLIMBING_GRADES.map((grade) => (
-                  <Pressable
-                    key={grade}
-                    onPress={() => toggleGrade(grade)}
-                    style={[
-                      styles.filterButton,
-                      selectedGrades.includes(grade) && styles.filterButtonActive,
-                    ]}>
-                    <Text
-                      style={[
-                        styles.filterButtonText,
-                        selectedGrades.includes(grade) &&
-                          styles.filterButtonTextActive,
-                      ]}>
-                      {grade.charAt(0).toUpperCase() + grade.slice(1)}
-                    </Text>
-                  </Pressable>
-                ))}
+              <View style={styles.difficultyHeader}>
+                <Text style={styles.sectionTitle}>Difficulty Spectrum</Text>
+                <Text style={styles.difficultyValue}>
+                  {GENERAL_LEVELS[minDifficulty].charAt(0).toUpperCase() + GENERAL_LEVELS[minDifficulty].slice(1)} - {GENERAL_LEVELS[maxDifficulty].charAt(0).toUpperCase() + GENERAL_LEVELS[maxDifficulty].slice(1)}
+                </Text>
+              </View>
+              
+              <View style={styles.rangeSliderContainer}>
+                <RangeSlider
+                  min={0}
+                  max={GENERAL_LEVELS.length - 1}
+                  initialMinValue={minDifficulty}
+                  initialMaxValue={maxDifficulty}
+                  step={1}
+                  width={300}
+                  thumbSize={32}
+                  trackHeight={4}
+                  minimumDistance={0}
+                  selectedTrackStyle={{ backgroundColor: theme.colors.accent }}
+                  unselectedTrackStyle={{ backgroundColor: theme.colors.border }}
+                  thumbStyle={{
+                    backgroundColor: theme.colors.accent,
+                    borderRadius: 16,
+                  }}
+                  pressedThumbStyle={{ transform: [{ scale: 1.2 }] }}
+                  showThumbLines={false}
+                  onValuesChange={(values) => {
+                    setMinDifficulty(values[0]);
+                    setMaxDifficulty(values[1]);
+                  }}
+                  leftThumbAccessibilityLabel="Minimum difficulty"
+                  rightThumbAccessibilityLabel="Maximum difficulty"
+                />
+              </View>
+              
+              {/* Difficulty labels */}
+              <View style={styles.difficultyLabels}>
+                <Text style={styles.difficultyLabel}>Beginner</Text>
+                <Text style={styles.difficultyLabel}>Elite</Text>
               </View>
             </View>
 
             {/* Climbing Styles */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Climbing Styles</Text>
-              <View style={styles.buttonGroup}>
+              <View style={styles.styleButtonGroup}>
                 {CLIMBING_STYLES.map((style) => (
                   <Pressable
                     key={style}
                     onPress={() => toggleStyle(style)}
                     style={[
-                      styles.filterButton,
-                      selectedStyles.includes(style) && styles.filterButtonActive,
+                      styles.styleButton,
                     ]}>
-                    <Text
-                      style={[
-                        styles.filterButtonText,
-                        selectedStyles.includes(style) &&
-                          styles.filterButtonTextActive,
-                      ]}>
-                      {style.charAt(0).toUpperCase() + style.slice(1)}
-                    </Text>
+                    <ImageBackground
+                      source={getStyleImage(style as ClimbingStyle)}
+                      resizeMode="cover"
+                      style={styles.styleImageBackground}
+                    >
+                      {selectedStyles.includes(style) && (
+                        <View style={styles.styleTextOverlay}>
+                          <Text
+                            style={styles.styleButtonTextSelected}>
+                            {style.charAt(0).toUpperCase() + style.slice(1)}
+                          </Text>
+                        </View>
+                      )}
+                    </ImageBackground>
                   </Pressable>
                 ))}
               </View>
@@ -375,5 +416,59 @@ const createStyles = (theme: typeof themeLight) =>
       color: theme.colors.text,
       fontSize: 14,
       fontWeight: '600',
+    },
+    difficultyHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    difficultyValue: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.accent,
+    },
+    difficultyLabels: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: 2,
+      marginTop: 8,
+    },
+    difficultyLabel: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      fontWeight: '500',
+    },
+    styleButtonGroup: {
+      flexDirection: 'row',
+      flexWrap: 'nowrap',
+      gap: 8,
+    },
+    styleButton: {
+      flex: 1,
+      aspectRatio: 1,
+      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: theme.colors.border,
+      overflow: 'hidden',
+    },
+    styleImageBackground: {
+      flex: 1,
+      width: '100%',
+      height: '100%',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    styleTextOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    styleButtonTextSelected: {
+      color: '#fff',
+      fontSize: 12,
+      fontWeight: '700',
+      textAlign: 'center',
     },
   });

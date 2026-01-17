@@ -106,7 +106,7 @@ export default function LoginScreen() {
     <View style={styles.container}>
       <View style={styles.headerMinimal}>
         <Image
-          source={require('../../assets/images/logo.jpg')}
+          source={require('../../assets/images/logo.png')}
           style={{ width: 128, height: 128 }}
           resizeMode="cover"
         />

@@ -1,16 +1,17 @@
 import { Text } from '@/components/Themed';
+import { formatGradeDisplay } from '@/src/services/gradeService';
 import { theme } from '@/src/themeDark';
 import { Climber, ClimbingGrade } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef } from 'react';
 import {
-  Animated,
-  Image,
-  PanResponder,
-  Pressable,
-  StyleSheet,
-  View,
+    Animated,
+    Image,
+    PanResponder,
+    Pressable,
+    StyleSheet,
+    View,
 } from 'react-native';
 
 interface SwipeableCardProps {
@@ -173,11 +174,10 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
             <View
               style={[
                 styles.badge,
-                { backgroundColor: gradeColors[climber.grade] },
+                { backgroundColor: gradeColors[climber.grade?.general_level || 'beginner'] },
               ]}>
               <Text style={styles.badgeText}>
-                {climber.grade.charAt(0).toUpperCase() +
-                  climber.grade.slice(1)}
+                {formatGradeDisplay(climber.grade)}
               </Text>
             </View>
             {climber.climbing_styles.slice(0, 2).map((style) => (

@@ -11,12 +11,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    Pressable,
-    ScrollView,
-    StyleSheet
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet
 } from 'react-native';
 
 type FilterChip = 'all' | 'requests' | 'dating' | 'partner' | 'sessions';
@@ -390,6 +390,7 @@ const createStyles = (theme: typeof themeLight) =>
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: theme.colors.background,
   },
   chipContainer: {
     backgroundColor: theme.colors.background,
