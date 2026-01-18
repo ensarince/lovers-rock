@@ -1,36 +1,56 @@
 import { Text } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
+import { calculateDistance, formatDistance } from '@/src/services/geoService';
 import { formatGradeDisplay } from '@/src/services/gradeService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
-import { Climber, ClimbingGrade } from '@/src/types/climber';
+import { Climber } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    Image,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    View,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  View,
 } from 'react-native';
 
 interface ClimberDetailModalProps {
   climber: Climber | null;
   visible: boolean;
   onClose: () => void;
+  userLatitude?: number;
+  userLongitude?: number;
 }
 
 export const ClimberDetailModal: React.FC<ClimberDetailModalProps> = ({
   climber,
   visible,
   onClose,
+  userLatitude,
+  userLongitude,
 }) => {
   const { darkMode } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
+  const [distance, setDistance] = useState<number | null>(null);
 
-  const gradeColors: Record<ClimbingGrade, string> = {
+  useEffect(() => {
+    if (userLatitude && userLongitude && climber?.latitude && climber?.longitude) {
+      const dist = calculateDistance(
+        userLatitude,
+        userLongitude,
+        climber.latitude,
+        climber.longitude
+      );
+      setDistance(dist);
+    } else {
+      setDistance(null);
+    }
+  }, [userLatitude, userLongitude, climber?.latitude, climber?.longitude]);
+
+  const gradeColors: Record<string, string> = {
     beginner: theme.colors.success,
     intermediate: '#f59e0b',
     advanced: theme.colors.error,
@@ -69,11 +89,17 @@ export const ClimberDetailModal: React.FC<ClimberDetailModalProps> = ({
             {/* Info Section */}
             <View style={styles.infoSection}>
               <View style={styles.nameRow}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.name}>
                     {climber.name}, {climber.age}
                   </Text>
                   <Text style={styles.gym}>{climber.home_gym}</Text>
+                  {distance !== null && (
+                    <View style={styles.distanceRow}>
+                      <Ionicons name="location" size={14} color={theme.colors.accent} />
+                      <Text style={styles.distanceText}>{formatDistance(distance)} away</Text>
+                    </View>
+                  )}
                 </View>
               </View>
 
@@ -209,6 +235,17 @@ const createStyles = (theme: typeof themeLight) =>
       fontSize: 14,
       color: theme.colors.textSecondary,
       lineHeight: 22,
+    },
+    distanceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 6,
+    },
+    distanceText: {
+      fontSize: 13,
+      color: theme.colors.accent,
+      fontWeight: '500',
     },
     section: {
       marginBottom: 24,

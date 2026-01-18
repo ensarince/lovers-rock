@@ -1,5 +1,6 @@
 import { authService } from '@/src/services/authService';
 import { createDefaultGrade } from '@/src/services/gradeService';
+import { locationService } from '@/src/services/locationService';
 import { preferenceService } from '@/src/services/preferenceService';
 import { Climber } from '@/src/types/climber';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -57,6 +58,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       email: record.email || '',
       avatar: record.avatar || '',
       intent: Array.isArray(record.intent) ? record.intent : [],
+      latitude: typeof record.latitude === 'number' ? record.latitude : undefined,
+      longitude: typeof record.longitude === 'number' ? record.longitude : undefined,
+      last_location_update: record.last_location_update || undefined,
     };
   };
 
@@ -122,6 +126,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       preferenceService.reset();
       await preferenceService.syncPreferences(authData.token, authData.record.id);
       setPreferencesSynced(true);
+      
+      // Start location tracking on successful login (updates every 5 minutes)
+      await locationService.startPeriodicLocationUpdates(authData.record.id, authData.token, 5);
+      
+      // Fetch fresh user data after location update to get the latest location
+      const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      setTimeout(async () => {
+        try {
+          const updatedUserRes = await fetch(
+            `${POCKETBASE_URL}/api/collections/users/records/${authData.record.id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${authData.token}`,
+              },
+            }
+          );
+          if (updatedUserRes.ok) {
+            const updatedUserData = await updatedUserRes.json();
+            const updatedClimber = mapToClimber(updatedUserData);
+            setUser(updatedClimber);
+            await AsyncStorage.setItem('user', JSON.stringify(updatedClimber));
+          }
+        } catch (err) {
+          // Silently fail
+        }
+      }, 2000);
+      
       setIsLoading(true);
       setTimeout(() => {
         setIsLoading(false);
@@ -166,6 +197,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }; */
 
   const logout = async () => {
+    // Stop location tracking when logging out
+    locationService.stopPeriodicLocationUpdates();
+    
     authService.logout();
     setUser(null);
     setToken(null);

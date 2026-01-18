@@ -31,6 +31,7 @@ export interface DiscoverFilters {
   styles?: string[];
   maxAge?: number;
   minAge?: number;
+  maxDistance?: number; // Maximum distance in kilometers (0-50)
 }
 
 interface FilterModalProps {
@@ -82,6 +83,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   );
   const [minAge, setMinAge] = useState(currentFilters.minAge || 18);
   const [maxAge, setMaxAge] = useState(currentFilters.maxAge || 80);
+  const [maxDistance, setMaxDistance] = useState(currentFilters.maxDistance || 50);
 
   const toggleStyle = (style: string) => {
     setSelectedStyles((prev) =>
@@ -98,6 +100,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
       styles: selectedStyles.length > 0 ? selectedStyles : undefined,
       minAge: minAge !== 18 ? minAge : undefined,
       maxAge: maxAge !== 80 ? maxAge : undefined,
+      maxDistance: maxDistance !== 50 ? maxDistance : undefined,
     });
     onClose();
   };
@@ -108,6 +111,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     setSelectedStyles([]);
     setMinAge(18);
     setMaxAge(80);
+    setMaxDistance(50);
     onApplyFilters({});
     onClose();
   };
@@ -133,7 +137,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
             {/* Age Range */}
             <View style={styles.section}>
               <View style={styles.ageHeader}>
-                <Text style={styles.sectionTitle}>Age Range</Text>
+                <Text style={styles.sectionTitle}>Age</Text>
                 <Text style={styles.ageValue}>{Math.round(minAge)} - {Math.round(maxAge)}</Text>
               </View>
               
@@ -166,10 +170,51 @@ export const FilterModal: React.FC<FilterModalProps> = ({
               </View>
             </View>
 
+            {/* Distance Range */}
+            <View style={styles.section}>
+              <View style={styles.distanceHeader}>
+                <Text style={styles.sectionTitle}>Distance</Text>
+                <Text style={styles.distanceValue}>{Math.round(maxDistance)} km</Text>
+              </View>
+              
+              <View style={styles.rangeSliderContainer}>
+                <RangeSlider
+                  min={0}
+                  max={50}
+                  initialMinValue={0}
+                  initialMaxValue={maxDistance}
+                  step={1}
+                  width={300}
+                  thumbSize={32}
+                  trackHeight={4}
+                  minimumDistance={1}
+                  selectedTrackStyle={{ backgroundColor: theme.colors.accent }}
+                  unselectedTrackStyle={{ backgroundColor: theme.colors.border }}
+                  thumbStyle={{
+                    backgroundColor: theme.colors.accent,
+                    borderRadius: 16,
+                  }}
+                  pressedThumbStyle={{ transform: [{ scale: 1.2 }] }}
+                  showThumbLines={false}
+                  onValuesChange={(values) => {
+                    setMaxDistance(values[1]);
+                  }}
+                  leftThumbAccessibilityLabel="Minimum distance"
+                  rightThumbAccessibilityLabel="Maximum distance"
+                />
+              </View>
+              
+              {/* Distance labels */}
+              <View style={styles.distanceLabels}>
+                <Text style={styles.distanceLabel}>0 km</Text>
+                <Text style={styles.distanceLabel}>50 km</Text>
+              </View>
+            </View>
+
             {/* Climbing Difficulty Spectrum */}
             <View style={styles.section}>
               <View style={styles.difficultyHeader}>
-                <Text style={styles.sectionTitle}>Difficulty Spectrum</Text>
+                <Text style={styles.sectionTitle}>Difficulty</Text>
                 <Text style={styles.difficultyValue}>
                   {GENERAL_LEVELS[minDifficulty].charAt(0).toUpperCase() + GENERAL_LEVELS[minDifficulty].slice(1)} - {GENERAL_LEVELS[maxDifficulty].charAt(0).toUpperCase() + GENERAL_LEVELS[maxDifficulty].slice(1)}
                 </Text>
@@ -427,6 +472,28 @@ const createStyles = (theme: typeof themeLight) =>
       fontSize: 14,
       fontWeight: '600',
       color: theme.colors.accent,
+    },
+    distanceHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    distanceValue: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.accent,
+    },
+    distanceLabels: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingHorizontal: 2,
+      marginTop: 8,
+    },
+    distanceLabel: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      fontWeight: '500',
     },
     difficultyLabels: {
       flexDirection: 'row',

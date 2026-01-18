@@ -1,17 +1,18 @@
 import { Text } from '@/components/Themed';
+import { calculateDistance, formatDistance } from '@/src/services/geoService';
 import { formatGradeDisplay } from '@/src/services/gradeService';
 import { theme } from '@/src/themeDark';
-import { Climber, ClimbingGrade } from '@/src/types/climber';
+import { Climber } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-    Animated,
-    Image,
-    PanResponder,
-    Pressable,
-    StyleSheet,
-    View,
+  Animated,
+  Image,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  View,
 } from 'react-native';
 
 interface SwipeableCardProps {
@@ -19,9 +20,11 @@ interface SwipeableCardProps {
   onAccept: (climber: Climber) => void;
   onReject: (climber: Climber) => void;
   onPress?: () => void;
+  userLatitude?: number;
+  userLongitude?: number;
 }
 
-const gradeColors: Record<ClimbingGrade, string> = {
+const gradeColors: Record<string, string> = {
   beginner: '#10b981',
   intermediate: '#f59e0b',
   advanced: '#ef4444',
@@ -34,11 +37,27 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
   onAccept,
   onReject,
   onPress,
+  userLatitude,
+  userLongitude,
 }) => {
   const pan = useRef(new Animated.ValueXY()).current;
   const [isAccepting, setIsAccepting] = React.useState(false);
   const [isRejecting, setIsRejecting] = React.useState(false);
+  const [distance, setDistance] = useState<number | null>(null);
   const currentClimberRef = useRef(climber);
+
+  // Calculate distance on mount and when location/climber changes
+  useEffect(() => {
+    if (userLatitude && userLongitude && climber.latitude && climber.longitude) {
+      const dist = calculateDistance(
+        userLatitude,
+        userLongitude,
+        climber.latitude,
+        climber.longitude
+      );
+      setDistance(dist);
+    }
+  }, [userLatitude, userLongitude, climber.latitude, climber.longitude]);
 
   // Update the ref when climber changes
   useEffect(() => {
@@ -187,6 +206,12 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
                 </Text>
               </View>
             ))}
+            {distance !== null && (
+              <View style={[styles.badge, styles.distanceBadge]}>
+                <Ionicons name="location" size={12} color="#fff" />
+                <Text style={styles.badgeText}>{formatDistance(distance)}</Text>
+              </View>
+            )}
           </View>
         </View>
       </Pressable>
@@ -324,6 +349,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.3)',
+  },
+  distanceBadge: {
+    backgroundColor: 'rgba(59, 130, 246, 0.8)',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.5)',
+    flexDirection: 'row',
+    gap: 4,
+    alignItems: 'center',
   },
   badgeText: {
     fontSize: 12,

@@ -27,4 +27,7 @@ export interface Climber {
   liked_users_partner?: string[]; // Users liked in partner mode
   image_url?: string; // For displaying avatar URL
   intent: 'partner' | 'date' | Array<'partner' | 'date'>;
+  latitude?: number; // User's latitude for geofinding
+  longitude?: number; // User's longitude for geofinding
+  last_location_update?: string; // ISO timestamp of last location update
 }

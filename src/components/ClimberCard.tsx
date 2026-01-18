@@ -1,4 +1,5 @@
 import { Text, View } from '@/components/Themed';
+import { formatGradeDisplay } from '@/src/services/gradeService';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import { Dimensions, Image, Pressable, StyleSheet } from 'react-native';
@@ -26,7 +27,7 @@ export const ClimberCard: React.FC<ClimberCardProps> = ({
           <Text style={styles.name}>
             {climber.name}, {climber.age}
           </Text>
-          <Text style={styles.grade}>{climber.grade} climber</Text>
+          <Text style={styles.grade}>{formatGradeDisplay(climber.grade)} climber</Text>
           <Text style={styles.bio} numberOfLines={3}>
             {climber.bio}
           </Text>

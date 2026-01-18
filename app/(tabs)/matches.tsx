@@ -362,6 +362,8 @@ export default function MatchesScreen() {
         match={selectedMatch}
         onClose={handleCloseModal}
         onMessage={handleMessage}
+        userLatitude={user?.latitude}
+        userLongitude={user?.longitude}
       />
     </View>
   );

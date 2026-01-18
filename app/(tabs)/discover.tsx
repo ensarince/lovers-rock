@@ -4,6 +4,7 @@ import { MatchAnimation } from '@/src/components/MatchAnimation';
 import PartnerDetailModal from '@/src/components/PartnerDetailModal';
 import { SwipeableCard } from '@/src/components/SwipeableCard';
 import { useAuth } from '@/src/context/AuthContext';
+import { calculateDistance } from '@/src/services/geoService';
 import { preferenceService } from '@/src/services/preferenceService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
@@ -277,8 +278,23 @@ export default function DiscoverScreen() {
     if (activeFilters.maxAge) {
       result = result.filter((c) => c.age <= activeFilters.maxAge!);
     }
+    // Filter by distance for partner mode
+    if (activeFilters.maxDistance !== undefined && user?.latitude && user?.longitude) {
+      const userLat = user.latitude;
+      const userLon = user.longitude;
+      result = result.filter((c) => {
+        if (!c.latitude || !c.longitude) return false;
+        const distance = calculateDistance(
+          userLat,
+          userLon,
+          c.latitude,
+          c.longitude
+        );
+        return distance <= (activeFilters.maxDistance || 50);
+      });
+    }
     setFilteredPartners(result);
-  }, [partners, activeFilters, searchText]);
+  }, [partners, activeFilters, searchText, user?.latitude, user?.longitude]);
 
   const applyFiltersAndSearch = (
     baseClimbers: Climber[],
@@ -327,6 +343,22 @@ export default function DiscoverScreen() {
     }
     if (filters.maxAge) {
       result = result.filter((c) => c.age <= filters.maxAge!);
+    }
+
+    // Filter by distance
+    if (filters.maxDistance !== undefined && user?.latitude && user?.longitude) {
+      const userLat = user.latitude;
+      const userLon = user.longitude;
+      result = result.filter((c) => {
+        if (!c.latitude || !c.longitude) return false; // Exclude users without location
+        const distance = calculateDistance(
+          userLat,
+          userLon,
+          c.latitude,
+          c.longitude
+        );
+        return distance <= (filters.maxDistance || 50);
+      });
     }
 
     return result;
@@ -582,6 +614,8 @@ export default function DiscoverScreen() {
               climber={currentClimber}
               onAccept={handleAccept}
               onReject={handleReject}
+              userLatitude={user?.latitude}
+              userLongitude={user?.longitude}
             />
           ) : (
             <View style={styles.emptyState}>
@@ -625,6 +659,14 @@ export default function DiscoverScreen() {
                     <Text style={styles.partnerDetail}>
                       Styles: {Array.isArray(item.climbing_styles) ? item.climbing_styles.join(', ') : ''}
                     </Text>
+                    {user?.latitude && user?.longitude && item.latitude && item.longitude && (
+                      <View style={styles.partnerDistance}>
+                        <Ionicons name="location" size={12} color="#6b7280" />
+                        <Text style={styles.partnerDetail}>
+                          {calculateDistance(user.latitude, user.longitude, item.latitude, item.longitude).toFixed(1)} km away
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
               </Pressable>
@@ -660,6 +702,8 @@ export default function DiscoverScreen() {
         climber={partnerModalVisible ? selectedPartner : null}
         onClose={closePartnerModal}
         onSendRequest={handleSendPartnerRequest}
+        userLatitude={user?.latitude}
+        userLongitude={user?.longitude}
       />
     </View>
   );
@@ -798,6 +842,13 @@ const createStyles = (theme: typeof themeLight) =>
       fontSize: 14,
       color: theme.colors.textSecondary,
       marginTop: 2,
+    },
+    partnerDistance: {
+      flexDirection: 'row',
+      backgroundColor: 'transparent',
+      alignItems: 'center',
+      marginTop: 6,
+      gap: 4,
     },
     emptyText: {
       color: theme.colors.error,

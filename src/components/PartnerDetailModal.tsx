@@ -1,8 +1,11 @@
 import { useAuth } from '@/src/context/AuthContext';
+import { calculateDistance, formatDistance } from '@/src/services/geoService';
+import { formatGradeDisplay } from '@/src/services/gradeService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
-import React from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import React, { useEffect, useState } from 'react';
 import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface PartnerDetailModalProps {
@@ -10,14 +13,32 @@ interface PartnerDetailModalProps {
   climber: Climber | null;
   onClose: () => void;
   onSendRequest: (climber: Climber, isRemoving?: boolean) => void;
+  userLatitude?: number;
+  userLongitude?: number;
 }
 
-export default function PartnerDetailModal({ visible, climber, onClose, onSendRequest }: PartnerDetailModalProps) {
+export default function PartnerDetailModal({ visible, climber, onClose, onSendRequest, userLatitude, userLongitude }: PartnerDetailModalProps) {
   const { darkMode, user } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
   const [imageExpanded, setImageExpanded] = React.useState(false);
   const [isRequestSent, setIsRequestSent] = React.useState(false);
+  const [distance, setDistance] = useState<number | null>(null);
+
+  // Calculate distance when climber or user location changes
+  useEffect(() => {
+    if (userLatitude && userLongitude && climber?.latitude && climber?.longitude) {
+      const dist = calculateDistance(
+        userLatitude,
+        userLongitude,
+        climber.latitude,
+        climber.longitude
+      );
+      setDistance(dist);
+    } else {
+      setDistance(null);
+    }
+  }, [userLatitude, userLongitude, climber?.latitude, climber?.longitude]);
 
   // Check if climber is in liked_users_partner when climber changes
   React.useEffect(() => {
@@ -57,7 +78,13 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
               )}
               <Text style={styles.title}>{climber.name}</Text>
               <Text style={styles.detail}>Gym: {climber.home_gym}</Text>
-              <Text style={styles.detail}>Grade: {climber.grade}</Text>
+              {distance !== null && (
+                <View style={styles.distanceRow}>
+                  <Ionicons name="location" size={14} color={theme.colors.accent} />
+                  <Text style={styles.distanceDetail}>{formatDistance(distance)} away</Text>
+                </View>
+              )}
+              <Text style={styles.detail}>Grade: {formatGradeDisplay(climber.grade)}</Text>
               <Text style={styles.detail}>Styles: {Array.isArray(climber.climbing_styles) ? climber.climbing_styles.join(', ') : ''}</Text>
               <Text style={styles.detail}>Bio: {climber.bio}</Text>
               <Pressable style={styles.closeButton} onPress={onClose}>
@@ -117,6 +144,17 @@ const createStyles = (theme: typeof themeLight) =>
       fontSize: 15,
       color: theme.colors.textSecondary,
       marginBottom: 6,
+    },
+    distanceRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 6,
+    },
+    distanceDetail: {
+      fontSize: 15,
+      color: theme.colors.accent,
+      fontWeight: '500',
     },
     closeButton: {
       marginTop: 18,

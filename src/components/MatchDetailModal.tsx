@@ -1,10 +1,12 @@
 import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
+import { calculateDistance, formatDistance } from '@/src/services/geoService';
+import { formatGradeDisplay } from '@/src/services/gradeService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Match } from '@/src/types/match';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dimensions,
   Image,
@@ -21,6 +23,8 @@ interface MatchDetailModalProps {
   match: Match | null;
   onClose: () => void;
   onMessage: (match: Match) => void;
+  userLatitude?: number;
+  userLongitude?: number;
 }
 
 export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
@@ -28,10 +32,27 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
   match,
   onClose,
   onMessage,
+  userLatitude,
+  userLongitude,
 }) => {
   const { darkMode } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
+  const [distance, setDistance] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (match && userLatitude && userLongitude && match.climber.latitude && match.climber.longitude) {
+      const dist = calculateDistance(
+        userLatitude,
+        userLongitude,
+        match.climber.latitude,
+        match.climber.longitude
+      );
+      setDistance(dist);
+    } else {
+      setDistance(null);
+    }
+  }, [match, userLatitude, userLongitude]);
 
   if (!match) return null;
 
@@ -68,11 +89,17 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
               {climber.name}, {climber.age}
             </Text>
             <Text style={styles.grade}>
-              {climber.grade} climber
+              {formatGradeDisplay(climber.grade)} climber
             </Text>
             <Text style={styles.gym}>
               🏔️ {climber.home_gym}
             </Text>
+            {distance !== null && (
+              <View style={styles.distanceContainer}>
+                <Ionicons name="location" size={16} color={theme.colors.accent} />
+                <Text style={styles.distanceText}>{formatDistance(distance)} away</Text>
+              </View>
+            )}
 
             {/* Climbing Styles */}
             <View style={styles.stylesContainer}>
@@ -169,7 +196,19 @@ const createStyles = (theme: typeof themeLight) =>
       fontSize: 16,
       color: theme.colors.textSecondary,
       textAlign: 'center',
+      marginBottom: 12,
+    },
+    distanceContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
       marginBottom: 24,
+    },
+    distanceText: {
+      fontSize: 14,
+      color: theme.colors.accent,
+      fontWeight: '500',
     },
     stylesContainer: {
       marginBottom: 24,
