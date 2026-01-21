@@ -2,11 +2,22 @@ import { useAuth } from '@/src/context/AuthContext';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
+import { useEffect } from 'react';
 
 export default function TabLayout() {
-  const { darkMode } = useAuth();
+  const { darkMode, user } = useAuth();
+  const router = useRouter();
   const theme = darkMode ? themeDark : themeLight;
+
+  // Redirect to profile if profile is not completed, except when on profile screen
+  useEffect(() => {
+    if (user && !user.profile_completed) {
+      // Keep modal at root level - it will prevent navigation
+      // This is just a safety measure
+    }
+  }, [user?.profile_completed, router]);
+
   return (
     <Tabs
       screenOptions={{

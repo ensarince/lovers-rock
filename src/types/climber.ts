@@ -1,12 +1,12 @@
 
-export type GradeSystem = 'v-scale' | 'font' | 'french' | 'uiaa' | 'unknown';
+export type GradeSystem = 'french' | 'uiaa'
 
 export type GeneralLevel = 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'elite';
 
 export type ClimbingStyle = 'bouldering' | 'sport' | 'trad' | 'gym' | 'outdoor';
 
 export interface ClimbingGrade {
-  system: GradeSystem;           // 'v-scale', 'font', 'french', 'uiaa', 'unknown'
+  system: GradeSystem;           // 'french', 'uiaa'
   value: string;                 // 'V5', '7A', '6a+', 'VI', etc.
   general_level: GeneralLevel;   // 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'elite'
 }
@@ -30,4 +30,5 @@ export interface Climber {
   latitude?: number; // User's latitude for geofinding
   longitude?: number; // User's longitude for geofinding
   last_location_update?: string; // ISO timestamp of last location update
+  profile_completed?: boolean; // Whether user has completed profile setup
 }

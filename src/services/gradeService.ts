@@ -28,7 +28,7 @@ export const formatGradeDisplay = (grade: ClimbingGrade | undefined | null): str
   }
   
   // Safe check for system and value
-  if (grade.system === 'unknown' || !grade.value || grade.value.trim().length === 0) {
+  if (!grade.system || !grade.value || grade.value.trim().length === 0) {
     return level.charAt(0).toUpperCase() + level.slice(1);
   }
   
@@ -40,11 +40,8 @@ export const formatGradeDisplay = (grade: ClimbingGrade | undefined | null): str
  */
 export const formatGradeSystemName = (system: GradeSystem): string => {
   const systemNames: Record<GradeSystem, string> = {
-    'v-scale': 'V-Scale',
-    'font': 'Font',
     'french': 'French',
     'uiaa': 'UIAA',
-    'unknown': 'General Level',
   };
   return systemNames[system];
 };
@@ -54,11 +51,8 @@ export const formatGradeSystemName = (system: GradeSystem): string => {
  */
 export const getExampleGrades = (system: GradeSystem): string[] => {
   const examples: Record<GradeSystem, string[]> = {
-    'v-scale': ['V0', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7+'],
-    'font': ['3', '4', '5', '6a', '6a+', '6b', '7a', '7a+', '7b+', '8a'],
-    'french': ['2', '3', '4a', '4b', '4c', '5a', '5b', '5c', '6a', '6a+'],
-    'uiaa': ['I', 'I+', 'II', 'II+', 'III', 'IV', 'IV+', 'V', 'V+', 'VI'],
-    'unknown': [],
+    'french': ['4b', '4b+', '4c', '5a', '5a+', '5b', '5b+', '5c', '5c+', '6a', '6a+', '6b', '6b+', '6c', '6c+', '7a', '7a+', '7b', '7b+', '7c', '7c+', '8a', '8a+', '8b', '8b+', '8c', '8c+', '9a'],
+    'uiaa': ['IV', 'IV+', 'V-', 'V', 'V+', 'VI-', 'VI', 'VI+', 'VII-', 'VII', 'VII+', 'VIII-', 'VIII', 'VIII+', 'IX-', 'IX', 'IX+', 'X-', 'X', 'X+', 'XI-', 'XI', 'XI+', 'XII'],
   };
   return examples[system] || [];
 };
@@ -68,7 +62,7 @@ export const getExampleGrades = (system: GradeSystem): string[] => {
  */
 export const createDefaultGrade = (generalLevel: GeneralLevel = 'beginner'): ClimbingGrade => {
   return {
-    system: 'unknown',
+    system: 'french',
     value: '',
     general_level: generalLevel,
   };

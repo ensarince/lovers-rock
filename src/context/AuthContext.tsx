@@ -61,6 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       latitude: typeof record.latitude === 'number' ? record.latitude : undefined,
       longitude: typeof record.longitude === 'number' ? record.longitude : undefined,
       last_location_update: record.last_location_update || undefined,
+      profile_completed: record.profile_completed || false,
     };
   };
 
@@ -145,6 +146,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           if (updatedUserRes.ok) {
             const updatedUserData = await updatedUserRes.json();
             const updatedClimber = mapToClimber(updatedUserData);
+            
+            // Check if user has completed profile (all required fields filled)
+            const hasCompleteProfile = updatedUserData.name && 
+                                      updatedUserData.age && 
+                                      updatedUserData.home_gym && 
+                                      updatedUserData.bio && 
+                                      updatedUserData.avatar &&
+                                      updatedUserData.grade &&
+                                      updatedUserData.climbing_styles?.length > 0;
+            
+            // If profile is complete but not marked, mark it as completed
+            if (hasCompleteProfile && !updatedUserData.profile_completed) {
+              try {
+                await fetch(
+                  `${POCKETBASE_URL}/api/collections/users/records/${authData.record.id}`,
+                  {
+                    method: 'PATCH',
+                    headers: {
+                      Authorization: `Bearer ${authData.token}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ profile_completed: true }),
+                  }
+                );
+                updatedClimber.profile_completed = true;
+              } catch (err) {
+                // Silently fail
+              }
+            }
+            
             setUser(updatedClimber);
             await AsyncStorage.setItem('user', JSON.stringify(updatedClimber));
           }

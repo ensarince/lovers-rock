@@ -48,9 +48,6 @@ const GENERAL_LEVELS: GeneralLevel[] = [
 ];
 
 const GRADE_SYSTEMS: GradeSystem[] = [
-  'unknown',
-  'v-scale',
-  'font',
   'french',
   'uiaa',
 ];
@@ -118,12 +115,6 @@ export default function ProfileScreen() {
     setPhoto(null);
   }, [user]);
 
-  useEffect(() => {
-    if (token && pb.authStore.token !== token) {
-      pb.authStore.save(token, user as any);
-    }
-  }, [token, user]);
-
   const handleLogout = async () => {
     await logout();
   };
@@ -141,10 +132,24 @@ export default function ProfileScreen() {
 
       setIntent(newIntent);
 
-      // Save to database immediately
-      await pb.collection('users').update(user?.id!, {
-        intent: newIntent,
-      });
+      // Save to database immediately using fetch
+      const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      const response = await fetch(
+        `${POCKETBASE_URL}/api/collections/users/records/${user?.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ intent: newIntent }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to update intent');
+      }
+
       if (user) {
         const updatedUser: Climber = {
           ...user,
@@ -177,6 +182,8 @@ export default function ProfileScreen() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      
       let avatarFile = null;
       if (photo && !photo.startsWith('http')) {
         const extension = photo.split('.').pop()?.toLowerCase() || 'jpg';
@@ -198,76 +205,97 @@ export default function ProfileScreen() {
         general_level: grade.general_level || 'beginner',
       };
 
-      let formData: any;
+      const formData = new FormData();
+      formData.append('name', name);
+      formData.append('bio', bio);
+      formData.append('age', String(Number(age)));
+      formData.append('grade', JSON.stringify(gradeToSave));
+      formData.append('climbing_styles', JSON.stringify(climbingStyles));
+      formData.append('home_gym', homeGym);
+      
+      // intent as array
+      intent.forEach((val) => formData.append('intent', val));
+      
+      // Add avatar file if present
       if (avatarFile) {
-        formData = new FormData();
-        formData.append('name', name);
-        formData.append('bio', bio);
-        formData.append('age', age);
-        formData.append('grade', JSON.stringify(gradeToSave));
-        formData.append('climbing_styles', JSON.stringify(climbingStyles));
-        formData.append('home_gym', homeGym);
-        // intent as array, not stringified
-        intent.forEach((val) => formData.append('intent', val));
         // @ts-ignore
         formData.append('avatar', avatarFile);
-        await pb.collection('users').update(user?.id!, formData);
-      } else {
-        formData = {
-          name,
-          bio,
-          age: Number(age),
-          grade: gradeToSave,
-          climbing_styles: climbingStyles,
-          home_gym: homeGym,
-          intent,
-        };
-        await pb.collection('users').update(user?.id!, formData);
       }
+
+      const response = await fetch(
+        `${POCKETBASE_URL}/api/collections/users/records/${user?.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Update failed with status ${response.status}`);
+      }
+
       setEditMode(false);
       setPhoto(null); // Reset photo after save
+      
       // Fetch latest user from backend and update context/cache
       if (user?.id && token) {
         try {
-          const latestUser = await pb.collection('users').getOne(user.id, { headers: { Authorization: token } });
-          // Parse grade if it's a string (JSON)
-          let parsedGrade = createDefaultGrade();
-          if (latestUser.grade) {
-            if (typeof latestUser.grade === 'string') {
-              try {
-                parsedGrade = JSON.parse(latestUser.grade);
-              } catch {
-                parsedGrade = createDefaultGrade();
-              }
-            } else {
-              parsedGrade = latestUser.grade;
+          const latestResponse = await fetch(
+            `${POCKETBASE_URL}/api/collections/users/records/${user.id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
             }
+          );
+          
+          if (latestResponse.ok) {
+            const latestUser = await latestResponse.json();
+            
+            // Parse grade if it's a string (JSON)
+            let parsedGrade = createDefaultGrade();
+            if (latestUser.grade) {
+              if (typeof latestUser.grade === 'string') {
+                try {
+                  parsedGrade = JSON.parse(latestUser.grade);
+                } catch {
+                  parsedGrade = createDefaultGrade();
+                }
+              } else {
+                parsedGrade = latestUser.grade;
+              }
+            }
+            
+            // Map to Climber type
+            const mappedUser: Climber = {
+              id: latestUser.id,
+              name: latestUser.name || '',
+              age: typeof latestUser.age === 'number' ? latestUser.age : 0,
+              grade: parsedGrade,
+              climbing_styles: Array.isArray(latestUser.climbing_styles) ? latestUser.climbing_styles : [],
+              home_gym: latestUser.home_gym || '',
+              bio: latestUser.bio || '',
+              email: latestUser.email || '',
+              avatar: latestUser.avatar || '',
+              intent: Array.isArray(latestUser.intent) ? latestUser.intent : [],
+              profile_completed: latestUser.profile_completed || false,
+            };
+            setUser(mappedUser);
+            await AsyncStorage.setItem('user', JSON.stringify(mappedUser));
           }
-          // Map to Climber type
-          const mappedUser: Climber = {
-            id: latestUser.id,
-            name: latestUser.name || '',
-            age: typeof latestUser.age === 'number' ? latestUser.age : 0,
-            grade: parsedGrade,
-            climbing_styles: Array.isArray(latestUser.climbing_styles) ? latestUser.climbing_styles : [],
-            home_gym: latestUser.home_gym || '',
-            bio: latestUser.bio || '',
-            email: latestUser.email || '',
-            avatar: latestUser.avatar || '',
-            intent: Array.isArray(latestUser.intent) ? latestUser.intent : [],
-          };
-          setUser(mappedUser);
-          await AsyncStorage.setItem('user', JSON.stringify(mappedUser));
         } catch (err) {
-          // Optionally handle error
+          // Silently handle fetch error
         }
       }
+      
       Alert.alert('Profile updated!');
     } catch (e: any) {
       let errorMsg = 'Failed to update profile.';
       if (e?.message) errorMsg += '\n' + e.message;
-      if (e?.response) errorMsg += '\n' + JSON.stringify(e.response, null, 2);
-      if (e?.data) errorMsg += '\n' + JSON.stringify(e.data, null, 2);
       console.error('Save error details:', e);
       Alert.alert('Error', errorMsg);
     }
@@ -627,26 +655,30 @@ export default function ProfileScreen() {
               borderTopRightRadius: 20,
               padding: 20,
               paddingBottom: 40,
+              maxHeight: '80%',
             }}
           >
-            <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 16, color: theme.colors.text }}>
-              Select Grade System
-            </Text>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 16, color: theme.colors.text }}>
+                Select Grade System
+              </Text>
 
-            {GRADE_SYSTEMS.map(system => (
-              <Pressable
-                key={system}
-                onPress={() => {
-                  setGrade({ ...grade, system });
-                  setShowGradeSystemModal(false);
-                }}
-                style={{
-                  padding: 16,
-                  borderBottomWidth: 1,
-                  borderBottomColor: theme.colors.border,
-                }}
-              >
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: "transparent" }}>
+              {GRADE_SYSTEMS.map(system => (
+                <Pressable
+                  key={system}
+                  onPress={() => {
+                    setGrade({ ...grade, system });
+                  }}
+                  style={{
+                    padding: 16,
+                    borderBottomWidth: 1,
+                    borderBottomColor: theme.colors.border,
+                    backgroundColor: grade.system === system ? theme.colors.surface : 'transparent',
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
                   <Text
                     style={{
                       fontSize: 16,
@@ -654,50 +686,100 @@ export default function ProfileScreen() {
                       color: grade.system === system ? theme.colors.accent : theme.colors.text,
                     }}
                   >
-                    {system === 'unknown' ? 'General Level Only' : system.toUpperCase()}
+                    {system.toUpperCase()}
                   </Text>
                   {grade.system === system && (
                     <Ionicons name="checkmark" size={20} color={theme.colors.accent} />
                   )}
-                </View>
+                </Pressable>
+              ))}
+
+              {/* Grade level and value selection if system is selected */}
+              {grade.system && (
+                <>
+                  <Text style={{ fontSize: 18, fontWeight: '700', marginTop: 20, marginBottom: 16, color: theme.colors.text }}>
+                    Select Level
+                  </Text>
+                  {GENERAL_LEVELS.map((level) => (
+                    <Pressable
+                      key={level}
+                      onPress={() => {
+                        setGrade({ ...grade, general_level: level });
+                      }}
+                      style={{
+                        padding: 16,
+                        borderBottomWidth: 1,
+                        borderBottomColor: theme.colors.border,
+                        backgroundColor: grade.general_level === level ? theme.colors.surface : 'transparent',
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: grade.general_level === level ? '700' : '500',
+                          color: grade.general_level === level ? theme.colors.accent : theme.colors.text,
+                        }}
+                      >
+                        {level.charAt(0).toUpperCase() + level.slice(1)}
+                      </Text>
+                      {grade.general_level === level && (
+                        <Ionicons name="checkmark" size={20} color={theme.colors.accent} />
+                      )}
+                    </Pressable>
+                  ))}
+
+                  <Text style={{ fontSize: 18, fontWeight: '700', marginTop: 20, marginBottom: 16, color: theme.colors.text }}>
+                    Select Grade Value
+                  </Text>
+                  {getExampleGrades(grade.system).map((exGrade, index) => (
+                    <Pressable
+                      key={`${grade.system}-${index}-${exGrade}`}
+                      onPress={() => {
+                        setGrade({ ...grade, value: exGrade });
+                      }}
+                      style={{
+                        padding: 16,
+                        borderBottomWidth: 1,
+                        borderBottomColor: theme.colors.border,
+                        backgroundColor: grade.value === exGrade ? theme.colors.surface : 'transparent',
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 16,
+                          fontWeight: grade.value === exGrade ? '700' : '500',
+                          color: grade.value === exGrade ? theme.colors.accent : theme.colors.text,
+                        }}
+                      >
+                        {exGrade}
+                      </Text>
+                      {grade.value === exGrade && (
+                        <Ionicons name="checkmark" size={20} color={theme.colors.accent} />
+                      )}
+                    </Pressable>
+                  ))}
+                </>
+              )}
+
+              <Pressable
+                onPress={() => setShowGradeSystemModal(false)}
+                style={{
+                  marginTop: 20,
+                  paddingVertical: 12,
+                  backgroundColor: theme.colors.accent,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '600' }}>Done</Text>
               </Pressable>
-            ))}
-
-            {/* Grade value input if not unknown */}
-            {grade.system !== 'unknown' && (
-              <View style={{ marginTop: 20, backgroundColor: "transparent" }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', marginBottom: 8, color: theme.colors.text }}>
-                  Enter your grade (e.g., {getExampleGrades(grade.system)[0]})
-                </Text>
-                <TextInput
-                  style={{
-                    backgroundColor: theme.colors.surface,
-                    borderRadius: 8,
-                    padding: 12,
-                    color: theme.colors.text,
-                    borderWidth: 1,
-                    borderColor: theme.colors.border,
-                  }}
-                  value={grade.value}
-                  onChangeText={(value) => setGrade({ ...grade, value })}
-                  placeholder="e.g., V5, 7A, 6a+"
-                  placeholderTextColor={theme.colors.textSecondary}
-                />
-              </View>
-            )}
-
-            <Pressable
-              onPress={() => setShowGradeSystemModal(false)}
-              style={{
-                marginTop: 20,
-                paddingVertical: 12,
-                backgroundColor: theme.colors.accent,
-                borderRadius: 8,
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{ color: '#fff', fontWeight: '600' }}>Done</Text>
-            </Pressable>
+            </ScrollView>
           </View>
         </View>
       </Modal>
