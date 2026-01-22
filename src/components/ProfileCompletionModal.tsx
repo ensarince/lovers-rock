@@ -3,7 +3,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { createDefaultGrade, formatGradeDisplay, getExampleGrades } from '@/src/services/gradeService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
-import { Climber, ClimbingGrade, ClimbingStyle, GeneralLevel, GradeSystem } from '@/src/types/climber';
+import { Climber, ClimbingGrade, ClimbingStyle, Gender, GeneralLevel, GradeSystem } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
@@ -39,6 +39,13 @@ const CLIMBING_STYLES: ClimbingStyle[] = [
     'outdoor',
 ];
 
+const GENDER_OPTIONS: Gender[] = [
+    'male',
+    'female',
+    'non_binary',
+    'prefer_not_to_say',
+];
+
 interface ProfileCompletionModalProps {
     visible: boolean;
     user: Climber | null;
@@ -59,6 +66,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
     const [name, setName] = useState(user?.name || '');
     const [bio, setBio] = useState(user?.bio || '');
     const [age, setAge] = useState(user?.age ? String(user.age) : '');
+    const [gender, setGender] = useState<Gender | undefined>(user?.gender);
     const [grade, setGrade] = useState<ClimbingGrade>(
         user?.grade ? user.grade : createDefaultGrade()
     );
@@ -76,6 +84,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
             setName(user.name || '');
             setBio(user.bio || '');
             setAge(user.age ? String(user.age) : '');
+            setGender(user.gender);
             setGrade(user.grade ? user.grade : createDefaultGrade());
             setClimbingStyles(user.climbing_styles || []);
             setHomeGym(user.home_gym || '');
@@ -120,6 +129,10 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
             Alert.alert('Required', 'Please enter a valid age');
             return;
         }
+        if (!gender) {
+            Alert.alert('Required', 'Please select your gender');
+            return;
+        }
         if (!homeGym.trim()) {
             Alert.alert('Required', 'Please enter your home gym');
             return;
@@ -152,6 +165,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
             // Add form fields
             formData.append('name', name.trim());
             formData.append('age', String(Number(age)));
+            formData.append('gender', gender);
             formData.append('bio', bio.trim());
             formData.append('home_gym', homeGym.trim());
             formData.append('climbing_styles', JSON.stringify(climbingStyles));
@@ -204,6 +218,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                 ...user,
                 name: updatedRecord.name,
                 age: updatedRecord.age,
+                gender: updatedRecord.gender,
                 bio: updatedRecord.bio,
                 home_gym: updatedRecord.home_gym,
                 climbing_styles: updatedRecord.climbing_styles,
@@ -228,6 +243,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
         name.trim() &&
         age.trim() &&
         !isNaN(Number(age)) &&
+        gender &&
         homeGym.trim() &&
         bio.trim() &&
         climbingStyles.length > 0;
@@ -295,6 +311,32 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                             onChangeText={setAge}
                             keyboardType="number-pad"
                         />
+                    </View>
+
+                    {/* Gender Selection */}
+                    <View style={styles.fieldGroup}>
+                        <Text style={styles.label}>Gender *</Text>
+                        <View style={styles.genderGrid}>
+                            {GENDER_OPTIONS.map((option) => (
+                                <Pressable
+                                    key={option}
+                                    style={[
+                                        styles.genderButton,
+                                        gender === option && styles.genderButtonActive,
+                                    ]}
+                                    onPress={() => setGender(option)}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.genderButtonText,
+                                            gender === option && styles.genderButtonTextActive,
+                                        ]}
+                                    >
+                                        {option === 'non_binary' ? 'Non-binary' : option === 'prefer_not_to_say' ? 'Prefer not to say' : option.charAt(0).toUpperCase() + option.slice(1)}
+                                    </Text>
+                                </Pressable>
+                            ))}
+                        </View>
                     </View>
 
                     {/* Climbing Styles */}
@@ -708,6 +750,7 @@ const createStyles = (theme: any) =>
         buttonContainer: {
             paddingHorizontal: 20,
             paddingBottom: 20,
+            backgroundColor: "transparent"
         },
         saveButton: {
             backgroundColor: theme.colors.accent,
@@ -722,5 +765,34 @@ const createStyles = (theme: any) =>
             color: '#fff',
             fontSize: 16,
             fontWeight: 'bold',
+        },
+        genderGrid: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 10,
+            backgroundColor: "transparent"
+        },
+        genderButton: {
+            flex: 1,
+            minWidth: '45%',
+            paddingVertical: 12,
+            paddingHorizontal: 12,
+            borderWidth: 1,
+            borderColor: theme.colors.border,
+            borderRadius: 8,
+            backgroundColor: theme.colors.surface,
+            alignItems: 'center',
+        },
+        genderButtonActive: {
+            backgroundColor: theme.colors.accent,
+            borderColor: theme.colors.accent,
+        },
+        genderButtonText: {
+            fontSize: 13,
+            color: theme.colors.text,
+        },
+        genderButtonTextActive: {
+            color: '#fff',
+            fontWeight: '600',
         },
     });

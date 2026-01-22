@@ -2,7 +2,7 @@ import { Text } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
-import { ClimbingStyle, GeneralLevel } from '@/src/types/climber';
+import { ClimbingStyle, Gender, GeneralLevel } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
 import {
@@ -29,6 +29,7 @@ const getStyleImage = (style: ClimbingStyle) => {
 export interface DiscoverFilters {
   grade?: GeneralLevel[];
   styles?: string[];
+  genders?: Gender[];
   maxAge?: number;
   minAge?: number;
   maxDistance?: number; // Maximum distance in kilometers (0-50)
@@ -54,6 +55,12 @@ const CLIMBING_STYLES = [
   'trad',
   'gym',
   'outdoor',
+];
+const GENDER_OPTIONS: Gender[] = [
+  'male',
+  'female',
+  'non_binary',
+  'prefer_not_to_say',
 ];
 
 export const FilterModal: React.FC<FilterModalProps> = ({
@@ -81,6 +88,9 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   const [selectedStyles, setSelectedStyles] = useState<string[]>(
     currentFilters.styles || []
   );
+  const [selectedGenders, setSelectedGenders] = useState<Gender[]>(
+    (currentFilters.genders as Gender[]) || []
+  );
   const [minAge, setMinAge] = useState(currentFilters.minAge || 18);
   const [maxAge, setMaxAge] = useState(currentFilters.maxAge || 80);
   const [maxDistance, setMaxDistance] = useState(currentFilters.maxDistance || 50);
@@ -93,11 +103,20 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     );
   };
 
+  const toggleGender = (genderOption: Gender) => {
+    setSelectedGenders((prev) =>
+      prev.includes(genderOption)
+        ? prev.filter((g) => g !== genderOption)
+        : [...prev, genderOption]
+    );
+  };
+
   const handleApply = () => {
     const gradeRange = GENERAL_LEVELS.slice(minDifficulty, maxDifficulty + 1);
     onApplyFilters({
       grade: gradeRange.length > 0 ? (gradeRange as GeneralLevel[]) : undefined,
       styles: selectedStyles.length > 0 ? selectedStyles : undefined,
+      genders: selectedGenders.length > 0 ? selectedGenders : undefined,
       minAge: minAge !== 18 ? minAge : undefined,
       maxAge: maxAge !== 80 ? maxAge : undefined,
       maxDistance: maxDistance !== 50 ? maxDistance : undefined,
@@ -109,6 +128,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     setMinDifficulty(0);
     setMaxDifficulty(GENERAL_LEVELS.length - 1);
     setSelectedStyles([]);
+    setSelectedGenders([]);
     setMinAge(18);
     setMaxAge(80);
     setMaxDistance(50);
@@ -280,6 +300,32 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                         </View>
                       )}
                     </ImageBackground>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {/* Gender Filter */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Gender</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                {GENDER_OPTIONS.map((option) => (
+                  <Pressable
+                    key={option}
+                    style={[
+                      styles.filterTag,
+                      selectedGenders.includes(option) && styles.filterTagActive,
+                    ]}
+                    onPress={() => toggleGender(option)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterTagText,
+                        selectedGenders.includes(option) && styles.filterTagTextActive,
+                      ]}
+                    >
+                      {option === 'non_binary' ? 'Non-binary' : option === 'prefer_not_to_say' ? 'Prefer not to say' : option.charAt(0).toUpperCase() + option.slice(1)}
+                    </Text>
                   </Pressable>
                 ))}
               </View>
@@ -537,5 +583,26 @@ const createStyles = (theme: typeof themeLight) =>
       fontSize: 12,
       fontWeight: '700',
       textAlign: 'center',
+    },
+    filterTag: {
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+    },
+    filterTagActive: {
+      backgroundColor: theme.colors.accent,
+      borderColor: theme.colors.accent,
+    },
+    filterTagText: {
+      fontSize: 12,
+      fontWeight: '500',
+      color: theme.colors.text,
+    },
+    filterTagTextActive: {
+      color: '#fff',
+      fontWeight: '600',
     },
   });

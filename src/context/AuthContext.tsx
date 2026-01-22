@@ -2,8 +2,10 @@ import { authService } from '@/src/services/authService';
 import { createDefaultGrade } from '@/src/services/gradeService';
 import { locationService } from '@/src/services/locationService';
 import { preferenceService } from '@/src/services/preferenceService';
+import { initReportService } from '@/src/services/reportService';
 import { Climber } from '@/src/types/climber';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import PocketBase from 'pocketbase';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 interface AuthContextType {
@@ -32,6 +34,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [preferencesSynced, setPreferencesSynced] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
 
+  // Initialize ReportService on app start
+  useEffect(() => {
+    try {
+      const pb = new PocketBase(`http://${process.env.EXPO_PUBLIC_IP}:8090`);
+      initReportService(pb);
+    } catch (error) {
+      console.error('Failed to initialize ReportService:', error);
+    }
+  }, []);
+
   // Helper to map any record to Climber type with defaults
   const mapToClimber = (record: any): Climber => {
     let parsedGrade = createDefaultGrade();
@@ -51,6 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       id: record.id,
       name: record.name || '',
       age: typeof record.age === 'number' ? record.age : 0,
+      gender: record.gender || undefined,
       grade: parsedGrade,
       climbing_styles: Array.isArray(record.climbing_styles) ? record.climbing_styles : [],
       home_gym: record.home_gym || '',
@@ -82,6 +95,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           const parsedUser = JSON.parse(storedUser);
           setUser(parsedUser ? mapToClimber(parsedUser) : null);
           setToken(storedToken);
+          
+          // Refresh user data from PocketBase to ensure latest profile_completed status
+          try {
+            const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+            const freshUserRes = await fetch(
+              `${POCKETBASE_URL}/api/collections/users/records/${parsedUser.id}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${storedToken}`,
+                },
+              }
+            );
+            if (freshUserRes.ok) {
+              const freshUserData = await freshUserRes.json();
+              const freshClimber = mapToClimber(freshUserData);
+              setUser(freshClimber);
+              await AsyncStorage.setItem('user', JSON.stringify(freshClimber));
+            }
+          } catch (err) {
+            // Silently fail if refresh doesn't work, use stored data
+          }
+          
           // Reset preferences and sync for existing user
           if (parsedUser && storedToken) {
             preferenceService.reset();

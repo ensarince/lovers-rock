@@ -55,19 +55,14 @@ function RootLayoutNav() {
   // Check if user needs to complete profile after login
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Show modal only if profile is not completed AND user has minimal required fields empty
-      const hasRequiredFields = user.name && user.age && user.avatar && user.grade && user.home_gym && user.bio && user.climbing_styles?.length > 0;
-      const profileNotCompleted = !user.profile_completed;
-      
-      if (profileNotCompleted && !hasRequiredFields) {
-        setShowProfileCompletion(true);
-      } else {
-        setShowProfileCompletion(false);
-      }
+      // Show modal only if profile_completed is false (or missing/falsy)
+      // This is the primary indicator from the database
+      const shouldShowModal = !user.profile_completed;
+      setShowProfileCompletion(shouldShowModal);
     } else {
       setShowProfileCompletion(false);
     }
-  }, [isAuthenticated, user?.profile_completed, user?.name, user?.age, user?.avatar, user?.home_gym, user?.bio, user?.climbing_styles]);
+  }, [isAuthenticated, user?.profile_completed]);
 
   const handleProfileComplete = (updatedUser: any) => {
     setUser(updatedUser);

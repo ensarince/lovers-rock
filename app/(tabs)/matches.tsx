@@ -1,4 +1,5 @@
 import { Text, View } from '@/components/Themed';
+import { BlockReportMenu } from '@/src/components/BlockReportMenu';
 import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import { useAuth } from '@/src/context/AuthContext';
 import { getAllAccounts } from '@/src/services/accountService';
@@ -30,6 +31,7 @@ export default function MatchesScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterChip>('all');
   const [acceptingRequestIds, setAcceptingRequestIds] = useState<string[]>([]);
+  const [blockReportMenuOpen, setBlockReportMenuOpen] = useState<string | null>(null);
   const { user, token, darkMode } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
@@ -167,7 +169,23 @@ export default function MatchesScreen() {
         </Text>
       </View>
 
-      <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+      <Pressable 
+        onPress={() => setBlockReportMenuOpen(item.climber.id)}
+        style={styles.menuIconContainer}>
+        <Ionicons name="ellipsis-vertical" size={20} color={theme.colors.textSecondary} />
+      </Pressable>
+
+      <BlockReportMenu
+        visible={blockReportMenuOpen === item.climber.id}
+        userId={item.climber.id}
+        userName={item.climber.name}
+        onClose={() => setBlockReportMenuOpen(null)}
+        onBlock={() => {
+          setMatches(matches.filter(m => m.climber.id !== item.climber.id));
+          setBlockReportMenuOpen(null);
+        }}
+        darkMode={darkMode}
+      />
     </Pressable>
   );
 
@@ -196,7 +214,24 @@ export default function MatchesScreen() {
             {acceptingRequestIds.includes(item.id) ? 'Accepting...' : 'Accept'}
           </Text>
         </Pressable>
+        <Pressable 
+          onPress={() => setBlockReportMenuOpen(item.id)}
+          style={styles.menuIconContainerSmall}>
+          <Ionicons name="ellipsis-vertical" size={18} color={theme.colors.textSecondary} />
+        </Pressable>
       </View>
+
+      <BlockReportMenu
+        visible={blockReportMenuOpen === item.id}
+        userId={item.id}
+        userName={item.name}
+        onClose={() => setBlockReportMenuOpen(null)}
+        onBlock={() => {
+          setIncomingRequests(incomingRequests.filter(r => r.id !== item.id));
+          setBlockReportMenuOpen(null);
+        }}
+        darkMode={darkMode}
+      />
     </Pressable>
   );
 
@@ -509,6 +544,9 @@ const createStyles = (theme: typeof themeLight) =>
   },
   requestActions: {
     marginLeft: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   acceptButton: {
     backgroundColor: theme.colors.accent,
@@ -520,6 +558,13 @@ const createStyles = (theme: typeof themeLight) =>
     color: '#fff',
     fontWeight: '600',
     fontSize: 12,
+  },
+  menuIconContainer: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  menuIconContainerSmall: {
+    padding: 6,
   },
   datingLikedHintLabel: {
     fontSize: 15,

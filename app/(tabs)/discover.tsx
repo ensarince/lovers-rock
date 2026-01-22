@@ -6,6 +6,7 @@ import { SwipeableCard } from '@/src/components/SwipeableCard';
 import { useAuth } from '@/src/context/AuthContext';
 import { calculateDistance } from '@/src/services/geoService';
 import { preferenceService } from '@/src/services/preferenceService';
+import { getReportService } from '@/src/services/reportService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
@@ -101,17 +102,23 @@ export default function DiscoverScreen() {
   useEffect(() => {
     const loadDatingData = async () => {
       try {
-        if (!token) return;
+        if (!token || !user?.id) return;
 
         // Fetch climbers
         const data = await getAllAccounts(token);
 
+        // Get blocked users
+        const reportService = getReportService();
+        const blockedUsers = await reportService.getBlockedUsers(user.id, token);
+
         // 1. Only users with 'date' intent
         // 2. Exclude self
-        // 3. Only users with complete profiles
+        // 3. Exclude blocked users
+        // 4. Only users with complete profiles
         const filtered = data.filter(
           (c) =>
             c.id !== user?.id &&
+            !blockedUsers.includes(c.id) &&
             Array.isArray(c.intent) && c.intent.includes('date') &&
             c.name !== '' &&
             typeof c.age === 'number' &&
@@ -151,7 +158,7 @@ export default function DiscoverScreen() {
       }
     };
 
-    if (token && isDatingMode) {
+    if (token && isDatingMode && user?.id) {
       loadDatingData();
     }
   }, [token, user?.id, isDatingMode]);
@@ -189,10 +196,16 @@ export default function DiscoverScreen() {
           }
         }
 
+        // Get blocked users
+        const reportService = getReportService();
+        const blockedUsers = await reportService.getBlockedUsers(user.id, token);
+
         const data = await getAllAccounts(token);
-        // Only show users with 'partner' intent, exclude self
+        // Only show users with 'partner' intent, exclude self and blocked users
         let filtered = data.filter(
-          (c) => c.id !== user.id && Array.isArray(c.intent) && c.intent.includes('partner')
+          (c) => c.id !== user.id && 
+                 !blockedUsers.includes(c.id) &&
+                 Array.isArray(c.intent) && c.intent.includes('partner')
         );
         // Remove users who are already matched/connected (mutual like in partner mode)
         filtered = filtered.filter((c) => {

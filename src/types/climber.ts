@@ -5,6 +5,8 @@ export type GeneralLevel = 'beginner' | 'intermediate' | 'advanced' | 'expert' |
 
 export type ClimbingStyle = 'bouldering' | 'sport' | 'trad' | 'gym' | 'outdoor';
 
+export type Gender = 'male' | 'female' | 'non_binary' | 'prefer_not_to_say';
+
 export interface ClimbingGrade {
   system: GradeSystem;           // 'french', 'uiaa'
   value: string;                 // 'V5', '7A', '6a+', 'VI', etc.
@@ -16,6 +18,7 @@ export interface Climber {
   id: string;
   name: string;
   age: number;
+  gender?: Gender;
   grade: ClimbingGrade;
   climbing_styles: ClimbingStyle[];
   home_gym: string;

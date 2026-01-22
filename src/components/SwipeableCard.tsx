@@ -1,4 +1,6 @@
 import { Text } from '@/components/Themed';
+import { BlockReportMenu } from '@/src/components/BlockReportMenu';
+import { useAuth } from '@/src/context/AuthContext';
 import { calculateDistance, formatDistance } from '@/src/services/geoService';
 import { formatGradeDisplay } from '@/src/services/gradeService';
 import { theme } from '@/src/themeDark';
@@ -40,11 +42,37 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
   userLatitude,
   userLongitude,
 }) => {
+  const { darkMode } = useAuth();
   const pan = useRef(new Animated.ValueXY()).current;
   const [isAccepting, setIsAccepting] = React.useState(false);
   const [isRejecting, setIsRejecting] = React.useState(false);
   const [distance, setDistance] = useState<number | null>(null);
+  const [showBlockReportMenu, setShowBlockReportMenu] = useState(false);
   const currentClimberRef = useRef(climber);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Handle long press for block/report menu
+  const handlePressIn = () => {
+    longPressTimerRef.current = setTimeout(() => {
+      setShowBlockReportMenu(true);
+    }, 500); // 500ms long press
+  };
+
+  const handlePressOut = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    };
+  }, []);
 
   // Calculate distance on mount and when location/climber changes
   useEffect(() => {
@@ -71,12 +99,22 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: (evt, gestureState) => {
+        return true;
+      },
+      onMoveShouldSetPanResponder: (evt, { dy, dx }) => {
+        // Only activate pan responder if movement is significant (>10px)
+        return Math.abs(dx) > 10 || Math.abs(dy) > 10;
+      },
       onPanResponderMove: Animated.event([null, { dx: pan.x }], {
         useNativeDriver: false,
       }),
-      onPanResponderRelease: (evt, { dx }) => {
+      onPanResponderRelease: (evt, { dx, dy }) => {
+        // Check if this was just a tap (minimal movement)
+        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+          return; // Let normal press handlers work
+        }
+        
         const threshold = 100;
         if (dx > threshold) {
           // Swipe right = accept
@@ -134,87 +172,94 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
   };
 
   return (
-    <Animated.View
-      {...panResponder.panHandlers}
-      style={[
-        styles.container,
-        {
-          transform: [{ rotate: rotateInterpolate }],
-        },
-        pan.getLayout(),
-        styles.cardShadow, 
-      ]}>
-      <Pressable onPress={onPress} style={styles.card}>
-        <Image source={{ uri: getImageUrl() }} style={styles.image} />
+    <View style={styles.outerContainer}>
+      <Animated.View
+        {...panResponder.panHandlers}
+        style={[
+          styles.container,
+          {
+            transform: [{ rotate: rotateInterpolate }],
+          },
+          pan.getLayout(),
+          styles.cardShadow, 
+        ]}>
+        <Pressable 
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          style={styles.card}>
+          <Image source={{ uri: getImageUrl() }} style={styles.image} />
 
-        {/* Top gradient overlay */}
-        <LinearGradient
-          colors={['rgba(0,0,0,0.35)', 'transparent']}
-          style={styles.topGradient}
-        />
-        {/* Bottom gradient overlay */}
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.55)']}
-          style={styles.gradientOverlay}
-        />
+          {/* Top gradient overlay */}
+          <LinearGradient
+            colors={['rgba(0,0,0,0.35)', 'transparent']}
+            style={styles.topGradient}
+          />
+          
+          {/* Bottom gradient overlay */}
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.55)']}
+            style={styles.gradientOverlay}
+          />
 
-        {/* Accept overlay */}
-        <Animated.View
-          style={[
-            styles.overlayLabel,
-            styles.acceptOverlay,
-            { opacity: opacityAccept },
-          ]}>
-          <Ionicons name="heart" size={60} color="#10b981" />
-          <Text style={styles.overlayText}>LIKE!</Text>
-        </Animated.View>
+          {/* Accept overlay */}
+          <Animated.View
+            style={[
+              styles.overlayLabel,
+              styles.acceptOverlay,
+              { opacity: opacityAccept },
+            ]}>
+            <Ionicons name="heart" size={60} color="#10b981" />
+            <Text style={styles.overlayText}>LIKE!</Text>
+          </Animated.View>
 
-        {/* Reject overlay */}
-        <Animated.View
-          style={[
-            styles.overlayLabel,
-            styles.rejectOverlay,
-            { opacity: opacityReject },
-          ]}>
-          <Ionicons name="close" size={60} color="#ef4444" />
-          <Text style={styles.overlayText}>NOPE</Text>
-        </Animated.View>
+          {/* Reject overlay */}
+          <Animated.View
+            style={[
+              styles.overlayLabel,
+              styles.rejectOverlay,
+              { opacity: opacityReject },
+            ]}>
+            <Ionicons name="close" size={60} color="#ef4444" />
+            <Text style={styles.overlayText}>NOPE</Text>
+          </Animated.View>
 
-        {/* Content in a more transparent panel */}
-        <View style={styles.contentPanel}>
-          <Text style={styles.name}>
-            {climber.name}, {climber.age}
-          </Text>
-          <Text style={styles.gym}>{climber.home_gym}</Text>
-          <Text style={styles.bio} numberOfLines={2}>
-            {climber.bio}
-          </Text>
-          <View style={styles.badgesContainer}>
-            <View
-              style={[
-                styles.badge,
-                { backgroundColor: gradeColors[climber.grade?.general_level || 'beginner'] },
-              ]}>
-              <Text style={styles.badgeText}>
-                {formatGradeDisplay(climber.grade)}
-              </Text>
-            </View>
-            {climber.climbing_styles.slice(0, 2).map((style) => (
-              <View key={style} style={[styles.badge, styles.styleBadge]}>
+          {/* Content in a more transparent panel */}
+          <View style={styles.contentPanel}>
+            <Text style={styles.name}>
+              {climber.name}, {climber.age}
+            </Text>
+            <Text style={styles.gym}>{climber.home_gym}</Text>
+            <Text style={styles.bio} numberOfLines={2}>
+              {climber.bio}
+            </Text>
+            <View style={styles.badgesContainer}>
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: gradeColors[climber.grade?.general_level || 'beginner'] },
+                ]}>
                 <Text style={styles.badgeText}>
-                  {style.charAt(0).toUpperCase() + style.slice(1)}
+                  {formatGradeDisplay(climber.grade)}
                 </Text>
               </View>
-            ))}
-            {distance !== null && (
-              <View style={[styles.badge, styles.distanceBadge]}>
-                <Ionicons name="location" size={12} color="#fff" />
-                <Text style={styles.badgeText}>{formatDistance(distance)}</Text>
-              </View>
-            )}
+              {climber.climbing_styles.slice(0, 2).map((style) => (
+                <View key={style} style={[styles.badge, styles.styleBadge]}>
+                  <Text style={styles.badgeText}>
+                    {style.charAt(0).toUpperCase() + style.slice(1)}
+                  </Text>
+                </View>
+              ))}
+              {distance !== null && (
+                <View style={[styles.badge, styles.distanceBadge]}>
+                  <Ionicons name="location" size={12} color="#fff" />
+                  <Text style={styles.badgeText}>{formatDistance(distance)}</Text>
+                </View>
+              )}
+            </View>
           </View>
-        </View>
-      </Pressable>
+        </Pressable>
+      </Animated.View>
 
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
@@ -238,16 +283,30 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
           <Ionicons name="heart" size={28} color={theme.colors.success} />
         </Pressable>
       </View>
-    </Animated.View>
+
+      {/* Block/Report Menu */}
+      <BlockReportMenu
+        visible={showBlockReportMenu}
+        userId={climber.id}
+        userName={climber.name}
+        onClose={() => setShowBlockReportMenu(false)}
+        onBlock={() => onReject(climber)}
+        darkMode={darkMode}
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  outerContainer: {
     width: '90%',
-    height: '80%',
-    maxHeight: 600,
-    marginBottom: 80,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  container: {
+    width: '100%',
+    height: 450,
+    maxHeight: 500,
     marginHorizontal: 'auto',
   },
   cardShadow: {
@@ -274,6 +333,15 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     height: '18%',
+  },
+  menuButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    padding: 8,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 20,
   },
   gradientOverlay: {
     position: 'absolute',
@@ -304,40 +372,40 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 18,
-    backgroundColor: 'rgba(24,24,28,0.45)', // more transparent
+    padding: 12,
+    backgroundColor: 'rgba(24,24,28,0.45)',
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
   },
   name: {
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: 4,
+    marginBottom: 2,
     textShadowColor: 'rgba(0,0,0,0.7)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
   gym: {
-    fontSize: 14,
+    fontSize: 12,
     color: theme.colors.textSecondary,
-    marginBottom: 8,
+    marginBottom: 4,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   bio: {
-    fontSize: 14,
+    fontSize: 12,
     color: theme.colors.text,
-    lineHeight: 20,
-    marginBottom: 14,
+    lineHeight: 16,
+    marginBottom: 8,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   badgesContainer: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
     flexWrap: 'wrap',
   },
   badge: {
@@ -364,11 +432,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-    marginTop: 12,
+    display: 'none',
   },
   button: {
     width: 56,

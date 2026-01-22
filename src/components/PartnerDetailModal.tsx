@@ -1,3 +1,4 @@
+import { BlockReportMenu } from '@/src/components/BlockReportMenu';
 import { useAuth } from '@/src/context/AuthContext';
 import { calculateDistance, formatDistance } from '@/src/services/geoService';
 import { formatGradeDisplay } from '@/src/services/gradeService';
@@ -24,6 +25,7 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
   const [imageExpanded, setImageExpanded] = React.useState(false);
   const [isRequestSent, setIsRequestSent] = React.useState(false);
   const [distance, setDistance] = useState<number | null>(null);
+  const [showBlockReportMenu, setShowBlockReportMenu] = useState(false);
 
   // Calculate distance when climber or user location changes
   useEffect(() => {
@@ -77,6 +79,11 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                 </View>
               )}
               <Text style={styles.title}>{climber.name}</Text>
+              <Pressable 
+                onPress={() => setShowBlockReportMenu(true)}
+                style={styles.menuButton}>
+                <Ionicons name="ellipsis-vertical" size={24} color={theme.colors.textSecondary} />
+              </Pressable>
               <Text style={styles.detail}>Gym: {climber.home_gym}</Text>
               {distance !== null && (
                 <View style={styles.distanceRow}>
@@ -100,6 +107,15 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
               >
                 <Text style={styles.requestButtonText}>{isRequestSent ? 'Request Sent' : 'Send Partner Request'}</Text>
               </Pressable>
+
+              <BlockReportMenu
+                visible={showBlockReportMenu}
+                userId={climber.id}
+                userName={climber.name}
+                onClose={() => setShowBlockReportMenu(false)}
+                onBlock={onClose}
+                darkMode={darkMode}
+              />
             </>
           ) : (
             <View />
@@ -133,6 +149,16 @@ const createStyles = (theme: typeof themeLight) =>
       padding: 24,
       width: '85%',
       alignItems: 'center',
+      position: 'relative',
+    },
+    menuButton: {
+      position: 'absolute',
+      top: 12,
+      right: 12,
+      padding: 8,
+      backgroundColor: 'rgba(0,0,0,0.1)',
+      borderRadius: 20,
+      zIndex: 10,
     },
     title: {
       fontSize: 22,

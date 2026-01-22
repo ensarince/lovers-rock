@@ -4,7 +4,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { createDefaultGrade, formatGradeDisplay, getExampleGrades } from '@/src/services/gradeService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
-import { Climber, ClimbingGrade, ClimbingStyle, GeneralLevel, GradeSystem } from '@/src/types/climber';
+import { Climber, ClimbingGrade, ClimbingStyle, Gender, GeneralLevel, GradeSystem } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
@@ -60,6 +60,13 @@ const CLIMBING_STYLES: ClimbingStyle[] = [
   'outdoor',
 ];
 
+const GENDER_OPTIONS: Gender[] = [
+  'male',
+  'female',
+  'non_binary',
+  'prefer_not_to_say',
+];
+
 export default function ProfileScreen() {
   const { user, setUser, logout, isLoading, isAuthenticated, token, darkMode, setDarkMode } = useAuth();
   const typedUser = user as Climber | null;
@@ -77,6 +84,7 @@ export default function ProfileScreen() {
   const [name, setName] = useState(typedUser?.name || '');
   const [bio, setBio] = useState(typedUser?.bio || '');
   const [age, setAge] = useState(typedUser?.age ? String(typedUser.age) : '');
+  const [gender, setGender] = useState<Gender | undefined>(typedUser?.gender);
   const [grade, setGrade] = useState<ClimbingGrade>(() => {
     if (typedUser?.grade && typeof typedUser.grade === 'object' && typedUser.grade.general_level) {
       return typedUser.grade;
@@ -103,6 +111,7 @@ export default function ProfileScreen() {
     setName(typedUser?.name || '');
     setBio(typedUser?.bio || '');
     setAge(typedUser?.age ? String(typedUser.age) : '');
+    setGender(typedUser?.gender);
     setGrade(
       typedUser?.grade && typeof typedUser.grade === 'object' && typedUser.grade.general_level
         ? typedUser.grade
@@ -209,6 +218,9 @@ export default function ProfileScreen() {
       formData.append('name', name);
       formData.append('bio', bio);
       formData.append('age', String(Number(age)));
+      if (gender) {
+        formData.append('gender', gender);
+      }
       formData.append('grade', JSON.stringify(gradeToSave));
       formData.append('climbing_styles', JSON.stringify(climbingStyles));
       formData.append('home_gym', homeGym);
@@ -275,6 +287,7 @@ export default function ProfileScreen() {
               id: latestUser.id,
               name: latestUser.name || '',
               age: typeof latestUser.age === 'number' ? latestUser.age : 0,
+              gender: latestUser.gender,
               grade: parsedGrade,
               climbing_styles: Array.isArray(latestUser.climbing_styles) ? latestUser.climbing_styles : [],
               home_gym: latestUser.home_gym || '',
@@ -433,6 +446,44 @@ export default function ProfileScreen() {
               />
             ) : (
               <Text style={styles.valueMinimal}>{age || 'No age set.'}</Text>
+            )}
+          </View>
+
+          <View style={styles.infoCardMinimal}>
+            <Text style={styles.labelMinimal}>Gender</Text>
+            {editMode ? (
+              <View style={{
+                flexDirection: 'row', flexWrap: 'wrap', gap: 8, backgroundColor: "transparent"
+              }}>
+                {GENDER_OPTIONS.map(option => (
+                  <Pressable
+                    key={option}
+                    style={{
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      backgroundColor: gender === option ? theme.colors.accent : theme.colors.surface,
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: gender === option ? theme.colors.accent : theme.colors.border,
+                    }}
+                    onPress={() => setGender(option)}
+                  >
+                    <Text
+                      style={{
+                        color: gender === option ? '#fff' : theme.colors.text,
+                        fontSize: 12,
+                        fontWeight: '500',
+                      }}
+                    >
+                      {option === 'non_binary' ? 'Non-binary' : option === 'prefer_not_to_say' ? 'Prefer not to say' : option.charAt(0).toUpperCase() + option.slice(1)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.valueMinimal}>
+                {gender ? (gender === 'non_binary' ? 'Non-binary' : gender === 'prefer_not_to_say' ? 'Prefer not to say' : gender.charAt(0).toUpperCase() + gender.slice(1)) : 'No gender set.'}
+              </Text>
             )}
           </View>
 
