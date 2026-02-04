@@ -31,12 +31,22 @@ class LocationService {
 
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
+        timeoutMs: 10000, // 10 second timeout
       });
 
       return location;
     } catch (error) {
-      console.error('📍 Location fetch error:', error instanceof Error ? error.message : error);
-      return null;
+      // Try with reduced accuracy as fallback
+      try {
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Low,
+          timeoutMs: 5000, // 5 second timeout
+        });
+        return location;
+      } catch (fallbackError) {
+        console.warn('📍 Location unavailable, will retry on next update');
+        return null;
+      }
     }
   }
 

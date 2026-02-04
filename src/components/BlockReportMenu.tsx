@@ -6,13 +6,13 @@ import { theme as themeLight } from '@/src/themeLight';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    View,
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
 } from 'react-native';
 
 interface BlockReportMenuProps {
@@ -32,7 +32,7 @@ export const BlockReportMenu: React.FC<BlockReportMenuProps> = ({
   onBlock,
   darkMode,
 }) => {
-  const { user, token } = useAuth();
+  const { user, token, setUser } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
 
@@ -49,11 +49,18 @@ export const BlockReportMenu: React.FC<BlockReportMenuProps> = ({
 
     try {
       const reportService = getReportService();
-      await reportService.blockUser(user.id, userId, token);
+      const updatedUserData = await reportService.blockUser(user.id, userId, token);
+      // Update user context with new blocked_users list
+      if (updatedUserData) {
+        console.log('✅ Block successful! Updated blocked_users:', updatedUserData.blocked_users);
+        const updatedUser: any = { ...user, blocked_users: updatedUserData.blocked_users || [] };
+        setUser(updatedUser);
+      }
       Alert.alert('Success', `${userName} has been blocked`);
       onBlock?.();
       onClose();
     } catch (error: any) {
+      console.error('❌ Block failed:', error);
       Alert.alert('Error', error.message || 'Failed to block user');
     }
   };

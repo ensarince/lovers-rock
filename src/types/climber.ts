@@ -34,4 +34,5 @@ export interface Climber {
   longitude?: number; // User's longitude for geofinding
   last_location_update?: string; // ISO timestamp of last location update
   profile_completed?: boolean; // Whether user has completed profile setup
+  blocked_users?: string[]; // Blocked user IDs
 }

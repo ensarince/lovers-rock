@@ -58,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         parsedGrade = record.grade;
       }
     }
-    
+
     return {
       id: record.id,
       name: record.name || '',
@@ -75,6 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       longitude: typeof record.longitude === 'number' ? record.longitude : undefined,
       last_location_update: record.last_location_update || undefined,
       profile_completed: record.profile_completed || false,
+      blocked_users: Array.isArray(record.blocked_users) ? record.blocked_users : [],
     };
   };
 
@@ -163,10 +164,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       await preferenceService.syncPreferences(authData.token, authData.record.id);
       setPreferencesSynced(true);
       
-      // Start location tracking on successful login (updates every 5 minutes)
-      await locationService.startPeriodicLocationUpdates(authData.record.id, authData.token, 5);
+      // Location tracking will be started in the discover screen after 3 seconds
       
-      // Fetch fresh user data after location update to get the latest location
+      // Fetch fresh user data
       const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
       setTimeout(async () => {
         try {

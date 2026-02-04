@@ -14,11 +14,12 @@ interface PartnerDetailModalProps {
   climber: Climber | null;
   onClose: () => void;
   onSendRequest: (climber: Climber, isRemoving?: boolean) => void;
+  onBlock?: () => void;
   userLatitude?: number;
   userLongitude?: number;
 }
 
-export default function PartnerDetailModal({ visible, climber, onClose, onSendRequest, userLatitude, userLongitude }: PartnerDetailModalProps) {
+export default function PartnerDetailModal({ visible, climber, onClose, onSendRequest, onBlock, userLatitude, userLongitude }: PartnerDetailModalProps) {
   const { darkMode, user } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
@@ -113,7 +114,10 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                 userId={climber.id}
                 userName={climber.name}
                 onClose={() => setShowBlockReportMenu(false)}
-                onBlock={onClose}
+                onBlock={() => {
+                  onBlock?.();
+                  onClose();
+                }}
                 darkMode={darkMode}
               />
             </>

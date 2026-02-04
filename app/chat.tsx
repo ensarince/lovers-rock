@@ -1,6 +1,7 @@
 import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
 import { messageService } from '@/src/services/messageService';
+import { getReportService } from '@/src/services/reportService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Message } from '@/src/types/message';
@@ -24,6 +25,7 @@ export default function ChatScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
   const { user, token, darkMode } = useAuth();
+  const [blocked, setBlocked] = useState(false);
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
   const { matchId, climberName, climberId } = useLocalSearchParams();
@@ -31,10 +33,21 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
+    const checkBlocked = async () => {
+      if (!user?.id || !climberId || !token) return;
+      const reportService = getReportService();
+      // Check if I blocked them or they blocked me
+      const [iBlocked, theyBlocked] = await Promise.all([
+        reportService.isUserBlocked(user.id, climberId as string, token),
+        reportService.isUserBlocked(climberId as string, user.id, token),
+      ]);
+      setBlocked(iBlocked || theyBlocked);
+    };
     if (token) {
       messageService.setToken(token);
     }
     if (user?.id && climberId) {
+      checkBlocked();
       loadMessages();
       // TODO: Implement real-time updates when EventSource is available in React Native
       // For now, we'll rely on manual refresh when entering the screen
@@ -72,10 +85,25 @@ export default function ChatScreen() {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !user?.id || !climberId || sending) return;
+    if (!newMessage.trim() || !user?.id || !climberId || sending || blocked) return;
 
     try {
       setSending(true);
+      // Double-check block before sending
+      if (!user?.id || !token) {
+        setSending(false);
+        return;
+      }
+      const reportService = getReportService();
+      const [iBlocked, theyBlocked] = await Promise.all([
+        reportService.isUserBlocked(user.id, climberId as string, token),
+        reportService.isUserBlocked(climberId as string, user.id, token),
+      ]);
+      if (iBlocked || theyBlocked) {
+        setBlocked(true);
+        setSending(false);
+        return;
+      }
       await messageService.sendMessage(user.id, climberId as string, newMessage);
       setNewMessage('');
       await loadMessages(); // Reload messages to show the new message
@@ -108,6 +136,16 @@ export default function ChatScreen() {
     router.back();
   };
 
+
+  if (blocked) {
+    return (
+      <View style={styles.container}>
+        <Text style={{ color: theme.colors.error, textAlign: 'center', marginTop: 32 }}>
+          You cannot message this user.
+        </Text>
+      </View>
+    );
+  }
   if (loading) {
     return (
       <View style={styles.container}>

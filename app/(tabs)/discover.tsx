@@ -5,6 +5,7 @@ import PartnerDetailModal from '@/src/components/PartnerDetailModal';
 import { SwipeableCard } from '@/src/components/SwipeableCard';
 import { useAuth } from '@/src/context/AuthContext';
 import { calculateDistance } from '@/src/services/geoService';
+import { locationService } from '@/src/services/locationService';
 import { preferenceService } from '@/src/services/preferenceService';
 import { getReportService } from '@/src/services/reportService';
 import { theme as themeDark } from '@/src/themeDark';
@@ -60,6 +61,12 @@ export default function DiscoverScreen() {
   // Toggle between dating and partner finding
   const [isDatingMode, setIsDatingMode] = useState(true);
 
+  // Track blocked users at component level
+  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+
+  // Trigger for manual refresh of blocked users
+  const [blockRefreshTrigger, setBlockRefreshTrigger] = useState(0);
+
   const { token, user, preferencesSynced, darkMode, setUser } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
@@ -88,6 +95,43 @@ export default function DiscoverScreen() {
     }
   }, [filteredClimbers.length]);
 
+  // Fetch and maintain blocked users at component level
+  useEffect(() => {
+    const fetchBlockedUsers = async () => {
+      if (!user?.id || !token) return;
+      try {
+        const reportService = getReportService();
+        const blocked = await reportService.getBlockedUsers(user.id, token);
+        setBlockedUserIds(blocked);
+      } catch (err) {
+        console.error('❌ Failed to fetch blocked users:', err);
+        // Fallback to user's blocked_users if API fails
+        if (Array.isArray(user?.blocked_users)) {
+          const blocked = user.blocked_users.map((item: any) => {
+            if (typeof item === 'object' && item !== null && item.id) {
+              return item.id;
+            }
+            return String(item);
+          });
+          console.log('Using fallback blocked users:', blocked);
+          setBlockedUserIds(blocked);
+        }
+      }
+    };
+    fetchBlockedUsers();
+  }, [user?.id, token, blockRefreshTrigger]);
+
+  // Start location tracking after 3 seconds to prevent login freeze
+  useEffect(() => {
+    if (!user?.id || !token) return;
+    
+    const locationTimer = setTimeout(() => {
+      locationService.startPeriodicLocationUpdates(user.id, token, 5);
+    }, 3000);
+
+    return () => clearTimeout(locationTimer);
+  }, [user?.id, token]);
+
   // Track users I have liked (for partner mode)
   useEffect(() => {
     if (!user || !token) return;
@@ -98,7 +142,7 @@ export default function DiscoverScreen() {
     fetchAccepted();
   }, [user?.id, token, requestSentIds]);
 
-  // Load dating mode data
+  // Load dating mode data - runs on load and when blocked_users changes
   useEffect(() => {
     const loadDatingData = async () => {
       try {
@@ -107,18 +151,18 @@ export default function DiscoverScreen() {
         // Fetch climbers
         const data = await getAllAccounts(token);
 
-        // Get blocked users
-        const reportService = getReportService();
-        const blockedUsers = await reportService.getBlockedUsers(user.id, token);
-
         // 1. Only users with 'date' intent
         // 2. Exclude self
-        // 3. Exclude blocked users
+        // 3. Exclude blocked users (by me or who blocked me)
         // 4. Only users with complete profiles
         const filtered = data.filter(
           (c) =>
             c.id !== user?.id &&
-            !blockedUsers.includes(c.id) &&
+            !blockedUserIds.includes(c.id) &&
+            !(Array.isArray(c.blocked_users) && c.blocked_users.some((b: any) => {
+              const blockerId = typeof b === 'object' ? b.id : b;
+              return blockerId === (user?.id || "");
+            })) &&
             Array.isArray(c.intent) && c.intent.includes('date') &&
             c.name !== '' &&
             typeof c.age === 'number' &&
@@ -129,6 +173,17 @@ export default function DiscoverScreen() {
             c.avatar !== '' &&
             c.email !== ''
         );
+        
+        if (process.env.EXPO_DEV_MODE) {
+          const blockedButShown = data.filter(c => blockedUserIds.includes(c.id) && Array.isArray(c.intent) && c.intent.includes('date'));
+          if (blockedButShown.length > 0) {
+            console.warn('❌ BLOCKED USERS STILL IN DATING DATA:', blockedButShown.map(c => `${c.name} (${c.id})`));
+            console.warn('Blocked IDs:', blockedUserIds);
+            console.warn('Filtered count:', filtered.length, 'Total count:', data.length);
+          } else {
+            console.log('✅ No blocked users in dating feed. Total users after filter:', filtered.length);
+          }
+        }
 
         // Normalize climbing_styles and avatar URL for each climber
         const normalized = filtered.map((c) => {
@@ -158,17 +213,17 @@ export default function DiscoverScreen() {
       }
     };
 
-    if (token && isDatingMode && user?.id) {
+    if (token && user?.id) {
       loadDatingData();
     }
-  }, [token, user?.id, isDatingMode]);
+  }, [token, user?.id, blockedUserIds]);
 
-  // Load partner mode data
+  // Load partner mode data - runs on load and when blocked_users changes
   useEffect(() => {
     const loadPartnerData = async () => {
       try {
         if (!token || !user) return;
-
+        
         // Fetch fresh user data to get latest liked_users_partner AND liked_users_dating
         const userRes = await fetch(`${POCKETBASE_URL}/api/collections/users/records/${user.id}`, {
           method: 'GET',
@@ -196,17 +251,27 @@ export default function DiscoverScreen() {
           }
         }
 
-        // Get blocked users
-        const reportService = getReportService();
-        const blockedUsers = await reportService.getBlockedUsers(user.id, token);
-
         const data = await getAllAccounts(token);
         // Only show users with 'partner' intent, exclude self and blocked users
         let filtered = data.filter(
           (c) => c.id !== user.id && 
-                 !blockedUsers.includes(c.id) &&
+                 !blockedUserIds.includes(c.id) &&
+                 !(Array.isArray(c.blocked_users) && c.blocked_users.some((b: any) => {
+                   const blockerId = typeof b === 'object' ? b.id : b;
+                   return blockerId === (user?.id || "");
+                 })) &&
                  Array.isArray(c.intent) && c.intent.includes('partner')
         );
+        if (process.env.EXPO_DEV_MODE) {
+          const blockedButShown = data.filter(c => blockedUserIds.includes(c.id) && Array.isArray(c.intent) && c.intent.includes('partner'));
+          if (blockedButShown.length > 0) {
+            console.warn('❌ BLOCKED USERS STILL IN PARTNER DATA:', blockedButShown.map(c => `${c.name} (${c.id})`));
+            console.warn('Blocked IDs:', blockedUserIds);
+            console.warn('Filtered count:', filtered.length, 'Total count:', data.length);
+          } else {
+            console.log('✅ No blocked users in partner feed. Total users after filter:', filtered.length);
+          }
+        }
         // Remove users who are already matched/connected (mutual like in partner mode)
         filtered = filtered.filter((c) => {
           const theirLikesPartner = Array.isArray(c.liked_users_partner)
@@ -240,30 +305,34 @@ export default function DiscoverScreen() {
         setError('Failed to load partners');
       }
     };
-    if (token && user && !isDatingMode) loadPartnerData();
-  }, [token, user?.id, acceptedUserIds, isDatingMode, datingInteractionIds]);
+    if (token && user) loadPartnerData();
+  }, [token, user?.id, acceptedUserIds, datingInteractionIds, blockedUserIds]);
 
   // Filter climbers when preferences are synced (dating mode)
   useEffect(() => {
     if (preferencesSynced && climbers.length > 0) {
       let notLiked = climbers.filter(c => !preferenceService.isAccepted(c.id));
-      // OPTION B: Filter out users already sent partner requests to
+      // Filter out users already sent partner requests to
       notLiked = notLiked.filter(c => !requestSentIds.includes(c.id));
-      const filtered = applyFiltersAndSearch(notLiked, searchText, activeFilters);
+      // Filter out users already interacted with in this session (swiped left or right)
+      notLiked = notLiked.filter(c => !datingInteractionIds.includes(c.id));
+      const filtered = applyFiltersAndSearch(notLiked, searchText, activeFilters, blockedUserIds);
       setFilteredClimbers(filtered);
     }
-  }, [preferencesSynced, climbers, requestSentIds]);
+  }, [preferencesSynced, climbers, requestSentIds, blockedUserIds, datingInteractionIds]);
 
   // Re-apply search and filters when they change (dating mode)
   useEffect(() => {
     if (preferencesSynced && climbers.length > 0) {
       let notLiked = climbers.filter(c => !preferenceService.isAccepted(c.id));
-      // OPTION B: Filter out users already sent partner requests to
+      // Filter out users already sent partner requests to
       notLiked = notLiked.filter(c => !requestSentIds.includes(c.id));
-      const filtered = applyFiltersAndSearch(notLiked, searchText, activeFilters);
+      // Filter out users already interacted with in this session (swiped left or right)
+      notLiked = notLiked.filter(c => !datingInteractionIds.includes(c.id));
+      const filtered = applyFiltersAndSearch(notLiked, searchText, activeFilters, blockedUserIds);
       setFilteredClimbers(filtered);
     }
-  }, [searchText, activeFilters, preferencesSynced, climbers, requestSentIds]);
+  }, [searchText, activeFilters, preferencesSynced, climbers, requestSentIds, blockedUserIds, datingInteractionIds]);
 
   // Filter partners when search/filters change (partner mode)
   useEffect(() => {
@@ -312,11 +381,14 @@ export default function DiscoverScreen() {
   const applyFiltersAndSearch = (
     baseClimbers: Climber[],
     search: string,
-    filters: DiscoverFilters
+    filters: DiscoverFilters,
+    blocked: string[] = []
   ) => {
     // Only include users with 'date' intent and complete profiles
     let result = baseClimbers.filter(
       (c) =>
+        !blocked.includes(c.id) &&
+        !(Array.isArray(c.blocked_users) && c.blocked_users.includes(user?.id || "")) &&
         Array.isArray(c.intent) && c.intent.includes('date') &&
         c.name !== '' &&
         typeof c.age === 'number' &&
@@ -508,7 +580,10 @@ export default function DiscoverScreen() {
     preferenceService.reject(climber);
 
     // Update filtered climbers to exclude the rejected user (they don't want to see them again)
-    setFilteredClimbers(prev => prev.filter(c => c.id !== climber.id));
+    setFilteredClimbers(prev => prev.filter(c => c.id !== climber.id && !(Array.isArray(c.blocked_users) && c.blocked_users.includes(user?.id || ""))));
+
+    // Trigger a refresh of blocked users to pick up any new blocks
+    setBlockRefreshTrigger(prev => prev + 1);
 
     setCurrentIndex((prev) => prev + 1);
     if (process.env.EXPO_DEV_MODE) console.log('Rejected:', climber.name);
@@ -715,6 +790,7 @@ export default function DiscoverScreen() {
         climber={partnerModalVisible ? selectedPartner : null}
         onClose={closePartnerModal}
         onSendRequest={handleSendPartnerRequest}
+        onBlock={() => setBlockRefreshTrigger(prev => prev + 1)}
         userLatitude={user?.latitude}
         userLongitude={user?.longitude}
       />

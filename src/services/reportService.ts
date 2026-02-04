@@ -23,7 +23,7 @@ class ReportService {
   /**
    * Block a user
    */
-  async blockUser(userId: string, blockedUserId: string, token: string): Promise<void> {
+  async blockUser(userId: string, blockedUserId: string, token: string): Promise<any> {
     try {
       const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
       
@@ -42,12 +42,27 @@ class ReportService {
       }
 
       const user = await response.json();
-      const blockedUsers = Array.isArray(user.blocked_users) ? [...user.blocked_users] : [];
+      let blockedUsers: string[] = [];
+      
+      // Handle string (single user), array, or objects
+      if (typeof user.blocked_users === 'string' && user.blocked_users) {
+        blockedUsers = [user.blocked_users];
+      } else if (Array.isArray(user.blocked_users)) {
+        blockedUsers = user.blocked_users.map((item: any) => {
+          if (typeof item === 'object' && item !== null && item.id) {
+            return item.id;
+          }
+          return String(item);
+        });
+      }
 
       // Add new blocked user if not already blocked
       if (!blockedUsers.includes(blockedUserId)) {
         blockedUsers.push(blockedUserId);
       }
+
+      // Send as JSON string since blocked_users is now a TEXT field
+      const blockedUsersJson = JSON.stringify(blockedUsers);
 
       // Update user with new blocked list
       const updateResponse = await fetch(
@@ -59,15 +74,26 @@ class ReportService {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            blocked_users: blockedUsers,
+            blocked_users: blockedUsersJson,
           }),
         }
       );
 
       if (!updateResponse.ok) {
-        const errorData = await updateResponse.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to block user');
+        const errorText = await updateResponse.text();
+        let errorData: { message?: string } = {};
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
+        }
+        throw new Error(errorData?.message || 'Failed to block user');
       }
+
+      const updatedUser = await updateResponse.json();
+      
+      // Return updated user data so caller can update context
+      return updatedUser;
     } catch (error: any) {
       console.error('Block user error:', error);
       throw error;
@@ -96,9 +122,25 @@ class ReportService {
       }
 
       const user = await response.json();
-      const blockedUsers = Array.isArray(user.blocked_users)
-        ? user.blocked_users.filter((id: string) => id !== blockedUserId)
-        : [];
+      let blockedUsers: string[] = [];
+      
+      // Handle string (single user), array, or objects
+      if (typeof user.blocked_users === 'string' && user.blocked_users) {
+        blockedUsers = [user.blocked_users];
+      } else if (Array.isArray(user.blocked_users)) {
+        blockedUsers = user.blocked_users.map((item: any) => {
+          if (typeof item === 'object' && item !== null && item.id) {
+            return item.id;
+          }
+          return String(item);
+        });
+      }
+
+      // Remove from blocked list
+      blockedUsers = blockedUsers.filter((id: string) => id !== blockedUserId);
+
+      // Send as JSON string since blocked_users is now a TEXT field
+      const blockedUsersJson = JSON.stringify(blockedUsers);
 
       // Update user with new blocked list
       const updateResponse = await fetch(
@@ -110,7 +152,7 @@ class ReportService {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            blocked_users: blockedUsers,
+            blocked_users: blockedUsersJson,
           }),
         }
       );
@@ -156,7 +198,7 @@ class ReportService {
       );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData: { message?: string } = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Failed to submit report');
       }
 
@@ -175,8 +217,9 @@ class ReportService {
     try {
       const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
       
+      // Fetch with expand to get full relation data
       const response = await fetch(
-        `${POCKETBASE_URL}/api/collections/users/records/${userId}`,
+        `${POCKETBASE_URL}/api/collections/users/records/${userId}?expand=blocked_users`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -189,7 +232,39 @@ class ReportService {
       }
 
       const user = await response.json();
-      return Array.isArray(user.blocked_users) ? user.blocked_users : [];
+      
+      // Try expanded relation first, then fall back to raw field
+      let blockedArray = user.expand?.blocked_users || user.blocked_users;
+      
+      if (!blockedArray) {
+        return [];
+      }
+
+      // If it's already an array, return it as-is
+      if (Array.isArray(blockedArray)) {
+        return blockedArray.map(item => {
+          if (typeof item === 'object' && item?.id) return item.id;
+          return String(item);
+        });
+      }
+
+      // Handle string case - try JSON parse first
+      if (typeof blockedArray === 'string') {
+        try {
+          const parsed = JSON.parse(blockedArray);
+          if (Array.isArray(parsed)) {
+            return parsed;
+          }
+        } catch (e) {
+          // If JSON parse fails, treat as comma-separated
+          const result = blockedArray
+            .split(',')
+            .map(id => id.trim())
+            .filter(id => id.length > 0);
+          return result;
+        }
+      }
+      return [];
     } catch (error: any) {
       console.error('Get blocked users error:', error);
       return [];

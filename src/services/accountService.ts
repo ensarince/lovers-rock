@@ -38,5 +38,6 @@ export async function getAllAccounts(token: string): Promise<Climber[]> {
   return data.items.map((item: any) => ({
     ...item,
     grade: parseGrade(item.grade),
+    blocked_users: Array.isArray(item.blocked_users) ? item.blocked_users : [],
   })) as Climber[];
 }
