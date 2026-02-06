@@ -354,6 +354,14 @@ export default function DiscoverScreen() {
         c.climbing_styles.some((s) => activeFilters.styles!.includes(s))
       );
     }
+    if (activeFilters.genders && activeFilters.genders.length > 0) {
+      result = result.filter((c) => {
+        if (!c.gender) {
+          return false;
+        }
+        return activeFilters.genders!.includes(c.gender);
+      });
+    }
     if (activeFilters.minAge) {
       result = result.filter((c) => c.age >= activeFilters.minAge!);
     }
@@ -420,6 +428,16 @@ export default function DiscoverScreen() {
       result = result.filter((c) =>
         c.climbing_styles.some((s) => filters.styles!.includes(s))
       );
+    }
+
+    // Filter by gender
+    if (filters.genders && filters.genders.length > 0) {
+      result = result.filter((c) => {
+        if (!c.gender) {
+          return false; // Exclude if no gender
+        }
+        return filters.genders!.includes(c.gender);
+      });
     }
 
     // Filter by age

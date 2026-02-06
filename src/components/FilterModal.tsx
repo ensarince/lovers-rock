@@ -154,6 +154,33 @@ export const FilterModal: React.FC<FilterModalProps> = ({
           </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {/* Gender Filter - MOVED TO TOP */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Gender</Text>
+              <View style={styles.genderGrid}>
+                {GENDER_OPTIONS.map((option) => (
+                  <Pressable
+                    key={option}
+                    style={[
+                      styles.filterTag,
+                      styles.genderButton,
+                      selectedGenders.includes(option) && styles.filterTagActive,
+                    ]}
+                    onPress={() => toggleGender(option)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterTagText,
+                        selectedGenders.includes(option) && styles.filterTagTextActive,
+                      ]}
+                    >
+                      {option === 'non_binary' ? 'Non-binary' : option === 'prefer_not_to_say' ? 'Prefer not to say' : option.charAt(0).toUpperCase() + option.slice(1)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
             {/* Age Range */}
             <View style={styles.section}>
               <View style={styles.ageHeader}>
@@ -305,31 +332,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
               </View>
             </View>
 
-            {/* Gender Filter */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Gender</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-                {GENDER_OPTIONS.map((option) => (
-                  <Pressable
-                    key={option}
-                    style={[
-                      styles.filterTag,
-                      selectedGenders.includes(option) && styles.filterTagActive,
-                    ]}
-                    onPress={() => toggleGender(option)}
-                  >
-                    <Text
-                      style={[
-                        styles.filterTagText,
-                        selectedGenders.includes(option) && styles.filterTagTextActive,
-                      ]}
-                    >
-                      {option === 'non_binary' ? 'Non-binary' : option === 'prefer_not_to_say' ? 'Prefer not to say' : option.charAt(0).toUpperCase() + option.slice(1)}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
+
           </ScrollView>
 
           {/* Footer Buttons */}
@@ -402,7 +405,7 @@ const createStyles = (theme: typeof themeLight) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 16,
+      marginBottom: 8,
     },
     ageValue: {
       fontSize: 14,
@@ -411,7 +414,7 @@ const createStyles = (theme: typeof themeLight) =>
     },
     rangeSliderContainer: {
       alignItems: 'center',
-      paddingVertical: 12,
+      paddingVertical: 4,
       paddingHorizontal: 8,
     },
     dualSliderContainer: {
@@ -512,7 +515,7 @@ const createStyles = (theme: typeof themeLight) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 16,
+      marginBottom: 8,
     },
     difficultyValue: {
       fontSize: 14,
@@ -523,7 +526,7 @@ const createStyles = (theme: typeof themeLight) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 16,
+      marginBottom: 8,
     },
     distanceValue: {
       fontSize: 14,
@@ -600,9 +603,20 @@ const createStyles = (theme: typeof themeLight) =>
       fontSize: 12,
       fontWeight: '500',
       color: theme.colors.text,
+      textAlign: 'center',
     },
     filterTagTextActive: {
       color: '#fff',
       fontWeight: '600',
+    },
+    genderGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      justifyContent: 'space-between',
+    },
+    genderButton: {
+      flex: 1,
+      minWidth: '47%',
     },
   });
