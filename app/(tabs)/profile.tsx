@@ -78,6 +78,8 @@ export default function ProfileScreen() {
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
+  const [deleteConfirmationVisible, setDeleteConfirmationVisible] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [imageExpanded, setImageExpanded] = useState(false);
 
   // Profile fields
@@ -131,6 +133,45 @@ export default function ProfileScreen() {
   const handleDarkModeToggle = async (value: boolean) => {
     setDarkMode(value);
     await AsyncStorage.setItem('darkMode', JSON.stringify(value));
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user?.id || !token) {
+      Alert.alert('Error', 'Unable to delete account. Please try again.');
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      
+      const response = await fetch(
+        `${POCKETBASE_URL}/api/collections/users/records/${user.id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to delete account');
+      }
+
+      // Clear local storage and logout
+      await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('token');
+      setDeleteConfirmationVisible(false);
+      await logout();
+      router.replace('/(auth)/login');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to delete account. Please try again.');
+      console.error('Delete account error:', error);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleIntentChange = async (selectedIntent: string) => {
@@ -863,6 +904,53 @@ export default function ProfileScreen() {
                 thumbColor={darkMode ? theme.colors.accent : theme.colors.textSecondary}
               />
             </View>
+
+            <Pressable
+              style={[styles.settingItem, { borderTopWidth: 1, borderTopColor: theme.colors.border }]}
+              onPress={() => setDeleteConfirmationVisible(true)}
+            >
+              <View style={styles.settingLabelRow}>
+                <Ionicons name="trash" size={20} color={theme.colors.error} style={{ marginRight: 12 }} />
+                <Text style={[styles.settingLabel, { color: theme.colors.error }]}>Delete Account</Text>
+              </View>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={deleteConfirmationVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => !deleting && setDeleteConfirmationVisible(false)}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.7)' }]}>
+          <View style={[styles.confirmationModalContent, { backgroundColor: theme.colors.background }]}>
+            <Text style={[styles.confirmationTitle, { color: theme.colors.text }]}>Delete Account?</Text>
+            <Text style={[styles.confirmationMessage, { color: theme.colors.textSecondary }]}>
+              This action cannot be undone. All your data will be permanently deleted.
+            </Text>
+            <View style={styles.confirmationButtonGroup}>
+              <Pressable
+                style={[styles.confirmationButton, { backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border }]}
+                onPress={() => setDeleteConfirmationVisible(false)}
+                disabled={deleting}
+              >
+                <Text style={[styles.confirmationButtonText, { color: theme.colors.text }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.confirmationButton, { backgroundColor: theme.colors.error }, deleting && styles.buttonDisabledMinimal]}
+                onPress={handleDeleteAccount}
+                disabled={deleting}
+              >
+                {deleting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={[styles.confirmationButtonText, { color: '#fff' }]}>Delete</Text>
+                )}
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -1058,5 +1146,39 @@ const createStyles = (theme: typeof themeLight) =>
       fontSize: 16,
       fontWeight: '600',
       textAlign: 'center',
+    },
+    confirmationModalContent: {
+      borderRadius: 16,
+      padding: 24,
+      alignItems: 'center',
+      marginHorizontal: 20,
+    },
+    confirmationTitle: {
+      fontSize: 20,
+      fontWeight: '700',
+      marginBottom: 12,
+      textAlign: 'center',
+    },
+    confirmationMessage: {
+      fontSize: 14,
+      textAlign: 'center',
+      marginBottom: 24,
+      lineHeight: 20,
+    },
+    confirmationButtonGroup: {
+      flexDirection: 'row',
+      gap: 12,
+      width: '100%',
+    },
+    confirmationButton: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    confirmationButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
     },
   });

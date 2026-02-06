@@ -11,6 +11,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
   View
 } from 'react-native';
 import RangeSlider from 'react-native-fast-range-slider';
@@ -33,6 +34,7 @@ export interface DiscoverFilters {
   maxAge?: number;
   minAge?: number;
   maxDistance?: number; // Maximum distance in kilometers (0-50)
+  gym?: string; // Gym name filter
 }
 
 interface FilterModalProps {
@@ -94,6 +96,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   const [minAge, setMinAge] = useState(currentFilters.minAge || 18);
   const [maxAge, setMaxAge] = useState(currentFilters.maxAge || 80);
   const [maxDistance, setMaxDistance] = useState(currentFilters.maxDistance || 50);
+  const [gymFilter, setGymFilter] = useState(currentFilters.gym || '');
 
   const toggleStyle = (style: string) => {
     setSelectedStyles((prev) =>
@@ -120,6 +123,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
       minAge: minAge !== 18 ? minAge : undefined,
       maxAge: maxAge !== 80 ? maxAge : undefined,
       maxDistance: maxDistance !== 50 ? maxDistance : undefined,
+      gym: gymFilter.trim().length > 0 ? gymFilter.trim() : undefined,
     });
     onClose();
   };
@@ -132,6 +136,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     setMinAge(18);
     setMaxAge(80);
     setMaxDistance(50);
+    setGymFilter('');
     onApplyFilters({});
     onClose();
   };
@@ -179,6 +184,18 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                   </Pressable>
                 ))}
               </View>
+            </View>
+
+            {/* Gym Filter */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Gym</Text>
+              <TextInput
+                style={styles.gymInput}
+                placeholder="Search gym name..."
+                placeholderTextColor={theme.colors.textSecondary}
+                value={gymFilter}
+                onChangeText={setGymFilter}
+              />
             </View>
 
             {/* Age Range */}
@@ -618,5 +635,15 @@ const createStyles = (theme: typeof themeLight) =>
     genderButton: {
       flex: 1,
       minWidth: '47%',
+    },
+    gymInput: {
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      color: theme.colors.text,
+      fontSize: 14,
     },
   });

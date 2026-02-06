@@ -383,6 +383,13 @@ export default function DiscoverScreen() {
         return distance <= (activeFilters.maxDistance || 50);
       });
     }
+    // Filter by gym name (case-insensitive) for partner mode
+    if (activeFilters.gym && activeFilters.gym.trim().length > 0) {
+      const gymLower = activeFilters.gym.toLowerCase();
+      result = result.filter((c) =>
+        c.home_gym.toLowerCase().includes(gymLower)
+      );
+    }
     setFilteredPartners(result);
   }, [partners, activeFilters, searchText, user?.latitude, user?.longitude]);
 
@@ -462,6 +469,14 @@ export default function DiscoverScreen() {
         );
         return distance <= (filters.maxDistance || 50);
       });
+    }
+
+    // Filter by gym name (case-insensitive)
+    if (filters.gym && filters.gym.trim().length > 0) {
+      const gymLower = filters.gym.toLowerCase();
+      result = result.filter((c) =>
+        c.home_gym.toLowerCase().includes(gymLower)
+      );
     }
 
     return result;
@@ -704,7 +719,6 @@ export default function DiscoverScreen() {
               setIsDatingMode(value);
               setCurrentIndex(0);
               setSearchText('');
-              setActiveFilters({});
             }}
             trackColor={{ false: theme.colors.border, true: theme.colors.accent }}
             thumbColor={isDatingMode ? theme.colors.accent : theme.colors.textSecondary}

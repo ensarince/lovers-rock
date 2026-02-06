@@ -101,7 +101,6 @@ class LocationService {
       return false;
     }
 
-    console.log(`📍 Saving location: ${location.coords.latitude}, ${location.coords.longitude}`);
     const success = await this.updateUserLocation(
       userId,
       token,
