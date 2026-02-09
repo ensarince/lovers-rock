@@ -74,8 +74,8 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
         user?.climbing_styles || []
     );
     const [homeGym, setHomeGym] = useState(user?.home_gym || '');
-    const [avatar, setAvatar] = useState(user?.avatar || '');
-    const [photo, setPhoto] = useState<string | null>(null);
+    const [images, setImages] = useState<string[]>(user?.images || []);
+    const [newPhotos, setNewPhotos] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
     const [showGradeSystemModal, setShowGradeSystemModal] = useState(false);
 
@@ -88,12 +88,18 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
             setGrade(user.grade ? user.grade : createDefaultGrade());
             setClimbingStyles(user.climbing_styles || []);
             setHomeGym(user.home_gym || '');
-            setAvatar(user.avatar || '');
-            setPhoto(null);
+            setImages(user.images || []);
+            setNewPhotos([]);
         }
     }, [user, visible]);
 
-    const handleImagePicker = async () => {
+    const handleImagePicker = async (index: number) => {
+        const currentImageCount = newPhotos.length + images.length;
+        if (currentImageCount >= 3 && !newPhotos[index]) {
+            Alert.alert('Limit Reached', 'You can upload a maximum of 3 images');
+            return;
+        }
+
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
             allowsEditing: true,
@@ -102,7 +108,22 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
         });
 
         if (!result.canceled) {
-            setPhoto(result.assets[0].uri);
+            const newPhotoCopy = [...newPhotos];
+            newPhotoCopy[index] = result.assets[0].uri;
+            setNewPhotos(newPhotoCopy);
+        }
+    };
+
+    const removeImage = (index: number) => {
+        if (index < images.length) {
+            // Remove existing image from server
+            setImages((prev) => prev.filter((_, i) => i !== index));
+        } else {
+            // Remove new photo
+            const imageIndex = index - images.length;
+            const newPhotoCopy = [...newPhotos];
+            newPhotoCopy.splice(imageIndex, 1);
+            setNewPhotos(newPhotoCopy);
         }
     };
 
@@ -146,6 +167,12 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
             return;
         }
 
+        const totalImages = images.length + newPhotos.filter(p => p).length;
+        if (totalImages < 3) {
+            Alert.alert('Required', `Please upload ${3 - totalImages} more image(s). You need 3 images total.`);
+            return;
+        }
+
         if (!user?.id) {
             Alert.alert('Error', 'User ID not available');
             return;
@@ -172,24 +199,26 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
             formData.append('grade', JSON.stringify(grade));
             formData.append('profile_completed', 'true');
 
-            // Add avatar file if selected
-            if (photo) {
-                const extension = photo.split('.').pop()?.toLowerCase() || 'jpg';
-                let mimeType = 'image/jpeg';
-                if (extension === 'png') mimeType = 'image/png';
-                else if (extension === 'jpg' || extension === 'jpeg') mimeType = 'image/jpeg';
-                else if (extension === 'webp') mimeType = 'image/webp';
+            // Add new image files - only upload files, not JSON
+            newPhotos.forEach((photoUri, index) => {
+                if (photoUri) {
+                    const extension = photoUri.split('.').pop()?.toLowerCase() || 'jpg';
+                    let mimeType = 'image/jpeg';
+                    if (extension === 'png') mimeType = 'image/png';
+                    else if (extension === 'jpg' || extension === 'jpeg') mimeType = 'image/jpeg';
+                    else if (extension === 'webp') mimeType = 'image/webp';
 
-                const file = {
-                    uri: photo,
-                    name: `avatar.${extension}`,
-                    type: mimeType,
-                } as any;
-                formData.append('avatar', file);
-            }
+                    const file = {
+                        uri: photoUri,
+                        name: `image_${index}.${extension}`,
+                        type: mimeType,
+                    } as any;
+                    formData.append('images', file);
+                }
+            });
 
-            console.log('Updating user with ID:', user.id);
-            console.log('Token available:', !!token);
+            // Do NOT set avatar to new image filenames yet - they don't exist
+            // We'll set it after the upload completes and we fetch the actual filenames
 
             const response = await fetch(
                 `${POCKETBASE_URL}/api/collections/users/records/${user.id}`,
@@ -203,16 +232,56 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
             );
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(
-                    errorData.message || `Update failed with status ${response.status}`
-                );
+                let errorData = {};
+                try {
+                    errorData = await response.json();
+                } catch (e) {
+                    console.error('Failed to parse error response as JSON');
+                }
+                console.error('PocketBase error response:', errorData);
+                const errorMsg = (errorData as any)?.message || (errorData as any)?.details?.message || `Update failed with status ${response.status}`;
+                throw new Error(errorMsg);
             }
 
             const updatedRecord = await response.json();
-            console.log('Update successful:', updatedRecord);
 
-            let avatarUrl = updatedRecord.avatar || avatar;
+            const updatedImages = Array.isArray(updatedRecord.images)
+                ? updatedRecord.images
+                : [];
+
+            // Set avatar to first image if available
+            let avatarToUse = updatedRecord.avatar || '';
+            if (updatedImages.length > 0) {
+                avatarToUse = updatedImages[0];
+            }
+
+            // If we uploaded new images, set avatar to the first image with its actual filename
+            if (newPhotos.length > 0 && updatedImages.length > 0) {
+              try {
+                const avatarResponse = await fetch(
+                  `${POCKETBASE_URL}/api/collections/users/records/${user.id}`,
+                  {
+                    method: 'PATCH',
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      avatar: updatedImages[0],
+                    }),
+                  }
+                );
+                
+                if (avatarResponse.ok) {
+                  const finalRecord = await avatarResponse.json();
+                  avatarToUse = finalRecord.avatar || updatedImages[0];
+                }
+              } catch (avatarErr) {
+                console.error('Error setting avatar:', avatarErr);
+                // Continue anyway, images are already uploaded
+                avatarToUse = updatedImages[0];
+              }
+            }
 
             const updatedClimber: Climber = {
                 ...user,
@@ -226,7 +295,8 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                     typeof updatedRecord.grade === 'string'
                         ? JSON.parse(updatedRecord.grade)
                         : updatedRecord.grade,
-                avatar: avatarUrl,
+                images: updatedImages,
+                avatar: avatarToUse,
                 profile_completed: true,
             };
 
@@ -239,6 +309,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
         }
     };
 
+    const totalImages = images.length + newPhotos.filter(p => p).length;
     const isFormValid =
         name.trim() &&
         age.trim() &&
@@ -246,7 +317,8 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
         gender &&
         homeGym.trim() &&
         bio.trim() &&
-        climbingStyles.length > 0;
+        climbingStyles.length > 0 &&
+        totalImages >= 3;
 
     return (
         <Modal
@@ -268,24 +340,63 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                     contentContainerStyle={styles.contentPadding}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Avatar Section */}
-                    <View style={styles.avatarSection}>
-                        <Pressable
-                            style={styles.avatarButton}
-                            onPress={handleImagePicker}
-                        >
-                            {photo || avatar ? (
-                                <Image
-                                    source={{
-                                        uri: photo || (avatar ? `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${user?.id}/${avatar}` : ''),
-                                    }}
-                                    style={styles.avatarImage}
-                                />
-                            ) : (
-                                <Ionicons name="camera" size={40} color={theme.colors.accent} />
-                            )}
-                        </Pressable>
-                        <Text style={styles.avatarText}>Add Photo</Text>
+                    {/* Images Section - 3 images required */}
+                    <View style={styles.imagesSection}>
+                        <Text style={styles.label}>Photos * (3 required)</Text>
+                        <View style={styles.imagesGrid}>
+                            {[0, 1, 2].map((index) => {
+                                const hasExistingImage = index < images.length;
+                                const hasNewPhoto =
+                                    index - images.length >= 0 &&
+                                    newPhotos[index - images.length];
+                                const imageUri = hasExistingImage
+                                    ? images[index]
+                                    : newPhotos[index - images.length];
+                                const isNewPhoto = hasNewPhoto && !hasExistingImage;
+
+                                return (
+                                    <View key={index} style={styles.imageSlot}>
+                                        <Pressable
+                                            style={styles.imageButton}
+                                            onPress={() => handleImagePicker(index)}
+                                        >
+                                            {imageUri ? (
+                                                <Image
+                                                    source={{
+                                                        uri: isNewPhoto
+                                                            ? imageUri
+                                                            : `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${user?.id}/${imageUri}?thumb=200x200`,
+                                                    }}
+                                                    style={styles.imageThumb}
+                                                />
+                                            ) : (
+                                                <View style={styles.imagePlaceholder}>
+                                                    <Ionicons
+                                                        name="camera"
+                                                        size={32}
+                                                        color={theme.colors.textSecondary}
+                                                    />
+                                                </View>
+                                            )}
+                                        </Pressable>
+                                        {imageUri && (
+                                            <Pressable
+                                                style={styles.removeImageButton}
+                                                onPress={() => removeImage(index)}
+                                            >
+                                                <Ionicons name="close" size={20} color="#fff" />
+                                            </Pressable>
+                                        )}
+                                        <Text style={styles.imageIndex}>{index + 1}/3</Text>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                        <Text style={styles.imagesHint}>
+                            {totalImages < 3
+                                ? `Add ${3 - totalImages} more image(s)`
+                                : 'All 3 images added'}
+                        </Text>
                     </View>
 
                     {/* Name Input */}
@@ -625,6 +736,66 @@ const createStyles = (theme: any) =>
         avatarText: {
             fontSize: 14,
             color: theme.colors.textSecondary,
+        },
+        imagesSection: {
+            marginBottom: 24,
+            backgroundColor: "transparent"
+        },
+        imagesGrid: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            gap: 12,
+            marginVertical: 12,
+        },
+        imageSlot: {
+            flex: 1,
+            alignItems: 'center',
+        },
+        imageButton: {
+            width: '100%',
+            aspectRatio: 1,
+            borderRadius: 12,
+            backgroundColor: theme.colors.surface,
+            borderWidth: 2,
+            borderColor: theme.colors.border,
+            justifyContent: 'center',
+            alignItems: 'center',
+            overflow: 'hidden',
+        },
+        imageThumb: {
+            width: '100%',
+            height: '100%',
+        },
+        imagePlaceholder: {
+            width: '100%',
+            height: '100%',
+            justifyContent: 'center',
+            alignItems: 'center',
+        },
+        removeImageButton: {
+            position: 'absolute',
+            top: -8,
+            right: -8,
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            backgroundColor: '#ef4444',
+            justifyContent: 'center',
+            alignItems: 'center',
+            borderWidth: 2,
+            borderColor: theme.colors.background,
+        },
+        imageIndex: {
+            fontSize: 11,
+            color: theme.colors.textSecondary,
+            marginTop: 6,
+            fontWeight: '500',
+        },
+        imagesHint: {
+            fontSize: 12,
+            color: theme.colors.textSecondary,
+            textAlign: 'center',
+            marginTop: 8,
         },
         styleGrid: {
             flexDirection: 'row',

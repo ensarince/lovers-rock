@@ -12,12 +12,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet
+    ActivityIndicator,
+    FlatList,
+    Image,
+    Pressable,
+    ScrollView,
+    StyleSheet
 } from 'react-native';
 
 type FilterChip = 'all' | 'requests' | 'dating' | 'partner' | 'sessions';
@@ -52,6 +52,7 @@ export default function MatchesScreen() {
     Array.isArray(user.climbing_styles) && user.climbing_styles.length > 0 &&
     user.home_gym &&
     user.bio &&
+    (Array.isArray(user.images) && user.images.length > 0) &&
     user.email;
 
   useEffect(() => {

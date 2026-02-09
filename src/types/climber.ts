@@ -24,11 +24,11 @@ export interface Climber {
   home_gym: string;
   bio: string;
   email: string;
-  avatar?: string;
+  images?: string[]; // Array of image filenames (max 3)
+  avatar?: string; // Legacy field - for backward compatibility
   liked_users?: string[]; // Legacy field - deprecated
   liked_users_dating?: string[]; // Users liked in dating mode
   liked_users_partner?: string[]; // Users liked in partner mode
-  image_url?: string; // For displaying avatar URL
   intent: 'partner' | 'date' | Array<'partner' | 'date'>;
   latitude?: number; // User's latitude for geofinding
   longitude?: number; // User's longitude for geofinding

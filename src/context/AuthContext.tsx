@@ -70,6 +70,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       bio: record.bio || '',
       email: record.email || '',
       avatar: record.avatar || '',
+      images: Array.isArray(record.images) ? record.images : [],
       intent: Array.isArray(record.intent) ? record.intent : [],
       latitude: typeof record.latitude === 'number' ? record.latitude : undefined,
       longitude: typeof record.longitude === 'number' ? record.longitude : undefined,
@@ -187,7 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                                       updatedUserData.age && 
                                       updatedUserData.home_gym && 
                                       updatedUserData.bio && 
-                                      updatedUserData.avatar &&
+                                      (Array.isArray(updatedUserData.images) && updatedUserData.images.length > 0) &&
                                       updatedUserData.grade &&
                                       updatedUserData.climbing_styles?.length > 0;
             

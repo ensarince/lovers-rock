@@ -1,5 +1,6 @@
 import { Text } from '@/components/Themed';
 import { BlockReportMenu } from '@/src/components/BlockReportMenu';
+import { ImageCarousel } from '@/src/components/ImageCarousel';
 import { useAuth } from '@/src/context/AuthContext';
 import { calculateDistance, formatDistance } from '@/src/services/geoService';
 import { formatGradeDisplay } from '@/src/services/gradeService';
@@ -9,12 +10,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Animated,
-  Image,
-  PanResponder,
-  Pressable,
-  StyleSheet,
-  View,
+    Animated,
+    PanResponder,
+    Pressable,
+    StyleSheet,
+    View,
 } from 'react-native';
 
 interface SwipeableCardProps {
@@ -49,7 +49,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
   const [distance, setDistance] = useState<number | null>(null);
   const [showBlockReportMenu, setShowBlockReportMenu] = useState(false);
   const currentClimberRef = useRef(climber);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Handle long press for block/report menu
   const handlePressIn = () => {
@@ -162,15 +162,6 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
     outputRange: [1, 0],
   });
 
-  // Construct the full image URL if only the filename is provided
-  const getImageUrl = () => {
-    if (climber.avatar && climber.id) {
-      const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
-      return `${baseUrl}/api/files/users/${climber.id}/${climber.avatar}?thumb=100x100`;
-    }
-    return undefined;
-  };
-
   return (
     <View style={styles.outerContainer}>
       <Animated.View
@@ -188,7 +179,14 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
           onPressIn={handlePressIn}
           onPressOut={handlePressOut}
           style={styles.card}>
-          <Image source={{ uri: getImageUrl() }} style={styles.image} />
+          <ImageCarousel
+            images={climber.images || []}
+            userId={climber.id}
+            expandable={true}
+            height="100%"
+            darkMode={darkMode}
+            showIndicators={true}
+          />
 
           {/* Top gradient overlay */}
           <LinearGradient
@@ -321,11 +319,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     height: '100%',
     backgroundColor: theme.colors.surface,
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-    position: 'absolute',
   },
   topGradient: {
     position: 'absolute',

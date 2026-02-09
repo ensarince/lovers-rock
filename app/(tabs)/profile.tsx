@@ -1,5 +1,6 @@
 
 import { Text } from '@/components/Themed';
+import { ImageCarousel } from '@/src/components/ImageCarousel';
 import { useAuth } from '@/src/context/AuthContext';
 import { createDefaultGrade, formatGradeDisplay, getExampleGrades } from '@/src/services/gradeService';
 import { theme as themeDark } from '@/src/themeDark';
@@ -97,7 +98,9 @@ export default function ProfileScreen() {
   const [homeGym, setHomeGym] = useState(typedUser?.home_gym || '');
   // intent: array of 'partner' | 'date'
   const [intent, setIntent] = useState<string[]>(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
-  // Remove photo state for display, only use for upload
+  // Image state for edit mode
+  const [images, setImages] = useState(typedUser?.images || []);
+  const [newPhotos, setNewPhotos] = useState<string[]>([]);
   const [photo, setPhoto] = useState<string | null>(null);
   const [avatar, setAvatar] = useState(typedUser?.avatar || '');
   // Grade edit state
@@ -121,7 +124,9 @@ export default function ProfileScreen() {
     );
     setClimbingStyles(typedUser?.climbing_styles || []);
     setHomeGym(typedUser?.home_gym || '');
+    setImages(typedUser?.images || []);
     setAvatar(typedUser?.avatar || '');
+    setNewPhotos([]);
     setIntent(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
     setPhoto(null);
   }, [user]);
@@ -217,36 +222,51 @@ export default function ProfileScreen() {
     }
   };
 
-  const pickImage = async () => {
+  const pickImage = async (index: number) => {
+    const currentImageCount = newPhotos.length + images.length;
+    if (currentImageCount >= 3 && !newPhotos[index]) {
+      Alert.alert('Limit Reached', 'You can upload a maximum of 3 images');
+      return;
+    }
+
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.7,
+      quality: 0.8,
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setPhoto(result.assets[0].uri);
+      const newPhotoCopy = [...newPhotos];
+      newPhotoCopy[index] = result.assets[0].uri;
+      setNewPhotos(newPhotoCopy);
+      setPhoto(null); // Clear old single photo state
+    }
+  };
+
+  const removeImage = (index: number) => {
+    if (index < images.length) {
+      // Remove existing image
+      setImages((prev) => prev.filter((_, i) => i !== index));
+    } else {
+      // Remove new photo
+      const imageIndex = index - images.length;
+      const newPhotoCopy = [...newPhotos];
+      newPhotoCopy.splice(imageIndex, 1);
+      setNewPhotos(newPhotoCopy);
     }
   };
 
   const handleSave = async () => {
+    // Validate that we have images if this is edit mode for images
+    const totalImages = images.length + newPhotos.filter(p => p).length;
+    if (totalImages === 0) {
+      Alert.alert('Required', 'Please add at least one image');
+      return;
+    }
+
     setSaving(true);
     try {
       const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
-      
-      let avatarFile = null;
-      if (photo && !photo.startsWith('http')) {
-        const extension = photo.split('.').pop()?.toLowerCase() || 'jpg';
-        let mimeType = 'image/jpeg';
-        if (extension === 'png') mimeType = 'image/png';
-        else if (extension === 'jpg' || extension === 'jpeg') mimeType = 'image/jpeg';
-        else if (extension === 'webp') mimeType = 'image/webp';
-        avatarFile = {
-          uri: photo,
-          name: `avatar.${extension}`,
-          type: mimeType,
-        };
-      }
 
       // Ensure grade has all required fields
       const gradeToSave = {
@@ -269,11 +289,34 @@ export default function ProfileScreen() {
       // intent as array
       intent.forEach((val) => formData.append('intent', val));
       
-      // Add avatar file if present
-      if (avatarFile) {
-        // @ts-ignore
-        formData.append('avatar', avatarFile);
+      // Add new image files
+      newPhotos.forEach((photoUri, index) => {
+        if (photoUri) {
+          const extension = photoUri.split('.').pop()?.toLowerCase() || 'jpg';
+          let mimeType = 'image/jpeg';
+          if (extension === 'png') mimeType = 'image/png';
+          else if (extension === 'jpg' || extension === 'jpeg') mimeType = 'image/jpeg';
+          else if (extension === 'webp') mimeType = 'image/webp';
+
+          const file = {
+            uri: photoUri,
+            name: `image_${index}.${extension}`,
+            type: mimeType,
+          } as any;
+          formData.append('images', file);
+        }
+      });
+
+      // Only set avatar to existing images, not to files we're about to upload
+      // PocketBase will assign its own filenames to the uploaded images
+      if (images.length > 0) {
+        formData.append('avatar', images[0]);
       }
+
+      console.log('Sending FormData with:');
+      console.log('- newPhotos count:', newPhotos.filter(p => p).length);
+      console.log('- existing images count:', images.length);
+      console.log('- userId:', user?.id);
 
       const response = await fetch(
         `${POCKETBASE_URL}/api/collections/users/records/${user?.id}`,
@@ -287,12 +330,20 @@ export default function ProfileScreen() {
       );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Update failed with status ${response.status}`);
+        let errorData: any = {};
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          console.error('Failed to parse error response as JSON');
+        }
+        console.error('PocketBase error response:', errorData);
+        const errorMsg = errorData?.message || (errorData as any)?.details?.message || `Update failed with status ${response.status}`;
+        throw new Error(errorMsg);
       }
 
       setEditMode(false);
-      setPhoto(null); // Reset photo after save
+      setPhoto(null);
+      setNewPhotos([]);
       
       // Fetch latest user from backend and update context/cache
       if (user?.id && token) {
@@ -335,11 +386,59 @@ export default function ProfileScreen() {
               bio: latestUser.bio || '',
               email: latestUser.email || '',
               avatar: latestUser.avatar || '',
+              images: Array.isArray(latestUser.images) ? latestUser.images : [],
               intent: Array.isArray(latestUser.intent) ? latestUser.intent : [],
               profile_completed: latestUser.profile_completed || false,
             };
             setUser(mappedUser);
             await AsyncStorage.setItem('user', JSON.stringify(mappedUser));
+
+            // If we uploaded new images, set avatar to the first image
+            if (newPhotos.length > 0 && latestUser.images?.length > 0) {
+              try {
+                console.log('Setting avatar to first uploaded image:', latestUser.images[0]);
+                const avatarResponse = await fetch(
+                  `${POCKETBASE_URL}/api/collections/users/records/${user.id}`,
+                  {
+                    method: 'PATCH',
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      avatar: latestUser.images[0],
+                    }),
+                  }
+                );
+                
+                if (avatarResponse.ok) {
+                  console.log('Avatar set successfully');
+                  // Fetch again to get the final state
+                  const finalResponse = await fetch(
+                    `${POCKETBASE_URL}/api/collections/users/records/${user.id}`,
+                    {
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                      },
+                    }
+                  );
+                  
+                  if (finalResponse.ok) {
+                    const finalUser = await finalResponse.json();
+                    const finalMappedUser: Climber = {
+                      ...mappedUser,
+                      avatar: finalUser.avatar || '',
+                      images: Array.isArray(finalUser.images) ? finalUser.images : [],
+                    };
+                    setUser(finalMappedUser);
+                    await AsyncStorage.setItem('user', JSON.stringify(finalMappedUser));
+                  }
+                }
+              } catch (avatarErr) {
+                console.error('Error setting avatar:', avatarErr);
+                // Continue anyway, the images are already uploaded
+              }
+            }
           }
         } catch (err) {
           // Silently handle fetch error
@@ -366,14 +465,25 @@ export default function ProfileScreen() {
 
   // Always show the avatar from the DB unless a new photo is picked
   const getAvatarUrl = () => {
-    // 1. Priority: Locally picked photo (blob/uri)
-    if (photo) return photo;
+    // 1. Priority: First new photo if any
+    if (newPhotos.length > 0 && newPhotos[0]) {
+      return newPhotos[0];
+    }
 
-    // 2. Use the filename from state or the user object
+    // 2. First image from images array
+    if (images && images.length > 0) {
+      const userId = typedUser?.id;
+      if (userId) {
+        const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+        return `${baseUrl}/api/files/users/${userId}/${images[0]}?thumb=100x100`;
+      }
+    }
+
+    // 3. Use the filename from state or the user object (legacy avatar)
     const filename = avatar || typedUser?.avatar;
     const userId = typedUser?.id;
 
-    // 3. Manually construct the URL if we have the necessary parts
+    // 4. Manually construct the URL if we have the necessary parts
     if (filename && userId) {
       const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
       // PocketBase file path format: /api/files/COLLECTION_ID_OR_NAME/RECORD_ID/FILENAME
@@ -396,7 +506,7 @@ export default function ProfileScreen() {
       <View style={styles.containerMinimal}>
         <View style={styles.headerWithSettingsRow}>
           <View style={styles.headerMinimal}>
-            <Pressable onPress={editMode ? pickImage : () => setImageExpanded(true)}>
+            <Pressable onPress={() => editMode ? pickImage(0) : setImageExpanded(true)}>
               {getAvatarUrl() ? (
                 <Image
                   source={{ uri: getAvatarUrl() }}
@@ -452,6 +562,77 @@ export default function ProfileScreen() {
             ))}
           </View>
         </View>
+
+        {/* Images Section in Edit Mode */}
+        {editMode && (
+          <View style={{ marginHorizontal: 24, marginBottom: 24, backgroundColor: "transparent" }}>
+            <Text style={[styles.labelMinimal, { marginBottom: 12 }]}>Photos (Max 3)</Text>
+            <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'space-between' }}>
+              {[0, 1, 2].map((index) => {
+                const hasExistingImage = index < images.length;
+                const hasNewPhoto =
+                  index - images.length >= 0 &&
+                  newPhotos[index - images.length];
+                const imageUri = hasExistingImage
+                  ? images[index]
+                  : newPhotos[index - images.length];
+                const isNewPhoto = hasNewPhoto && !hasExistingImage;
+
+                return (
+                  <View key={index} style={{ flex: 1, alignItems: 'center' }}>
+                    <Pressable
+                      style={{
+                        width: '100%',
+                        aspectRatio: 1,
+                        borderRadius: 12,
+                        backgroundColor: theme.colors.surface,
+                        borderWidth: 2,
+                        borderColor: theme.colors.border,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        overflow: 'hidden',
+                      }}
+                      onPress={() => pickImage(index)}
+                    >
+                      {imageUri ? (
+                        <Image
+                          source={{
+                            uri: isNewPhoto
+                              ? imageUri
+                              : `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${user.id}/${imageUri}?thumb=200x200`,
+                          }}
+                          style={{ width: '100%', height: '100%' }}
+                        />
+                      ) : (
+                        <Ionicons
+                          name="camera"
+                          size={32}
+                          color={theme.colors.textSecondary}
+                        />
+                      )}
+                    </Pressable>
+                    {imageUri && (
+                      <Pressable
+                        style={{
+                          marginTop: 8,
+                          padding: 6,
+                          backgroundColor: '#ef4444',
+                          borderRadius: 6,
+                        }}
+                        onPress={() => removeImage(index)}
+                      >
+                        <Ionicons name="trash" size={16} color="#fff" />
+                      </Pressable>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+            <Text style={[styles.valueMinimal, { marginTop: 8, fontSize: 12, color: theme.colors.textSecondary }]}>
+              {images.length + newPhotos.filter(p => p).length} / 3 images
+            </Text>
+          </View>
+        )}
 
         <View style={styles.userInfoMinimal}>
           <View style={styles.infoCardMinimal}>
@@ -723,13 +904,33 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
 
-      {/* Expanded Avatar Modal */}
+      {/* Expanded Images Carousel Modal */}
       <Modal visible={imageExpanded} transparent animationType="fade">
-        <Pressable style={styles.expandedImageOverlay} onPress={() => setImageExpanded(false)}>
-          {getAvatarUrl() && (
-            <Image source={{ uri: getAvatarUrl() }} style={styles.expandedImage} />
-          )}
-        </Pressable>
+        <View style={styles.expandedImageOverlay}>
+          {(images && images.length > 0) || (typedUser?.images && typedUser.images.length > 0) ? (
+            <ImageCarousel
+              images={images && images.length > 0 ? images : (typedUser?.images || [])}
+              userId={user.id}
+              expandable={false}
+              height={300}
+              darkMode={darkMode}
+              showIndicators={true}
+            />
+          ) : null}
+          <Pressable
+            style={{
+              position: 'absolute',
+              top: 40,
+              right: 20,
+              padding: 8,
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              borderRadius: 20,
+            }}
+            onPress={() => setImageExpanded(false)}
+          >
+            <Ionicons name="close" size={24} color="#fff" />
+          </Pressable>
+        </View>
       </Modal>
 
       {/* Grade System Selection Modal */}

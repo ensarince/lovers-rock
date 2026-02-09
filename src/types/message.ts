@@ -12,8 +12,9 @@ export interface Conversation {
   climber: {
     id: string;
     name: string;
-    avatar?: string;
-    image_url?: string;
+    images?: string[];
+    avatar?: string; // Legacy field
+    image_url?: string; // Legacy field
   };
   lastMessage?: Message;
   unreadCount: number;

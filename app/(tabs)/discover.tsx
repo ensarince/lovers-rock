@@ -80,7 +80,7 @@ export default function DiscoverScreen() {
     Array.isArray(user.climbing_styles) && user.climbing_styles.length > 0 &&
     user.home_gym &&
     user.bio &&
-    user.avatar !== "" &&
+    (Array.isArray(user.images) && user.images.length > 0) &&
     user.email;
 
   // Reset currentIndex when search or filters change (dating mode)
@@ -145,6 +145,7 @@ export default function DiscoverScreen() {
   // Load dating mode data - runs on load and when blocked_users changes
   useEffect(() => {
     const loadDatingData = async () => {
+      setLoading(true);
       try {
         if (!token || !user?.id) return;
 
@@ -170,7 +171,7 @@ export default function DiscoverScreen() {
             Array.isArray(c.climbing_styles) && c.climbing_styles.length > 0 &&
             c.home_gym !== '' &&
             c.bio !== '' &&
-            c.avatar !== '' &&
+            (Array.isArray(c.images) && c.images.length > 0) &&
             c.email !== ''
         );
         
@@ -192,9 +193,14 @@ export default function DiscoverScreen() {
             : c.climbing_styles || [];
 
           let avatarUrl = '';
-          if (c.avatar && c.id) {
+          if (c.id) {
             const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
-            avatarUrl = `${baseUrl}/api/files/users/${c.id}/${c.avatar}?thumb=100x100`;
+            // Prioritize images array, fall back to avatar field
+            if (Array.isArray(c.images) && c.images.length > 0) {
+              avatarUrl = `${baseUrl}/api/files/users/${c.id}/${c.images[0]}?thumb=100x100`;
+            } else if (c.avatar) {
+              avatarUrl = `${baseUrl}/api/files/users/${c.id}/${c.avatar}?thumb=100x100`;
+            }
           }
 
           return {
@@ -208,8 +214,12 @@ export default function DiscoverScreen() {
         setFilteredClimbers(normalized);
         setError(null);
       } catch (err) {
+        console.error('Dating loading error:', err);
         setError('Failed to load climbers');
-        if (process.env.EXPO_DEV_MODE) console.error(err);
+        setClimbers([]);
+        setFilteredClimbers([]);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -221,6 +231,7 @@ export default function DiscoverScreen() {
   // Load partner mode data - runs on load and when blocked_users changes
   useEffect(() => {
     const loadPartnerData = async () => {
+      setLoading(true);
       try {
         if (!token || !user) return;
         
@@ -297,12 +308,16 @@ export default function DiscoverScreen() {
           c.home_gym !== '' &&
           c.bio !== '' &&
           c.email !== '' &&
-          c.avatar !== ''
+          (Array.isArray(c.images) && c.images.length > 0)
         );
         setPartners(filtered);
         setError(null);
       } catch (e) {
+        console.error('Partner loading error:', e);
         setError('Failed to load partners');
+        setPartners([]);
+      } finally {
+        setLoading(false);
       }
     };
     if (token && user) loadPartnerData();
@@ -411,7 +426,7 @@ export default function DiscoverScreen() {
         Array.isArray(c.climbing_styles) && c.climbing_styles.length > 0 &&
         c.home_gym !== '' &&
         c.bio !== '' &&
-        c.avatar !== '' &&
+        (Array.isArray(c.images) && c.images.length > 0) &&
         c.email !== ''
     );
 
@@ -637,11 +652,6 @@ export default function DiscoverScreen() {
     }
   }, [hasDatingIntent, hasPartnerIntent]);
 
-  // Start loading only if user has enabled at least one mode
-  useEffect(() => {
-    setLoading(!(isDatingMode ? climbers.length > 0 : partners.length > 0));
-  }, [isDatingMode, climbers.length, partners.length]);
-
   // Show error if user doesn't have any intent enabled
   if (!hasDatingIntent && !hasPartnerIntent) {
     return (
@@ -759,12 +769,22 @@ export default function DiscoverScreen() {
           <FlatList
             data={filteredPartners}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
+            renderItem={({ item }) => {
+              // Construct avatar URL with priority: images array first, then avatar field
+              let avatarUrl = '';
+              if (item.id) {
+                if (Array.isArray(item.images) && item.images.length > 0) {
+                  avatarUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${item.id}/${item.images[0]}?thumb=100x100`;
+                } else if (item.avatar) {
+                  avatarUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${item.id}/${item.avatar}?thumb=100x100`;
+                }
+              }
+              return (
               <Pressable onPress={() => openPartnerModal(item)} style={styles.partnerCard}>
                 <View style={styles.partnerCardContent}>
-                  {item.avatar && item.id ? (
+                  {avatarUrl ? (
                     <Image
-                      source={{ uri: `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${item.id}/${item.avatar}?thumb=100x100` }}
+                      source={{ uri: avatarUrl }}
                       style={styles.partnerAvatar}
                     />
                   ) : (
@@ -790,7 +810,8 @@ export default function DiscoverScreen() {
                   </View>
                 </View>
               </Pressable>
-            )}
+              );
+            }}
             ListEmptyComponent={<Text style={styles.emptyText}>No partners found.</Text>}
           />
         </RNView>

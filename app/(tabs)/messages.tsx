@@ -122,10 +122,22 @@ export default function MessagesScreen() {
 
         if (!shouldShow) return null;
 
+        // Get the image URL - prefer images array, then image_url, then avatar
+        let imageUrl = '';
+        if (item.climber?.images && item.climber.images.length > 0) {
+            const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+            imageUrl = `${baseUrl}/api/files/users/${item.climber.id}/${item.climber.images[0]}?thumb=100x100`;
+        } else if (item.climber?.image_url) {
+            imageUrl = item.climber.image_url;
+        } else if (item.climber?.avatar && item.climber?.id) {
+            const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+            imageUrl = `${baseUrl}/api/files/users/${item.climber.id}/${item.climber.avatar}?thumb=100x100`;
+        }
+
         return (
             <Pressable style={styles.conversationItem} onPress={() => openChat(item)}>
                 <Image
-                    source={{ uri: item.climber?.image_url }}
+                    source={{ uri: imageUrl }}
                     style={styles.avatar}
                 />
 

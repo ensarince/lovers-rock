@@ -1,4 +1,5 @@
 import { BlockReportMenu } from '@/src/components/BlockReportMenu';
+import { ImageCarousel } from '@/src/components/ImageCarousel';
 import { useAuth } from '@/src/context/AuthContext';
 import { calculateDistance, formatDistance } from '@/src/services/geoService';
 import { formatGradeDisplay } from '@/src/services/gradeService';
@@ -7,7 +8,7 @@ import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useState } from 'react';
-import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 interface PartnerDetailModalProps {
   visible: boolean;
@@ -23,7 +24,6 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
   const { darkMode, user } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
-  const [imageExpanded, setImageExpanded] = React.useState(false);
   const [isRequestSent, setIsRequestSent] = React.useState(false);
   const [distance, setDistance] = useState<number | null>(null);
   const [showBlockReportMenu, setShowBlockReportMenu] = useState(false);
@@ -55,30 +55,20 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
     }
   }, [climber, user]);
 
-  // Always render the modal, but show empty content if no climber
-  const getImageUrl = () => {
-    if (climber && climber.avatar && climber.id) {
-      const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
-      return `${baseUrl}/api/files/users/${climber.id}/${climber.avatar}?thumb=400x400`;
-    }
-    return undefined;
-  };
-
   return (
     <Modal visible={visible} transparent animationType="slide">
       <View style={styles.overlay}>
         <View style={styles.modal}>
           {climber ? (
-            <>
-              {getImageUrl() ? (
-                <Pressable onPress={() => setImageExpanded(true)}>
-                  <Image source={{ uri: getImageUrl() }} style={styles.profileImage} />
-                </Pressable>
-              ) : (
-                <View style={[styles.profileImage, { backgroundColor: '#ccc', alignItems: 'center', justifyContent: 'center' }]}> 
-                  <Text style={{ color: '#fff', fontSize: 32 }}>?</Text>
-                </View>
-              )}
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <ImageCarousel
+                images={climber.images || []}
+                userId={climber.id}
+                expandable={true}
+                height={250}
+                darkMode={darkMode}
+                showIndicators={true}
+              />
               <Text style={styles.title}>{climber.name}</Text>
               <Pressable 
                 onPress={() => setShowBlockReportMenu(true)}
@@ -120,21 +110,12 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                 }}
                 darkMode={darkMode}
               />
-            </>
+            </ScrollView>
           ) : (
             <View />
           )}
         </View>
       </View>
-      
-      {/* Expanded Image Modal */}
-      <Modal visible={imageExpanded} transparent animationType="fade">
-        <Pressable style={styles.expandedImageOverlay} onPress={() => setImageExpanded(false)}>
-          {getImageUrl() && (
-            <Image source={{ uri: getImageUrl() }} style={styles.expandedImage} />
-          )}
-        </Pressable>
-      </Modal>
     </Modal>
   );
 }
@@ -218,16 +199,5 @@ const createStyles = (theme: typeof themeLight) =>
       color: '#fff',
       fontWeight: '700',
       fontSize: 16,
-    },
-    expandedImageOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.95)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    expandedImage: {
-      width: '100%',
-      height: '100%',
-      resizeMode: 'contain',
     },
   });

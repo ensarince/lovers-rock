@@ -28,8 +28,11 @@ export const getIncomingPartnerRequests = async (currentUserId: string, token: s
         ? JSON.parse(user.climbing_styles)
         : user.climbing_styles || [];
       let avatarUrl = '';
-      if (user.avatar && user.id) {
-        const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      // Prefer images array, fallback to avatar
+      if (user.images && user.images.length > 0) {
+        avatarUrl = `${baseUrl}/api/files/users/${user.id}/${user.images[0]}?thumb=100x100`;
+      } else if (user.avatar && user.id) {
         avatarUrl = `${baseUrl}/api/files/users/${user.id}/${user.avatar}?thumb=100x100`;
       }
       return {
@@ -100,8 +103,11 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
           ? JSON.parse(user.climbing_styles)
           : user.climbing_styles || [];
         let avatarUrl = '';
-        if (user.avatar && user.id) {
-          const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+        const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+        // Prefer images array, fallback to avatar
+        if (user.images && user.images.length > 0) {
+          avatarUrl = `${baseUrl}/api/files/users/${user.id}/${user.images[0]}?thumb=100x100`;
+        } else if (user.avatar && user.id) {
           avatarUrl = `${baseUrl}/api/files/users/${user.id}/${user.avatar}?thumb=100x100`;
         }
         const normalizedClimber: Climber = {
@@ -134,8 +140,11 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
           ? JSON.parse(user.climbing_styles)
           : user.climbing_styles || [];
         let avatarUrl = '';
-        if (user.avatar && user.id) {
-          const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+        const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+        // Prefer images array, fallback to avatar
+        if (user.images && user.images.length > 0) {
+          avatarUrl = `${baseUrl}/api/files/users/${user.id}/${user.images[0]}?thumb=100x100`;
+        } else if (user.avatar && user.id) {
           avatarUrl = `${baseUrl}/api/files/users/${user.id}/${user.avatar}?thumb=100x100`;
         }
         const normalizedClimber: Climber = {

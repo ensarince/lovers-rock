@@ -1,4 +1,5 @@
 import { Text, View } from '@/components/Themed';
+import { ImageCarousel } from '@/src/components/ImageCarousel';
 import { useAuth } from '@/src/context/AuthContext';
 import { calculateDistance, formatDistance } from '@/src/services/geoService';
 import { formatGradeDisplay } from '@/src/services/gradeService';
@@ -8,12 +9,11 @@ import { Match } from '@/src/types/match';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useState } from 'react';
 import {
-  Dimensions,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
+    Dimensions,
+    Modal,
+    Pressable,
+    ScrollView,
+    StyleSheet,
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -74,12 +74,15 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
         </View>
 
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-          {/* Profile Image */}
+          {/* Profile Images Carousel */}
           <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: climber.image_url || climber.avatar }}
-              style={styles.profileImage}
-              resizeMode="cover"
+            <ImageCarousel
+              images={climber.images || []}
+              userId={climber.id}
+              expandable={true}
+              height={width * 0.8}
+              darkMode={darkMode}
+              showIndicators={true}
             />
           </View>
 
@@ -166,13 +169,6 @@ const createStyles = (theme: typeof themeLight) =>
       alignItems: 'center',
       paddingVertical: 20,
       backgroundColor: "transparent"
-    },
-    profileImage: {
-      width: width * 0.8,
-      height: width * 0.8,
-      borderRadius: width * 0.4,
-      borderWidth: 4,
-      borderColor: theme.colors.accent,
     },
     infoContainer: {
       paddingHorizontal: 24,
