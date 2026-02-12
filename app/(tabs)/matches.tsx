@@ -12,12 +12,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    Pressable,
-    ScrollView,
-    StyleSheet
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Pressable,
+  ScrollView,
+  StyleSheet
 } from 'react-native';
 
 type FilterChip = 'all' | 'requests' | 'dating' | 'partner' | 'sessions';
@@ -26,6 +26,15 @@ export default function MatchesScreen() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<Climber[]>([]);
   const [datingLikedHint, setDatingLikedHint] = useState<Climber | null>(null);
+  
+  // Helper function to get first image URL
+  const getFirstImageUrl = (images: string[] | undefined, userId: string) => {
+    if (images && images.length > 0 && userId) {
+      const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      return `${baseUrl}/api/files/users/${userId}/${images[0]}?thumb=100x100`;
+    }
+    return undefined;
+  };
   const [loading, setLoading] = useState(true);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
@@ -147,7 +156,7 @@ export default function MatchesScreen() {
       setModalVisible(true);
     }}>
       <Image
-        source={{ uri: item.climber.image_url }}
+        source={{ uri: getFirstImageUrl(item.climber.images, item.climber.id) }}
         style={styles.matchImageMinimal}
       />
 
@@ -193,7 +202,7 @@ export default function MatchesScreen() {
   const renderRequest = ({ item }: { item: Climber }) => (
     <Pressable style={styles.requestCardMinimal}>
       <Image
-        source={{ uri: item.image_url || `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${item.id}/${item.avatar}?thumb=100x100` }}
+        source={{ uri: getFirstImageUrl(item.images, item.id) || `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${item.id}/${item.avatar}?thumb=100x100` }}
         style={styles.matchImageMinimal}
       />
 
@@ -239,7 +248,7 @@ export default function MatchesScreen() {
   const renderDatingLikedHint = () => (
     <Pressable style={styles.datingLikedHintCard}>
       <Image
-        source={{ uri: datingLikedHint!.image_url || `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${datingLikedHint!.id}/${datingLikedHint!.avatar}?thumb=100x100` }}
+        source={{ uri: getFirstImageUrl(datingLikedHint!.images, datingLikedHint!.id) || `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${datingLikedHint!.id}/${datingLikedHint!.avatar}?thumb=100x100` }}
         style={[styles.hintImage, { opacity: 0.2 }]}
       />
 

@@ -9,11 +9,11 @@ import { Match } from '@/src/types/match';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useState } from 'react';
 import {
-    Dimensions,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
+  Dimensions,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -76,14 +76,22 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
         <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
           {/* Profile Images Carousel */}
           <View style={styles.imageContainer}>
-            <ImageCarousel
-              images={climber.images || []}
-              userId={climber.id}
-              expandable={true}
-              height={width * 0.8}
-              darkMode={darkMode}
-              showIndicators={true}
-            />
+            {climber.images && climber.images.length > 0 ? (
+              <ImageCarousel
+                images={climber.images}
+                userId={climber.id}
+                expandable={true}
+                height={width * 0.8}
+                darkMode={darkMode}
+                showIndicators={true}
+                style={{ width: '100%' }}
+              />
+            ) : (
+              <View style={styles.placeholderImage}>
+                <Ionicons name="image" size={48} color={theme.colors.textSecondary} />
+                <Text style={styles.placeholderText}>No images available</Text>
+              </View>
+            )}
           </View>
 
           {/* Profile Info */}
@@ -167,8 +175,25 @@ const createStyles = (theme: typeof themeLight) =>
     },
     imageContainer: {
       alignItems: 'center',
+      justifyContent: 'center',
       paddingVertical: 20,
-      backgroundColor: "transparent"
+      backgroundColor: "transparent",
+      width: '100%',
+      minHeight: width * 0.8,
+    },
+    placeholderImage: {
+      width: width * 0.8,
+      height: width * 0.8,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 12,
+    },
+    placeholderText: {
+      fontSize: 16,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
     },
     infoContainer: {
       paddingHorizontal: 24,
@@ -197,6 +222,7 @@ const createStyles = (theme: typeof themeLight) =>
     distanceContainer: {
       flexDirection: 'row',
       alignItems: 'center',
+      backgroundColor: "transparent",
       justifyContent: 'center',
       gap: 6,
       marginBottom: 24,

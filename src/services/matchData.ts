@@ -23,21 +23,22 @@ export const getIncomingPartnerRequests = async (currentUserId: string, token: s
       return likedCurrentForPartner && notMutualPartner && hasPartnerIntent;
     })
     .map(user => {
-      // Normalize climbing_styles and image_url
+      // Normalize climbing_styles and preserve images array
       const climbing_styles = typeof user.climbing_styles === 'string'
         ? JSON.parse(user.climbing_styles)
         : user.climbing_styles || [];
-      let avatarUrl = '';
       const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
-      // Prefer images array, fallback to avatar
-      if (user.images && user.images.length > 0) {
-        avatarUrl = `${baseUrl}/api/files/users/${user.id}/${user.images[0]}?thumb=100x100`;
-      } else if (user.avatar && user.id) {
-        avatarUrl = `${baseUrl}/api/files/users/${user.id}/${user.avatar}?thumb=100x100`;
+      // Preserve images array with filenames for ImageCarousel
+      const images = user.images && user.images.length > 0 ? user.images : (user.avatar ? [user.avatar] : []);
+      let avatarUrl = '';
+      // Build URL for single avatar
+      if (images.length > 0) {
+        avatarUrl = `${baseUrl}/api/files/users/${user.id}/${images[0]}?thumb=100x100`;
       }
       return {
         ...user,
         climbing_styles,
+        images,
         image_url: avatarUrl,
       };
     });
@@ -98,22 +99,22 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
         currentUserLikedDating.includes(user.id) &&
         userLikedDating.includes(currentUserId)
       ) {
-        // Normalize climbing_styles
+        // Normalize climbing_styles and preserve images array
         const climbing_styles = typeof user.climbing_styles === 'string'
           ? JSON.parse(user.climbing_styles)
           : user.climbing_styles || [];
-        let avatarUrl = '';
         const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
-        // Prefer images array, fallback to avatar
-        if (user.images && user.images.length > 0) {
-          avatarUrl = `${baseUrl}/api/files/users/${user.id}/${user.images[0]}?thumb=100x100`;
-        } else if (user.avatar && user.id) {
-          avatarUrl = `${baseUrl}/api/files/users/${user.id}/${user.avatar}?thumb=100x100`;
+        // Preserve images array with filenames for ImageCarousel
+        const images = user.images && user.images.length > 0 ? user.images : (user.avatar ? [user.avatar] : []);
+        let avatarUrl = '';
+        // Build URL for single avatar
+        if (images.length > 0) {
+          avatarUrl = `${baseUrl}/api/files/users/${user.id}/${images[0]}?thumb=100x100`;
         }
         const normalizedClimber: Climber = {
           ...user,
           climbing_styles,
-          image_url: avatarUrl,
+          images,
         };
 
         const matchId = `${user.id}-dating-match`;
@@ -135,22 +136,22 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
         currentUserLikedPartner.includes(user.id) &&
         userLikedPartner.includes(currentUserId)
       ) {
-        // Normalize climbing_styles
+        // Normalize climbing_styles and preserve images array
         const climbing_styles = typeof user.climbing_styles === 'string'
           ? JSON.parse(user.climbing_styles)
           : user.climbing_styles || [];
-        let avatarUrl = '';
         const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
-        // Prefer images array, fallback to avatar
-        if (user.images && user.images.length > 0) {
-          avatarUrl = `${baseUrl}/api/files/users/${user.id}/${user.images[0]}?thumb=100x100`;
-        } else if (user.avatar && user.id) {
-          avatarUrl = `${baseUrl}/api/files/users/${user.id}/${user.avatar}?thumb=100x100`;
+        // Preserve images array with filenames for ImageCarousel
+        const images = user.images && user.images.length > 0 ? user.images : (user.avatar ? [user.avatar] : []);
+        let avatarUrl = '';
+        // Build URL for single avatar
+        if (images.length > 0) {
+          avatarUrl = `${baseUrl}/api/files/users/${user.id}/${images[0]}?thumb=100x100`;
         }
         const normalizedClimber: Climber = {
           ...user,
           climbing_styles,
-          image_url: avatarUrl,
+          images,
         };
 
         const matchId = `${user.id}-partner-match`;

@@ -69,35 +69,74 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                 darkMode={darkMode}
                 showIndicators={true}
               />
-              <Text style={styles.title}>{climber.name}</Text>
-              <Pressable 
-                onPress={() => setShowBlockReportMenu(true)}
-                style={styles.menuButton}>
-                <Ionicons name="ellipsis-vertical" size={24} color={theme.colors.textSecondary} />
-              </Pressable>
-              <Text style={styles.detail}>Gym: {climber.home_gym}</Text>
-              {distance !== null && (
-                <View style={styles.distanceRow}>
-                  <Ionicons name="location" size={14} color={theme.colors.accent} />
-                  <Text style={styles.distanceDetail}>{formatDistance(distance)} away</Text>
+              <View style={styles.headerSection}>
+                <Text style={styles.title}>{climber.name}</Text>
+                <Pressable 
+                  onPress={() => setShowBlockReportMenu(true)}
+                  style={styles.menuButton}>
+                  <Ionicons name="ellipsis-vertical" size={24} color={theme.colors.textSecondary} />
+                </Pressable>
+              </View>
+
+              <View style={styles.infoSection}>
+                <View style={styles.infoRow}>
+                  <Ionicons name="location-sharp" size={16} color={theme.colors.accent} />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Home Gym</Text>
+                    <Text style={styles.infoValue}>{climber.home_gym}</Text>
+                  </View>
+                </View>
+
+                {distance !== null && (
+                  <View style={styles.infoRow}>
+                    <Ionicons name="compass" size={16} color={theme.colors.accent} />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Distance</Text>
+                      <Text style={styles.infoValue}>{formatDistance(distance)} away</Text>
+                    </View>
+                  </View>
+                )}
+
+                <View style={styles.infoRow}>
+                  <Ionicons name="trophy" size={16} color={theme.colors.accent} />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Grade Level</Text>
+                    <Text style={styles.infoValue}>{formatGradeDisplay(climber.grade)}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.infoRow}>
+                  <Ionicons name="play" size={16} color={theme.colors.accent} />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Climbing Styles</Text>
+                    <Text style={styles.infoValue}>{Array.isArray(climber.climbing_styles) ? climber.climbing_styles.join(', ') : 'Not specified'}</Text>
+                  </View>
+                </View>
+              </View>
+
+              {climber.bio && (
+                <View style={styles.bioSection}>
+                  <Text style={styles.bioLabel}>About</Text>
+                  <Text style={styles.bioText}>{climber.bio}</Text>
                 </View>
               )}
-              <Text style={styles.detail}>Grade: {formatGradeDisplay(climber.grade)}</Text>
-              <Text style={styles.detail}>Styles: {Array.isArray(climber.climbing_styles) ? climber.climbing_styles.join(', ') : ''}</Text>
-              <Text style={styles.detail}>Bio: {climber.bio}</Text>
-              <Pressable style={styles.closeButton} onPress={onClose}>
-                <Text style={styles.closeButtonText}>Close</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.requestButton, isRequestSent && styles.requestButtonSent]}
-                onPress={async () => {
-                  onSendRequest(climber, isRequestSent);
-                  // Immediately toggle the button state for instant feedback
-                  setIsRequestSent(!isRequestSent);
-                }}
-              >
-                <Text style={styles.requestButtonText}>{isRequestSent ? 'Request Sent' : 'Send Partner Request'}</Text>
-              </Pressable>
+
+              <View style={styles.buttonSection}>
+                <Pressable
+                  style={[styles.requestButton, isRequestSent && styles.requestButtonSent]}
+                  onPress={async () => {
+                    onSendRequest(climber, isRequestSent);
+                    // Immediately toggle the button state for instant feedback
+                    setIsRequestSent(!isRequestSent);
+                  }}
+                >
+                  <Text style={styles.requestButtonText}>{isRequestSent ? 'Request Sent' : 'Send Partner Request'}</Text>
+                </Pressable>
+
+                <Pressable style={styles.closeButton} onPress={onClose}>
+                  <Text style={styles.closeButtonText}>Close</Text>
+                </Pressable>
+              </View>
 
               <BlockReportMenu
                 visible={showBlockReportMenu}
@@ -131,66 +170,110 @@ const createStyles = (theme: typeof themeLight) =>
     modal: {
       backgroundColor: theme.colors.surface,
       borderRadius: 16,
-      padding: 24,
+      padding: 0,
       width: '85%',
-      alignItems: 'center',
-      position: 'relative',
+      maxHeight: '90%',
+      overflow: 'hidden',
     },
     menuButton: {
       position: 'absolute',
-      top: 12,
-      right: 12,
+      top: 20,
+      right: 20,
       padding: 8,
-      backgroundColor: 'rgba(0,0,0,0.1)',
+      backgroundColor: theme.colors.border,
       borderRadius: 20,
       zIndex: 10,
     },
+    headerSection: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+      position: 'relative',
+    },
     title: {
       fontSize: 22,
-      fontWeight: 'bold',
-      marginBottom: 12,
+      fontWeight: '700',
+      color: theme.colors.text,
+      textAlign: 'center',
+    },
+    infoSection: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 12,
+      gap: 10,
+    },
+    infoRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+    },
+    infoContent: {
+      flex: 1,
+      gap: 1,
+    },
+    infoLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+    },
+    infoValue: {
+      fontSize: 15,
+      fontWeight: '500',
       color: theme.colors.text,
     },
-    detail: {
-      fontSize: 15,
+    bioSection: {
+      paddingHorizontal: 20,
+      paddingBottom: 12,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
+      paddingTop: 12,
+    },
+    bioLabel: {
+      fontSize: 11,
+      fontWeight: '600',
       color: theme.colors.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
       marginBottom: 6,
     },
-    distanceRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 6,
+    bioText: {
+      fontSize: 14,
+      color: theme.colors.text,
+      lineHeight: 20,
     },
-    distanceDetail: {
-      fontSize: 15,
-      color: theme.colors.accent,
-      fontWeight: '500',
+    buttonSection: {
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 16,
+      gap: 8,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
     },
     closeButton: {
-      marginTop: 18,
       backgroundColor: theme.colors.border,
       borderRadius: 8,
-      paddingVertical: 8,
+      paddingVertical: 10,
       paddingHorizontal: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     closeButtonText: {
       color: theme.colors.text,
       fontWeight: '600',
-    },
-    profileImage: {
-      width: 120,
-      height: 120,
-      borderRadius: 60,
-      marginBottom: 16,
-      backgroundColor: '#eee',
+      fontSize: 15,
+      textAlign: 'center',
     },
     requestButton: {
-      marginTop: 12,
       backgroundColor: theme.colors.accent,
       borderRadius: 8,
-      paddingVertical: 10,
+      paddingVertical: 12,
       paddingHorizontal: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     requestButtonSent: {
       backgroundColor: theme.colors.success,
@@ -199,5 +282,6 @@ const createStyles = (theme: typeof themeLight) =>
       color: '#fff',
       fontWeight: '700',
       fontSize: 16,
+      textAlign: 'center',
     },
   });
