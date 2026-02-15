@@ -1,4 +1,5 @@
 import { Text, View } from '@/components/Themed';
+import { BlockReportMenu } from '@/src/components/BlockReportMenu';
 import { ImageCarousel } from '@/src/components/ImageCarousel';
 import { useAuth } from '@/src/context/AuthContext';
 import { calculateDistance, formatDistance } from '@/src/services/geoService';
@@ -23,6 +24,7 @@ interface MatchDetailModalProps {
   match: Match | null;
   onClose: () => void;
   onMessage: (match: Match) => void;
+  onUnmatch?: (matchId: string) => void;
   userLatitude?: number;
   userLongitude?: number;
 }
@@ -32,6 +34,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
   match,
   onClose,
   onMessage,
+  onUnmatch,
   userLatitude,
   userLongitude,
 }) => {
@@ -39,6 +42,15 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
   const [distance, setDistance] = useState<number | null>(null);
+  const [showBlockReportMenu, setShowBlockReportMenu] = useState(false);
+
+  const handleUnmatch = () => {
+    if (match && onUnmatch) {
+      onUnmatch(match.id);
+      setShowBlockReportMenu(false);
+      onClose(); // Close the modal after unmatching
+    }
+  };
 
   useEffect(() => {
     if (match && userLatitude && userLongitude && match.climber.latitude && match.climber.longitude) {
@@ -144,11 +156,25 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
             <Text style={styles.messageButtonText}>Message</Text>
           </Pressable>
 
-          <Pressable style={styles.moreButton} onPress={() => { }}>
+          <Pressable style={styles.moreButton} onPress={() => setShowBlockReportMenu(true)}>
             <Ionicons name="ellipsis-horizontal" size={20} color="#a1a1aa" />
           </Pressable>
         </View>
       </View>
+
+      <BlockReportMenu
+        visible={showBlockReportMenu}
+        userId={climber.id}
+        userName={climber.name}
+        onClose={() => setShowBlockReportMenu(false)}
+        onBlock={() => {
+          // Handle block action - you might want to close the modal or refresh data
+          setShowBlockReportMenu(false);
+          onClose(); // Close the match detail modal as well
+        }}
+        onUnmatch={onUnmatch ? handleUnmatch : undefined}
+        darkMode={darkMode}
+      />
     </Modal>
   );
 };

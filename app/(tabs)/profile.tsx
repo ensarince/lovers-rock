@@ -1,6 +1,5 @@
 
 import { Text } from '@/components/Themed';
-import { ImageCarousel } from '@/src/components/ImageCarousel';
 import { useAuth } from '@/src/context/AuthContext';
 import { createDefaultGrade, formatGradeDisplay, getExampleGrades } from '@/src/services/gradeService';
 import { theme as themeDark } from '@/src/themeDark';
@@ -307,16 +306,12 @@ export default function ProfileScreen() {
         }
       });
 
-      // Only set avatar to existing images, not to files we're about to upload
-      // PocketBase will assign its own filenames to the uploaded images
-      if (images.length > 0) {
-        formData.append('avatar', images[0]);
+      // Only set avatar if we have NEW images being uploaded
+      // Don't touch avatar field if we're not uploading new images - PocketBase will keep the existing one
+      if (newPhotos.length > 0 && newPhotos.some(p => p)) {
+        // We'll set the avatar after the upload completes and we know the filenames
+        // For now, just don't append it
       }
-
-      console.log('Sending FormData with:');
-      console.log('- newPhotos count:', newPhotos.filter(p => p).length);
-      console.log('- existing images count:', images.length);
-      console.log('- userId:', user?.id);
 
       const response = await fetch(
         `${POCKETBASE_URL}/api/collections/users/records/${user?.id}`,
@@ -337,8 +332,24 @@ export default function ProfileScreen() {
           console.error('Failed to parse error response as JSON');
         }
         console.error('PocketBase error response:', errorData);
-        const errorMsg = errorData?.message || (errorData as any)?.details?.message || `Update failed with status ${response.status}`;
-        throw new Error(errorMsg);
+        console.error('Error status:', response.status);
+        console.error('Error statusText:', response.statusText);
+        
+        // Provide detailed error message
+        let detailedError = 'Failed to update record';
+        if (errorData?.message) {
+          detailedError = errorData.message;
+        } else if (errorData?.data) {
+          // PocketBase field-specific errors
+          const fieldErrors = Object.entries(errorData.data)
+            .map(([field, err]: [string, any]) => `${field}: ${err?.message || err}`)
+            .join(', ');
+          if (fieldErrors) detailedError = fieldErrors;
+        } else if (errorData?.details) {
+          detailedError = errorData.details;
+        }
+        
+        throw new Error(detailedError);
       }
 
       setEditMode(false);
@@ -396,7 +407,6 @@ export default function ProfileScreen() {
             // If we uploaded new images, set avatar to the first image
             if (newPhotos.length > 0 && latestUser.images?.length > 0) {
               try {
-                console.log('Setting avatar to first uploaded image:', latestUser.images[0]);
                 const avatarResponse = await fetch(
                   `${POCKETBASE_URL}/api/collections/users/records/${user.id}`,
                   {
@@ -412,7 +422,6 @@ export default function ProfileScreen() {
                 );
                 
                 if (avatarResponse.ok) {
-                  console.log('Avatar set successfully');
                   // Fetch again to get the final state
                   const finalResponse = await fetch(
                     `${POCKETBASE_URL}/api/collections/users/records/${user.id}`,
@@ -488,6 +497,35 @@ export default function ProfileScreen() {
       const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
       // PocketBase file path format: /api/files/COLLECTION_ID_OR_NAME/RECORD_ID/FILENAME
       return `${baseUrl}/api/files/users/${userId}/${filename}?thumb=100x100`;
+    }
+
+    return '';
+  };
+
+  // Full resolution avatar URL for expanded view
+  const getFullResolutionAvatarUrl = () => {
+    // 1. Priority: First new photo if any
+    if (newPhotos.length > 0 && newPhotos[0]) {
+      return newPhotos[0];
+    }
+
+    // 2. First image from images array
+    if (images && images.length > 0) {
+      const userId = typedUser?.id;
+      if (userId) {
+        const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+        return `${baseUrl}/api/files/users/${userId}/${images[0]}`;
+      }
+    }
+
+    // 3. Use the filename from state or the user object (legacy avatar)
+    const filename = avatar || typedUser?.avatar;
+    const userId = typedUser?.id;
+
+    // 4. Manually construct the URL if we have the necessary parts
+    if (filename && userId) {
+      const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      return `${baseUrl}/api/files/users/${userId}/${filename}`;
     }
 
     return '';
@@ -907,16 +945,26 @@ export default function ProfileScreen() {
       {/* Expanded Images Carousel Modal */}
       <Modal visible={imageExpanded} transparent animationType="fade">
         <View style={styles.expandedImageOverlay}>
-          {(images && images.length > 0) || (typedUser?.images && typedUser.images.length > 0) ? (
-            <ImageCarousel
-              images={images && images.length > 0 ? images : (typedUser?.images || [])}
-              userId={user.id}
-              expandable={false}
-              height={300}
-              darkMode={darkMode}
-              showIndicators={true}
-            />
-          ) : null}
+          {(() => {
+            const fullResUrl = getFullResolutionAvatarUrl();
+            if (fullResUrl) {
+              return (
+                <Image
+                  source={{ uri: fullResUrl }}
+                  style={{ 
+                    flex: 1,
+                    width: '100%',
+                    resizeMode: 'contain'
+                  }}
+                />
+              );
+            }
+            return (
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <Text style={{ color: '#fff', fontSize: 16 }}>No image available</Text>
+              </View>
+            );
+          })()}
           <Pressable
             style={{
               position: 'absolute',

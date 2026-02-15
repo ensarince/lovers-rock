@@ -68,6 +68,43 @@ export const acceptPartnerRequest = async (currentUserId: string, requesterId: s
 };
 
 /**
+ * Decline a partner request (remove the current user's id from requester's liked_users_partner)
+ */
+export const declinePartnerRequest = async (currentUserId: string, requesterId: string, token: string): Promise<void> => {
+  // Fetch all users
+  const allUsers = await getAllAccounts(token);
+  const requesterUser = allUsers.find(u => u.id === requesterId);
+  if (!requesterUser) throw new Error('Requester user not found');
+  
+  // Remove current user ID from requester's liked_users_partner array
+  const updatedLikedPartner = (requesterUser.liked_users_partner || []).filter(id => id !== currentUserId);
+  
+  console.log('🔄 Declining request:', { currentUserId, requesterId });
+  console.log('📋 Updated liked_users_partner:', updatedLikedPartner);
+  
+  // Update requester's liked_users_partner in backend using the same pattern as acceptPartnerRequest
+  const response = await fetch(
+    `http://${process.env.EXPO_PUBLIC_IP}:8090/api/collections/users/records/${requesterId}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ liked_users_partner: updatedLikedPartner }),
+    }
+  );
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('❌ Decline failed:', { status: response.status, error: errorText });
+    throw new Error(`Failed to decline request: ${response.status} ${errorText}`);
+  }
+  
+  console.log('✅ Successfully declined partner request');
+};
+
+/**
  * Get matches (mutual likes)
  * Now supports separate dating and partner matches
  * Users with both intents enabled can have TWO separate matches
@@ -171,6 +208,70 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
   } catch (error) {
     console.error('Failed to fetch matches:', error);
     return [];
+  }
+};
+
+/**
+ * Unmatch from a user (remove both users from each other's liked arrays)
+ */
+export const unmatchUser = async (currentUserId: string, targetUserId: string, matchType: 'dating' | 'partner', token: string): Promise<void> => {
+  try {
+    // Fetch all users data
+    const allUsers = await getAllAccounts(token);
+    const currentUser = allUsers.find(u => u.id === currentUserId);
+    const targetUser = allUsers.find(u => u.id === targetUserId);
+    
+    if (!currentUser) throw new Error('Current user not found');
+    if (!targetUser) throw new Error('Target user not found');
+
+    // Update current user's liked arrays
+    let currentUserUpdateData: any = {};
+    if (matchType === 'dating') {
+      const updatedLikedDating = (currentUser.liked_users_dating || []).filter(id => id !== targetUserId);
+      currentUserUpdateData.liked_users_dating = updatedLikedDating;
+    } else if (matchType === 'partner') {
+      const updatedLikedPartner = (currentUser.liked_users_partner || []).filter(id => id !== targetUserId);
+      currentUserUpdateData.liked_users_partner = updatedLikedPartner;
+    }
+
+    // Update target user's liked arrays
+    let targetUserUpdateData: any = {};
+    if (matchType === 'dating') {
+      const updatedTargetLikedDating = (targetUser.liked_users_dating || []).filter(id => id !== currentUserId);
+      targetUserUpdateData.liked_users_dating = updatedTargetLikedDating;
+    } else if (matchType === 'partner') {
+      const updatedTargetLikedPartner = (targetUser.liked_users_partner || []).filter(id => id !== currentUserId);
+      targetUserUpdateData.liked_users_partner = updatedTargetLikedPartner;
+    }
+
+    // Update both users in backend
+    await Promise.all([
+      fetch(
+        `http://${process.env.EXPO_PUBLIC_IP}:8090/api/collections/users/records/${currentUserId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(currentUserUpdateData),
+        }
+      ),
+      fetch(
+        `http://${process.env.EXPO_PUBLIC_IP}:8090/api/collections/users/records/${targetUserId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(targetUserUpdateData),
+        }
+      )
+    ]);
+  } catch (error) {
+    console.error('Failed to unmatch user:', error);
+    throw error;
   }
 };
 

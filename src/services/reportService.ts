@@ -228,6 +228,10 @@ class ReportService {
       );
 
       if (!response.ok) {
+        if (response.status === 404) {
+          console.warn(`⚠️ User ${userId} not found when fetching blocked users - returning empty array`);
+          return [];
+        }
         throw new Error('Failed to fetch user');
       }
 
@@ -267,6 +271,7 @@ class ReportService {
       return [];
     } catch (error: any) {
       console.error('Get blocked users error:', error);
+      // Return empty array instead of crashing the app
       return [];
     }
   }

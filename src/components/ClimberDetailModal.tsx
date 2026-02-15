@@ -15,6 +15,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import { getFirstImageUrl } from '../utils/helperFunctions';
 
 interface ClimberDetailModalProps {
   climber: Climber | null;
@@ -82,7 +83,7 @@ export const ClimberDetailModal: React.FC<ClimberDetailModalProps> = ({
             showsVerticalScrollIndicator={false}>
             {/* Large Profile Image */}
             <Image
-              source={{ uri: climber.image_url }}
+              source={{ uri: getFirstImageUrl(climber.images, climber.id) }}
               style={styles.profileImage}
             />
 

@@ -21,6 +21,7 @@ interface BlockReportMenuProps {
   userName: string;
   onClose: () => void;
   onBlock?: () => void;
+  onUnmatch?: () => void;
   darkMode: boolean;
 }
 
@@ -30,6 +31,7 @@ export const BlockReportMenu: React.FC<BlockReportMenuProps> = ({
   userName,
   onClose,
   onBlock,
+  onUnmatch,
   darkMode,
 }) => {
   const { user, token, setUser } = useAuth();
@@ -109,6 +111,26 @@ export const BlockReportMenu: React.FC<BlockReportMenuProps> = ({
         <Pressable style={styles.overlay} onPress={onClose}>
           <View style={styles.menuContainer}>
             <Text style={styles.menuTitle}>Actions for {userName}</Text>
+
+            {onUnmatch && (
+              <Pressable
+                style={styles.menuItem}
+                onPress={() => {
+                  onUnmatch();
+                  onClose();
+                }}
+              >
+                <Ionicons
+                  name="heart-dislike"
+                  size={20}
+                  color="#f59e0b"
+                  style={styles.menuIcon}
+                />
+                <Text style={[styles.menuItemText, { color: '#f59e0b' }]}>
+                  Unmatch
+                </Text>
+              </Pressable>
+            )}
 
             <Pressable
               style={styles.menuItem}

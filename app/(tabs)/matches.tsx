@@ -3,14 +3,16 @@ import { BlockReportMenu } from '@/src/components/BlockReportMenu';
 import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import { useAuth } from '@/src/context/AuthContext';
 import { getAllAccounts } from '@/src/services/accountService';
-import { acceptPartnerRequest, getIncomingPartnerRequests, getMatches } from '@/src/services/matchData';
+import { acceptPartnerRequest, declinePartnerRequest, getIncomingPartnerRequests, getMatches, unmatchUser } from '@/src/services/matchData';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
 import { Match } from '@/src/types/match';
+import { getFirstImageUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -26,20 +28,13 @@ export default function MatchesScreen() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [incomingRequests, setIncomingRequests] = useState<Climber[]>([]);
   const [datingLikedHint, setDatingLikedHint] = useState<Climber | null>(null);
-  
-  // Helper function to get first image URL
-  const getFirstImageUrl = (images: string[] | undefined, userId: string) => {
-    if (images && images.length > 0 && userId) {
-      const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
-      return `${baseUrl}/api/files/users/${userId}/${images[0]}?thumb=100x100`;
-    }
-    return undefined;
-  };
+
   const [loading, setLoading] = useState(true);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [activeFilter, setActiveFilter] = useState<FilterChip>('all');
   const [acceptingRequestIds, setAcceptingRequestIds] = useState<string[]>([]);
+  const [decliningRequestIds, setDecliningRequestIds] = useState<string[]>([]);
   const [blockReportMenuOpen, setBlockReportMenuOpen] = useState<string | null>(null);
   const { user, token, darkMode } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
@@ -64,62 +59,89 @@ export default function MatchesScreen() {
     (Array.isArray(user.images) && user.images.length > 0) &&
     user.email;
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        if (!token || !user?.id) return;
+  // Extracted fetch function to reuse in multiple places
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      if (!token || !user?.id) return;
 
-        // Fetch matches
-        const allMatches = await getMatches(token, user.id);
-        setMatches(allMatches);
+      // Fetch matches
+      const allMatches = await getMatches(token, user.id);
+      setMatches(allMatches);
 
-        // Fetch incoming partner requests if partner intent enabled
-        if (hasPartnerIntent) {
-          const requests = await getIncomingPartnerRequests(user.id, token);
-          setIncomingRequests(requests);
-        }
-
-        // Fetch users who liked you in dating mode
-        if (hasDatingIntent) {
-          try {
-            const allUsers = await getAllAccounts(token);
-            // Find users with 'date' intent who have liked you in dating mode and you haven't liked back yet
-            const dateLikers = allUsers.filter((u: Climber) => {
-              const theirLikesDating = Array.isArray(u.liked_users_dating)
-                ? u.liked_users_dating
-                : typeof u.liked_users_dating === 'string'
-                  ? (() => { try { return JSON.parse(u.liked_users_dating); } catch { return []; } })()
-                  : [];
-              return (
-                Array.isArray(u.intent) && u.intent.includes('date') &&
-                theirLikesDating.includes(user.id) &&
-                !allMatches.some(m => m.climber.id === u.id && m.type === 'dating')
-              );
-            });
-            // Set only one hint
-            if (dateLikers.length > 0) {
-              setDatingLikedHint(dateLikers[0]);
-            }
-          } catch (e) {
-            if (process.env.EXPO_DEV_MODE) console.error('Error fetching dating likers:', e);
-          }
-        }
-      } catch (err) {
-        if (process.env.EXPO_DEV_MODE) console.error('Failed to load matches:', err);
-      } finally {
-        setLoading(false);
+      // Fetch incoming partner requests if partner intent enabled
+      if (hasPartnerIntent) {
+        const requests = await getIncomingPartnerRequests(user.id, token);
+        setIncomingRequests(requests);
       }
-    };
 
+      // Fetch users who liked you in dating mode
+      if (hasDatingIntent) {
+        try {
+          const allUsers = await getAllAccounts(token);
+          // Find users with 'date' intent who have liked you in dating mode and you haven't liked back yet
+          const dateLikers = allUsers.filter((u: Climber) => {
+            const theirLikesDating = Array.isArray(u.liked_users_dating)
+              ? u.liked_users_dating
+              : typeof u.liked_users_dating === 'string'
+                ? (() => { try { return JSON.parse(u.liked_users_dating); } catch { return []; } })()
+                : [];
+            return (
+              Array.isArray(u.intent) && u.intent.includes('date') &&
+              theirLikesDating.includes(user.id) &&
+              !allMatches.some(m => m.climber.id === u.id && m.type === 'dating')
+            );
+          });
+          // Set only one hint
+          if (dateLikers.length > 0) {
+            setDatingLikedHint(dateLikers[0]);
+          }
+        } catch (e) {
+          if (process.env.EXPO_DEV_MODE) console.error('Error fetching dating likers:', e);
+        }
+      }
+    } catch (err) {
+      if (process.env.EXPO_DEV_MODE) console.error('Failed to load matches:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [token, user?.id, hasPartnerIntent, hasDatingIntent]);
+
+  // Initial fetch on mount
+  useEffect(() => {
     if (token && user?.id) {
       fetchData();
     }
-  }, [token, user?.id, hasPartnerIntent, hasDatingIntent]);
+  }, [token, user?.id, fetchData]);
+
+  // Refetch matches when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (token && user?.id) {
+        fetchData();
+      }
+    }, [token, user?.id, fetchData])
+  );
 
   const handleCloseModal = () => {
     setModalVisible(false);
     setSelectedMatch(null);
+  };
+
+  const handleUnmatch = async (matchId: string) => {
+    if (!user?.id || !token) return;
+
+    const match = matches.find(m => m.id === matchId);
+    if (!match) return;
+
+    try {
+      await unmatchUser(user.id, match.climber.id, match.type!, token);
+      // Remove the match from local state
+      setMatches(prevMatches => prevMatches.filter(m => m.id !== matchId));
+    } catch (error) {
+      console.error('Failed to unmatch:', error);
+      // You might want to show an alert here
+    }
   };
 
   const handleMessage = (match: Match) => {
@@ -147,6 +169,20 @@ export default function MatchesScreen() {
       if (process.env.EXPO_DEV_MODE) console.error('Failed to accept request:', err);
     } finally {
       setAcceptingRequestIds(prev => prev.filter(id => id !== request.id));
+    }
+  };
+
+  const handleDeclineRequest = async (request: Climber) => {
+    try {
+      setDecliningRequestIds(prev => [...prev, request.id]);
+      // Remove the current user's ID from the requester's liked_users_partner array
+      await declinePartnerRequest(user!.id, request.id, token!);
+      // Remove from the local requests list
+      setIncomingRequests(prev => prev.filter(r => r.id !== request.id));
+    } catch (err) {
+      if (process.env.EXPO_DEV_MODE) console.error('Failed to decline request:', err);
+    } finally {
+      setDecliningRequestIds(prev => prev.filter(id => id !== request.id));
     }
   };
 
@@ -179,7 +215,7 @@ export default function MatchesScreen() {
         </Text>
       </View>
 
-      <Pressable 
+      <Pressable
         onPress={() => setBlockReportMenuOpen(item.climber.id)}
         style={styles.menuIconContainer}>
         <Ionicons name="ellipsis-vertical" size={20} color={theme.colors.textSecondary} />
@@ -215,16 +251,28 @@ export default function MatchesScreen() {
       </View>
 
       <View style={styles.requestActions}>
+        <View style={styles.requestButtonsContainer}>
+          <Pressable
+            style={styles.acceptButton}
+            onPress={() => handleAcceptRequest(item)}
+            disabled={acceptingRequestIds.includes(item.id) || decliningRequestIds.includes(item.id)}
+          >
+            <Text style={styles.acceptButtonText}>
+              {acceptingRequestIds.includes(item.id) ? 'Accepting...' : 'Accept'}
+            </Text>
+          </Pressable>
+          
+          <Pressable
+            style={styles.declineButton}
+            onPress={() => handleDeclineRequest(item)}
+            disabled={acceptingRequestIds.includes(item.id) || decliningRequestIds.includes(item.id)}
+          >
+            <Text style={styles.declineButtonText}>
+              {decliningRequestIds.includes(item.id) ? 'Declining...' : 'Decline'}
+            </Text>
+          </Pressable>
+        </View>
         <Pressable
-          style={styles.acceptButton}
-          onPress={() => handleAcceptRequest(item)}
-          disabled={acceptingRequestIds.includes(item.id)}
-        >
-          <Text style={styles.acceptButtonText}>
-            {acceptingRequestIds.includes(item.id) ? 'Accepting...' : 'Accept'}
-          </Text>
-        </Pressable>
-        <Pressable 
           onPress={() => setBlockReportMenuOpen(item.id)}
           style={styles.menuIconContainerSmall}>
           <Ionicons name="ellipsis-vertical" size={18} color={theme.colors.textSecondary} />
@@ -407,6 +455,7 @@ export default function MatchesScreen() {
         match={selectedMatch}
         onClose={handleCloseModal}
         onMessage={handleMessage}
+        onUnmatch={handleUnmatch}
         userLatitude={user?.latitude}
         userLongitude={user?.longitude}
       />
@@ -426,212 +475,235 @@ const createStyles = (theme: typeof themeLight) =>
       alignItems: 'center',
       backgroundColor: theme.colors.background,
     },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: theme.colors.background,
-  },
-  emptyStateContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.background,
-  },
-  chipContainer: {
-    backgroundColor: theme.colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-    maxHeight: 60,
-  },
-  chipContent: {
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  chipActive: {
-    backgroundColor: theme.colors.accent,
-    borderColor: theme.colors.accent,
-  },
-  chipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: theme.colors.text,
-  },
-  chipTextActive: {
-    color: '#fff',
-  },
-  listContent: {
-    paddingVertical: 8,
-  },
-  matchCardMinimal: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    marginHorizontal: 18,
-    marginVertical: 10,
-    borderRadius: 14,
-    overflow: 'hidden',
-    padding: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  requestCardMinimal: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.accent + '15',
-    marginHorizontal: 18,
-    marginVertical: 10,
-    borderRadius: 14,
-    overflow: 'hidden',
-    padding: 14,
-    borderWidth: 1,
-    borderColor: theme.colors.accent + '30',
-  },
-  datingLikedHintCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#D4AF3720',
-    marginHorizontal: 18,
-    marginVertical: 10,
-    marginTop: 8,
-    borderRadius: 14,
-    overflow: 'hidden',
-    padding: 14,
-    borderWidth: 1.5,
-    borderColor: '#D4AF3740',
-  },
-  matchImageMinimal: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    marginRight: 14,
-  },
-  hintImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    marginRight: 14,
-    filter: 'blur(5px)',
-  },
-  matchInfoMinimal: {
-    flex: 1,
-    backgroundColor: "transparent"
-  },
-  matchHeaderMinimal: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 2,
-    backgroundColor: "transparent"
-  },
-  matchNameMinimal: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: theme.colors.text,
-  },
-  matchGymMinimal: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    marginTop: 2,
-  },
-  requestBadge: {
-    fontSize: 11,
-    color: theme.colors.accent,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  requestActions: {
-    marginLeft: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  acceptButton: {
-    backgroundColor: theme.colors.accent,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  acceptButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  menuIconContainer: {
-    padding: 8,
-    marginLeft: 8,
-  },
-  menuIconContainerSmall: {
-    padding: 6,
-  },
-  datingLikedHintLabel: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#D4AF37',
-  },
-  datingLikedHintSubtext: {
-    fontSize: 12,
-    color: '#D4AF37CC',
-    marginTop: 2,
-  },
-  unreadBadgeMinimal: {
-    backgroundColor: theme.colors.accent,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  unreadTextMinimal: {
-    color: theme.colors.text,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  messagePreviewMinimal: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-    marginBottom: 4,
-  },
-  matchedTimeMinimal: {
-    fontSize: 11,
-    color: theme.colors.textSecondary,
-  },
-  titleMinimal: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 6,
-    marginTop: 10,
-    color: theme.colors.text,
-    letterSpacing: 1.1,
-  },
-  subtitleMinimal: {
-    fontSize: 13,
-    color: theme.colors.textSecondary,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 6,
-    color: theme.colors.text,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 4,
-  },
-});
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 16,
+      backgroundColor: theme.colors.background,
+    },
+    emptyStateContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: theme.colors.background,
+    },
+    chipContainer: {
+      backgroundColor: theme.colors.background,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+      maxHeight: 60,
+    },
+    chipContent: {
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+      gap: 8,
+    },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    chipActive: {
+      backgroundColor: theme.colors.accent,
+      borderColor: theme.colors.accent,
+    },
+    chipText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.text,
+    },
+    chipTextActive: {
+      color: '#fff',
+    },
+    listContent: {
+      paddingVertical: 8,
+    },
+    matchCardMinimal: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.surface,
+      marginHorizontal: 18,
+      marginVertical: 10,
+      borderRadius: 14,
+      overflow: 'hidden',
+      padding: 14,
+      shadowColor: '#000',
+      shadowOpacity: 0.04,
+      shadowRadius: 2,
+      elevation: 1,
+    },
+    requestCardMinimal: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.accent + '15',
+      marginHorizontal: 18,
+      marginVertical: 10,
+      borderRadius: 14,
+      overflow: 'hidden',
+      padding: 14,
+      borderWidth: 1,
+      borderColor: theme.colors.accent + '30',
+    },
+    datingLikedHintCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#D4AF3720',
+      marginHorizontal: 18,
+      marginVertical: 10,
+      marginTop: 8,
+      borderRadius: 14,
+      overflow: 'hidden',
+      padding: 14,
+      borderWidth: 1.5,
+      borderColor: '#D4AF3740',
+    },
+    matchImageMinimal: {
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      marginRight: 14,
+    },
+    hintImage: {
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      marginRight: 14,
+      filter: 'blur(5px)',
+    },
+    matchInfoMinimal: {
+      flex: 1,
+      backgroundColor: "transparent"
+    },
+    matchHeaderMinimal: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 2,
+      backgroundColor: "transparent"
+    },
+    matchNameMinimal: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: theme.colors.text,
+    },
+    matchGymMinimal: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      marginTop: 2,
+    },
+    requestBadge: {
+      fontSize: 11,
+      color: theme.colors.accent,
+      fontWeight: '600',
+      marginTop: 4,
+    },
+    requestActions: {
+      marginLeft: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: "transparent",
+      gap: 4,
+    },
+    requestButtonsContainer: {
+      flexDirection: 'column',
+      gap: 6,
+      backgroundColor: "transparent",
+    },
+    acceptButton: {
+      backgroundColor: theme.colors.accent,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      minWidth: 70,
+      alignItems: 'center',
+    },
+    acceptButtonText: {
+      color: '#fff',
+      fontWeight: '600',
+      fontSize: 12,
+    },
+    declineButton: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: theme.colors.textSecondary,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      minWidth: 70,
+      alignItems: 'center',
+    },
+    declineButtonText: {
+      color: theme.colors.textSecondary,
+      fontWeight: '600',
+      fontSize: 12,
+    },
+    menuIconContainer: {
+      padding: 8,
+      marginLeft: 8,
+    },
+    menuIconContainerSmall: {
+      padding: 6,
+    },
+    datingLikedHintLabel: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: '#D4AF37',
+    },
+    datingLikedHintSubtext: {
+      fontSize: 12,
+      color: '#D4AF37CC',
+      marginTop: 2,
+    },
+    unreadBadgeMinimal: {
+      backgroundColor: theme.colors.accent,
+      borderRadius: 10,
+      minWidth: 20,
+      height: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginLeft: 8,
+    },
+    unreadTextMinimal: {
+      color: theme.colors.text,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    messagePreviewMinimal: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      marginBottom: 4,
+    },
+    matchedTimeMinimal: {
+      fontSize: 11,
+      color: theme.colors.textSecondary,
+    },
+    titleMinimal: {
+      fontSize: 18,
+      fontWeight: '700',
+      marginBottom: 6,
+      marginTop: 10,
+      color: theme.colors.text,
+      letterSpacing: 1.1,
+    },
+    subtitleMinimal: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      marginBottom: 6,
+      color: theme.colors.text,
+      textAlign: 'center',
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      marginTop: 4,
+    },
+  });
