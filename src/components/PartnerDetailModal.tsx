@@ -57,8 +57,8 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
           {climber ? (
             <ScrollView showsVerticalScrollIndicator={false}>
               <ImageCarousel
@@ -71,11 +71,6 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
               />
               <View style={styles.headerSection}>
                 <Text style={styles.title}>{climber.name}</Text>
-                <Pressable 
-                  onPress={() => setShowBlockReportMenu(true)}
-                  style={styles.menuButton}>
-                  <Ionicons name="ellipsis-vertical" size={24} color={theme.colors.textSecondary} />
-                </Pressable>
               </View>
 
               <View style={styles.infoSection}>
@@ -153,8 +148,8 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
           ) : (
             <View />
           )}
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
@@ -175,15 +170,7 @@ const createStyles = (theme: typeof themeLight) =>
       maxHeight: '90%',
       overflow: 'hidden',
     },
-    menuButton: {
-      position: 'absolute',
-      top: 20,
-      right: 20,
-      padding: 8,
-      backgroundColor: theme.colors.border,
-      borderRadius: 20,
-      zIndex: 10,
-    },
+
     headerSection: {
       paddingHorizontal: 20,
       paddingTop: 12,

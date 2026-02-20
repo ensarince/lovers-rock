@@ -79,22 +79,48 @@ export default function MatchesScreen() {
       if (hasDatingIntent) {
         try {
           const allUsers = await getAllAccounts(token);
-          // Find users with 'date' intent who have liked you in dating mode and you haven't liked back yet
+          
+          // Get your declined dating list
+          const currentUserData = allUsers.find(u => u.id === user.id);
+          const yourDeclinedDating = (() => {
+            const declined = currentUserData?.declined_users_as_dating || [];
+            if (Array.isArray(declined)) {
+              return declined.map((item: any) => {
+                if (typeof item === 'object' && item.userId) return item.userId;
+                return item;
+              });
+            }
+            return [];
+          })();
+          
+          // Get your liked users in dating mode
+          const yourLikedDating = Array.isArray(user.liked_users_dating)
+            ? user.liked_users_dating
+            : typeof user.liked_users_dating === 'string'
+              ? (() => { try { return JSON.parse(user.liked_users_dating); } catch { return []; } })()
+              : [];
+          
+          // Find users with 'date' intent who have liked you in dating mode
           const dateLikers = allUsers.filter((u: Climber) => {
             const theirLikesDating = Array.isArray(u.liked_users_dating)
               ? u.liked_users_dating
               : typeof u.liked_users_dating === 'string'
                 ? (() => { try { return JSON.parse(u.liked_users_dating); } catch { return []; } })()
                 : [];
+            
             return (
               Array.isArray(u.intent) && u.intent.includes('date') &&
               theirLikesDating.includes(user.id) &&
-              !allMatches.some(m => m.climber.id === u.id && m.type === 'dating')
+              !allMatches.some(m => m.climber.id === u.id && m.type === 'dating') &&
+              !yourDeclinedDating.includes(u.id) && // Don't show if you declined them
+              !yourLikedDating.includes(u.id) // Don't show if you already liked them (prevents duplicate)
             );
           });
           // Set only one hint
           if (dateLikers.length > 0) {
             setDatingLikedHint(dateLikers[0]);
+          } else {
+            setDatingLikedHint(null);
           }
         } catch (e) {
           if (process.env.EXPO_DEV_MODE) console.error('Error fetching dating likers:', e);

@@ -3,24 +3,77 @@ import { Match } from '../types/match';
 import { getAllAccounts } from './accountService';
 
 /**
+ * Helper: Check if a decline is still active (not expired)
+ * Dating declines expire after 1 month, partner declines after 3 months
+ */
+const isDeclineStillActive = (declinedItem: any, declineType: 'dating' | 'partner'): boolean => {
+  // If it's just a string ID (old format), consider it active indefinitely
+  if (typeof declinedItem === 'string') {
+    return true;
+  }
+  
+  // New format with timestamp
+  if (declinedItem && typeof declinedItem === 'object' && declinedItem.declinedAt) {
+    const expiryMs = declineType === 'dating' 
+      ? 30 * 24 * 60 * 60 * 1000  // 1 month for dating
+      : 90 * 24 * 60 * 60 * 1000; // 3 months for partner
+    
+    const timeSinceDeclining = Date.now() - declinedItem.declinedAt;
+    return timeSinceDeclining < expiryMs;
+  }
+  
+  return false;
+};
+
+/**
+ * Helper: Get list of user IDs that have been actively declined (not expired)
+ */
+const getActiveDeclinedUserIds = (declinedList: any[], declineType: 'dating' | 'partner'): string[] => {
+  if (!Array.isArray(declinedList)) return [];
+  
+  return declinedList
+    .filter(item => isDeclineStillActive(item, declineType))
+    .map(item => typeof item === 'string' ? item : item.userId)
+    .filter(Boolean);
+};
+
+/**
  * Returns users who have sent a partner request to the current user (i.e., current user's id is in their liked_users_partner, but not mutual)
+ * Filters out users who have been declined by the current user (stored in database field)
+ * NOTE: If a declined user sends another request, they're automatically "undeclined" if accepted
  */
 export const getIncomingPartnerRequests = async (currentUserId: string, token: string): Promise<Climber[]> => {
   const allUsers = await getAllAccounts(token);
   const currentUser = allUsers.find(u => u.id === currentUserId);
   const currentUserLikedPartner = currentUser?.liked_users_partner || [];
-  const currentUserLikedDating = currentUser?.liked_users_dating || [];
+  const currentUserDeclinedUsersAsPartner = currentUser?.declined_users_as_partner || [];
+  
+  // Only get declined users whose decline is still active
+  const activeDeclinedUserIds = getActiveDeclinedUserIds(currentUserDeclinedUsersAsPartner, 'partner');
+  
+  // Find all users who have liked current user in partner mode
+  const allRequestingUsers = allUsers.filter(user => {
+    const userLikedPartner = user.liked_users_partner || [];
+    return userLikedPartner.includes(currentUserId);
+  });
   
   // Users who liked current user in partner mode, but current user hasn't liked them back in partner mode
-  return allUsers
+  // and haven't been actively declined by current user
+  const filteredUsers = allUsers
     .filter(user => {
       if (user.id === currentUserId) return false;
       const userLikedPartner = user.liked_users_partner || [];
       const likedCurrentForPartner = userLikedPartner.includes(currentUserId);
+      
+      if (!likedCurrentForPartner) return false; // User didn't like current user
+      
       const notMutualPartner = !currentUserLikedPartner.includes(user.id);
+      const notDeclined = !activeDeclinedUserIds.includes(user.id);
       // Only show if intent includes 'partner'
       const hasPartnerIntent = Array.isArray(user.intent) ? user.intent.includes('partner') : user.intent === 'partner';
-      return likedCurrentForPartner && notMutualPartner && hasPartnerIntent;
+      
+      const shouldInclude = notMutualPartner && notDeclined && hasPartnerIntent;
+      return shouldInclude;
     })
     .map(user => {
       // Normalize climbing_styles and preserve images array
@@ -42,72 +95,205 @@ export const getIncomingPartnerRequests = async (currentUserId: string, token: s
         image_url: avatarUrl,
       };
     });
+  
+  return filteredUsers;
 };
 
 /**
  * Accept a partner request (add the requester's id to current user's liked_users_partner)
  */
 export const acceptPartnerRequest = async (currentUserId: string, requesterId: string, token: string): Promise<void> => {
-  // Fetch all users
-  const allUsers = await getAllAccounts(token);
-  const currentUser = allUsers.find(u => u.id === currentUserId);
-  if (!currentUser) throw new Error('Current user not found');
-  const updatedLiked = Array.from(new Set([...(currentUser.liked_users_partner || []), requesterId]));
-  // Update liked_users_partner in backend
-  await fetch(
-    `http://${process.env.EXPO_PUBLIC_IP}:8090/api/collections/users/records/${currentUserId}`,
-    {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ liked_users_partner: updatedLiked }),
-    }
-  );
+  try {
+    // Fetch all users
+    const allUsers = await getAllAccounts(token);
+    const currentUser = allUsers.find(u => u.id === currentUserId);
+    if (!currentUser) throw new Error('Current user not found');
+    
+    const updatedLiked = Array.from(new Set([...(currentUser.liked_users_partner || []), requesterId]));
+    
+    // Also remove from declined list if they were previously declined
+    const updatedDeclined = (currentUser.declined_users_as_partner || []).filter(id => id !== requesterId);
+    
+    // Update both fields in backend
+    await fetch(
+      `http://${process.env.EXPO_PUBLIC_IP}:8090/api/collections/users/records/${currentUserId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ 
+          liked_users_partner: updatedLiked,
+          declined_users_as_partner: updatedDeclined
+        }),
+      }
+    );
+  } catch (error) {
+    console.error('❌ Accept operation failed:', error);
+    throw error;
+  }
 };
 
 /**
- * Decline a partner request (remove the current user's id from requester's liked_users_partner)
+ * Decline a partner request (add to current user's declined_users_as_partner array with timestamp)
+ * Declined users won't show again for 3 months (unified decline strategy with dating declines)
  */
 export const declinePartnerRequest = async (currentUserId: string, requesterId: string, token: string): Promise<void> => {
-  // Fetch all users
-  const allUsers = await getAllAccounts(token);
-  const requesterUser = allUsers.find(u => u.id === requesterId);
-  if (!requesterUser) throw new Error('Requester user not found');
-  
-  // Remove current user ID from requester's liked_users_partner array
-  const updatedLikedPartner = (requesterUser.liked_users_partner || []).filter(id => id !== currentUserId);
-  
-  console.log('🔄 Declining request:', { currentUserId, requesterId });
-  console.log('📋 Updated liked_users_partner:', updatedLikedPartner);
-  
-  // Update requester's liked_users_partner in backend using the same pattern as acceptPartnerRequest
-  const response = await fetch(
-    `http://${process.env.EXPO_PUBLIC_IP}:8090/api/collections/users/records/${requesterId}`,
-    {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ liked_users_partner: updatedLikedPartner }),
+  try {
+    // Validate inputs
+    if (!currentUserId || !requesterId || !token) {
+      throw new Error('Invalid parameters: currentUserId, requesterId, and token are required');
     }
-  );
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('❌ Decline failed:', { status: response.status, error: errorText });
-    throw new Error(`Failed to decline request: ${response.status} ${errorText}`);
+    
+    if (currentUserId === requesterId) {
+      throw new Error('Cannot decline a request from yourself');
+    }
+    
+    // Fetch current user to get their declined list
+    const allUsers = await getAllAccounts(token);
+    const currentUser = allUsers.find(u => u.id === currentUserId);
+    
+    if (!currentUser) {
+      throw new Error('Current user not found');
+    }
+    
+    // Parse declined_users_as_partner (array of {userId: string, declinedAt: number})
+    let declinedList = [];
+    const declinedRaw = currentUser.declined_users_as_partner;
+    if (Array.isArray(declinedRaw)) {
+      declinedList = declinedRaw;
+    } else if (typeof declinedRaw === 'string') {
+      try {
+        declinedList = JSON.parse(declinedRaw);
+      } catch {
+        declinedList = [];
+      }
+    }
+    
+    // Check if already declined
+    const alreadyDeclined = declinedList.some((item: any) => {
+      const id = typeof item === 'string' ? item : item.userId;
+      return id === requesterId;
+    });
+    
+    if (!alreadyDeclined) {
+      // Add new decline with timestamp (expires after 3 months)
+      declinedList.push({
+        userId: requesterId,
+        declinedAt: Date.now()
+      });
+    }
+    
+    // Update current user's declined_users_as_partner in database
+    const updateResponse = await fetch(
+      `http://${process.env.EXPO_PUBLIC_IP}:8090/api/collections/users/records/${currentUserId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ declined_users_as_partner: declinedList }),
+      }
+    );
+    
+    if (!updateResponse.ok) {
+      const errorText = await updateResponse.text();
+      console.error('❌ Failed to update partner declined list:', {
+        status: updateResponse.status,
+        error: errorText
+      });
+      throw new Error(`Failed to update partner declined list: ${updateResponse.status} ${errorText}`);
+    }
+  } catch (error) {
+    console.error('❌ Partner decline operation failed:', error);
+    throw error;
   }
-  
-  console.log('✅ Successfully declined partner request');
+};
+
+/**
+ * Decline a dating user (add to current user's declined_users_as_dating array with timestamp)
+ * Declined users won't show again for 1 month
+ */
+export const declineDatingUser = async (currentUserId: string, declinedUserId: string, token: string): Promise<void> => {
+  try {
+    // Validate inputs
+    if (!currentUserId || !declinedUserId || !token) {
+      throw new Error('Invalid parameters: currentUserId, declinedUserId, and token are required');
+    }
+    
+    if (currentUserId === declinedUserId) {
+      throw new Error('Cannot decline yourself');
+    }
+    
+    // Fetch current user to get their declined list
+    const allUsers = await getAllAccounts(token);
+    const currentUser = allUsers.find(u => u.id === currentUserId);
+    
+    if (!currentUser) {
+      throw new Error('Current user not found');
+    }
+    
+    // Parse declined_users_as_dating (array of {userId: string, declinedAt: number})
+    let declinedList = [];
+    const declinedRaw = currentUser.declined_users_as_dating;
+    if (Array.isArray(declinedRaw)) {
+      declinedList = declinedRaw;
+    } else if (typeof declinedRaw === 'string') {
+      try {
+        declinedList = JSON.parse(declinedRaw);
+      } catch {
+        declinedList = [];
+      }
+    }
+    
+    // Check if already declined
+    const alreadyDeclined = declinedList.some((item: any) => {
+      const id = typeof item === 'string' ? item : item.userId;
+      return id === declinedUserId;
+    });
+    
+    if (!alreadyDeclined) {
+      // Add new decline with timestamp
+      declinedList.push({
+        userId: declinedUserId,
+        declinedAt: Date.now()
+      });
+    }
+    
+    // Update current user's declined_users_as_dating in database
+    const updateResponse = await fetch(
+      `http://${process.env.EXPO_PUBLIC_IP}:8090/api/collections/users/records/${currentUserId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ declined_users_as_dating: declinedList }),
+      }
+    );
+    
+    if (!updateResponse.ok) {
+      const errorText = await updateResponse.text();
+      console.error('❌ Failed to update dating declined list:', {
+        status: updateResponse.status,
+        error: errorText
+      });
+      throw new Error(`Failed to update dating declined list: ${updateResponse.status} ${errorText}`);
+    }
+  } catch (error) {
+    console.error('❌ Dating decline operation failed:', error);
+    throw error;
+  }
 };
 
 /**
  * Get matches (mutual likes)
  * Now supports separate dating and partner matches
  * Users with both intents enabled can have TWO separate matches
+ * IMPROVED: Symmetric decline check ensures both users agree on no-match
  */
 export const getMatches = async (token: string, currentUserId: string): Promise<Match[]> => {
   try {
@@ -117,6 +303,11 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
 
     const currentUserLikedDating = currentUser.liked_users_dating || [];
     const currentUserLikedPartner = currentUser.liked_users_partner || [];
+    
+    // Get ACTIVE declined lists (not expired)
+    const currentUserDeclinedDating = getActiveDeclinedUserIds(currentUser.declined_users_as_dating || [], 'dating');
+    const currentUserDeclinedPartner = getActiveDeclinedUserIds(currentUser.declined_users_as_partner || [], 'partner');
+    
     const currentUserIntent = Array.isArray(currentUser.intent) ? currentUser.intent : [currentUser.intent];
 
     const matchesMap: Record<string, Match> = {};
@@ -127,14 +318,21 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
       
       const userLikedDating = user.liked_users_dating || [];
       const userLikedPartner = user.liked_users_partner || [];
+      
+      // Get ACTIVE declined lists for the other user
+      const userDeclinedDating = getActiveDeclinedUserIds(user.declined_users_as_dating || [], 'dating');
+      const userDeclinedPartner = getActiveDeclinedUserIds(user.declined_users_as_partner || [], 'partner');
+      
       const userIntent = Array.isArray(user.intent) ? user.intent : [user.intent];
 
-      // Check for DATING match
+      // Check for DATING match (with symmetric decline check)
       if (
         currentUserIntent.includes('date') &&
         userIntent.includes('date') &&
         currentUserLikedDating.includes(user.id) &&
-        userLikedDating.includes(currentUserId)
+        userLikedDating.includes(currentUserId) &&
+        !currentUserDeclinedDating.includes(user.id) && // Current user hasn't declined this user
+        !userDeclinedDating.includes(currentUserId)     // Other user hasn't declined current user
       ) {
         // Normalize climbing_styles and preserve images array
         const climbing_styles = typeof user.climbing_styles === 'string'
@@ -166,12 +364,14 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
         matchedUserIds.add(user.id);
       }
 
-      // Check for PARTNER match
+      // Check for PARTNER match (with symmetric decline check)
       if (
         currentUserIntent.includes('partner') &&
         userIntent.includes('partner') &&
         currentUserLikedPartner.includes(user.id) &&
-        userLikedPartner.includes(currentUserId)
+        userLikedPartner.includes(currentUserId) &&
+        !currentUserDeclinedPartner.includes(user.id) && // Current user hasn't declined this user
+        !userDeclinedPartner.includes(currentUserId)     // Other user hasn't declined current user (SYMMETRIC CHECK)
       ) {
         // Normalize climbing_styles and preserve images array
         const climbing_styles = typeof user.climbing_styles === 'string'
@@ -269,10 +469,30 @@ export const unmatchUser = async (currentUserId: string, targetUserId: string, m
         }
       )
     ]);
+    
+    // TODO: Once match records collection exists in PocketBase, mark match status as 'unmatched' with timestamp
+    // This will enable match history, re-matching detection, and chronological sorting
   } catch (error) {
     console.error('Failed to unmatch user:', error);
     throw error;
   }
+};
+
+/**
+ * TODO: Create match record when mutual like happens
+ * Structure: { user1Id, user2Id, type: 'dating'|'partner', matchedAt, status: 'active' }
+ * Will enable: chronological sorting, match history, re-match prevention, real-time sync
+ */
+export const createMatchRecord = async (user1Id: string, user2Id: string, matchType: 'dating' | 'partner', token: string): Promise<void> => {
+  // Implementation pending: matches collection setup in PocketBase
+};
+
+/**
+ * TODO: Mark match as unmatched (soft delete)
+ * Updates match status to 'unmatched' instead of deleting for tracking purposes
+ */
+export const markMatchAsUnmatched = async (matchId: string, token: string): Promise<void> => {
+  // Implementation pending: matches collection setup in PocketBase
 };
 
 /**

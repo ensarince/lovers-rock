@@ -29,6 +29,8 @@ export interface Climber {
   liked_users?: string[]; // Legacy field - deprecated
   liked_users_dating?: string[]; // Users liked in dating mode
   liked_users_partner?: string[]; // Users liked in partner mode
+  declined_users_as_partner?: string[]; // Partner requests declined
+  declined_users_as_dating?: Array<{ userId: string; declinedAt: number }> | string[]; // Dating users declined (with timestamp for 1-month expiry)
   intent: 'partner' | 'date' | Array<'partner' | 'date'>;
   latitude?: number; // User's latitude for geofinding
   longitude?: number; // User's longitude for geofinding
