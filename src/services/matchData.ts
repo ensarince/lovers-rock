@@ -308,6 +308,14 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
     const currentUserDeclinedDating = getActiveDeclinedUserIds(currentUser.declined_users_as_dating || [], 'dating');
     const currentUserDeclinedPartner = getActiveDeclinedUserIds(currentUser.declined_users_as_partner || [], 'partner');
     
+    // Get current user's blocked users (handle both string and object formats)
+    const currentUserBlockedUsers = (currentUser.blocked_users || []).map((item: any) => {
+      if (typeof item === 'object' && item !== null && item.id) {
+        return item.id;
+      }
+      return String(item);
+    }).filter(Boolean);
+    
     const currentUserIntent = Array.isArray(currentUser.intent) ? currentUser.intent : [currentUser.intent];
 
     const matchesMap: Record<string, Match> = {};
@@ -315,6 +323,18 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
 
     for (const user of allUsers) {
       if (user.id === currentUserId) continue;
+      
+      // Skip if either user has blocked the other
+      const userBlockedUsers = (user.blocked_users || []).map((item: any) => {
+        if (typeof item === 'object' && item !== null && item.id) {
+          return item.id;
+        }
+        return String(item);
+      }).filter(Boolean);
+      
+      if (currentUserBlockedUsers.includes(user.id) || userBlockedUsers.includes(currentUserId)) {
+        continue;
+      }
       
       const userLikedDating = user.liked_users_dating || [];
       const userLikedPartner = user.liked_users_partner || [];

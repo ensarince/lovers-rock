@@ -93,11 +93,23 @@ export default function MatchesScreen() {
             return [];
           })();
           
-          // Get your liked users in dating mode
-          const yourLikedDating = Array.isArray(user.liked_users_dating)
-            ? user.liked_users_dating
-            : typeof user.liked_users_dating === 'string'
-              ? (() => { try { return JSON.parse(user.liked_users_dating); } catch { return []; } })()
+          // Get your blocked users from freshly fetched data (not stale context)
+          const yourBlockedUsers = (() => {
+            const blocked = currentUserData?.blocked_users || [];
+            if (Array.isArray(blocked)) {
+              return blocked.map((item: any) => {
+                if (typeof item === 'object' && item !== null && item.id) return item.id;
+                return String(item);
+              });
+            }
+            return [];
+          })();
+          
+          // Get your liked users in dating mode from freshly fetched data
+          const yourLikedDating = Array.isArray(currentUserData?.liked_users_dating)
+            ? currentUserData.liked_users_dating
+            : typeof currentUserData?.liked_users_dating === 'string'
+              ? (() => { try { return JSON.parse(currentUserData.liked_users_dating); } catch { return []; } })()
               : [];
           
           // Find users with 'date' intent who have liked you in dating mode
@@ -108,12 +120,22 @@ export default function MatchesScreen() {
                 ? (() => { try { return JSON.parse(u.liked_users_dating); } catch { return []; } })()
                 : [];
             
+            // Check if they have blocked you
+            const theirBlockedUsers = Array.isArray(u.blocked_users)
+              ? u.blocked_users.map((item: any) => {
+                  if (typeof item === 'object' && item !== null && item.id) return item.id;
+                  return String(item);
+                })
+              : [];
+            
             return (
               Array.isArray(u.intent) && u.intent.includes('date') &&
               theirLikesDating.includes(user.id) &&
               !allMatches.some(m => m.climber.id === u.id && m.type === 'dating') &&
               !yourDeclinedDating.includes(u.id) && // Don't show if you declined them
-              !yourLikedDating.includes(u.id) // Don't show if you already liked them (prevents duplicate)
+              !yourBlockedUsers.includes(u.id) && // Don't show if you blocked them
+              !theirBlockedUsers.includes(user.id) && // Don't show if they blocked you
+              !yourLikedDating.includes(u.id) // Don't show if you already liked them (covers mutual matches too)
             );
           });
           // Set only one hint
