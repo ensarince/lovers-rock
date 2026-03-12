@@ -18,6 +18,7 @@ export interface Climber {
   id: string;
   name: string;
   age: number;
+  verified: boolean;
   gender?: Gender;
   grade: ClimbingGrade;
   climbing_styles: ClimbingStyle[];

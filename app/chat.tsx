@@ -1,15 +1,18 @@
 import { Text, View } from '@/components/Themed';
+import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import { useAuth } from '@/src/context/AuthContext';
 import { messageService } from '@/src/services/messageService';
 import { getReportService } from '@/src/services/reportService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
+import { Match } from '@/src/types/match';
 import { Message } from '@/src/types/message';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -17,6 +20,8 @@ import {
   StyleSheet,
   TextInput,
 } from 'react-native';
+
+const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
 
 export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -26,33 +31,72 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const { user, token, darkMode } = useAuth();
   const [blocked, setBlocked] = useState(false);
+  const [climberData, setClimberData] = useState<any>(null);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
-  const { matchId, climberName, climberId } = useLocalSearchParams();
+  const { matchId, climberName, climberId, climberAvatar, climberData: climberDataStr } = useLocalSearchParams();
   const router = useRouter();
   const flatListRef = useRef<FlatList>(null);
 
+  // Parse climber data from route params
+  useEffect(() => {
+    if (climberDataStr) {
+      try {
+        const parsed = JSON.parse(climberDataStr as string);
+        setClimberData(parsed);
+      } catch (error) {
+        console.error('Failed to parse climber data:', error);
+      }
+    }
+  }, [climberDataStr]);
+
+  // Check blocked status and load messages on mount
   useEffect(() => {
     const checkBlocked = async () => {
       if (!user?.id || !climberId || !token) return;
       const reportService = getReportService();
-      // Check if I blocked them or they blocked me
       const [iBlocked, theyBlocked] = await Promise.all([
         reportService.isUserBlocked(user.id, climberId as string, token),
         reportService.isUserBlocked(climberId as string, user.id, token),
       ]);
       setBlocked(iBlocked || theyBlocked);
     };
+
     if (token) {
       messageService.setToken(token);
     }
     if (user?.id && climberId) {
       checkBlocked();
       loadMessages();
-      // TODO: Implement real-time updates when EventSource is available in React Native
-      // For now, we'll rely on manual refresh when entering the screen
     }
   }, [user?.id, climberId, token]);
+
+  // Fetch full climber data only if needed for details not in route params
+  useEffect(() => {
+    const fetchFullClimberData = async () => {
+      if (!climberId || !token || climberData?.bio) return; // Already have data
+      try {
+        const res = await fetch(`${POCKETBASE_URL}/api/collections/users/records/${climberId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setClimberData(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch climber data:', error);
+      }
+    };
+
+    if (detailModalVisible && climberData && !climberData.bio) {
+      fetchFullClimberData();
+    }
+  }, [detailModalVisible, climberData, climberId, token]);
 
   const loadMessages = async () => {
     if (!user?.id || !climberId) return;
@@ -165,7 +209,19 @@ export default function ChatScreen() {
         <Pressable onPress={goBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>{climberName}</Text>
+        <View style={styles.headerContentContainer}>
+          {climberAvatar && (
+            <Pressable onPress={() => setDetailModalVisible(true)} style={styles.headerAvatarButton}>
+              <Image
+                source={{
+                  uri: climberAvatar as string,
+                }}
+                style={styles.headerAvatar}
+              />
+            </Pressable>
+          )}
+          <Text style={styles.headerTitle}>{climberName}</Text>
+        </View>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -208,6 +264,31 @@ export default function ChatScreen() {
           <Ionicons name="send" size={20} color="#ffffff" />
         </Pressable>
       </View>
+
+      {/* Detail Modal */}
+      <MatchDetailModal
+        visible={detailModalVisible}
+        match={{
+          id: (climberId as string) || '',
+          climber: climberData && Object.keys(climberData).length > 0 ? climberData : {
+            id: (climberId as string) || '',
+            name: (climberName as string) || '',
+            age: 0,
+            images: [],
+            climbing_styles: [],
+            grade: null,
+            bio: '',
+            home_gym: '',
+            email: '',
+          },
+          matchedAt: 0,
+          unreadCount: 0,
+        } as Match}
+        onClose={() => setDetailModalVisible(false)}
+        onMessage={() => {}}
+        userLatitude={user?.latitude}
+        userLongitude={user?.longitude}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -231,12 +312,27 @@ const createStyles = (theme: typeof themeLight) =>
     backButton: {
       padding: 8,
     },
-    headerTitle: {
+    headerContentContainer: {
       flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'transparent',
+      gap: 12,
+    },
+    headerAvatarButton: {
+      padding: 4,
+    },
+    headerAvatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: theme.colors.border,
+    },
+    headerTitle: {
       fontSize: 18,
       fontWeight: '600',
       color: theme.colors.text,
-      textAlign: 'center',
     },
     headerSpacer: {
       width: 40,

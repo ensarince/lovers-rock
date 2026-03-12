@@ -102,12 +102,19 @@ export default function MessagesScreen() {
     };
 
     const openChat = (conversation: Conversation) => {
+        const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+        let avatarUrl = '';
+        if (conversation.climber.images && conversation.climber.images.length > 0) {
+            avatarUrl = `${POCKETBASE_URL}/api/files/users/${conversation.climber.id}/${conversation.climber.images[0]}?thumb=40x40`;
+        }
         router.push({
             pathname: '/chat',
             params: {
                 matchId: conversation.matchId,
                 climberName: conversation.climber.name,
-                climberId: conversation.climber.id
+                climberId: conversation.climber.id,
+                climberAvatar: avatarUrl,
+                climberData: JSON.stringify(conversation.climber)
             }
         });
     };

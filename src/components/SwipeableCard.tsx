@@ -10,11 +10,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    Animated,
-    PanResponder,
-    Pressable,
-    StyleSheet,
-    View,
+  Animated,
+  PanResponder,
+  Pressable,
+  StyleSheet,
+  View,
 } from 'react-native';
 
 interface SwipeableCardProps {
@@ -49,30 +49,8 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
   const [distance, setDistance] = useState<number | null>(null);
   const [showBlockReportMenu, setShowBlockReportMenu] = useState(false);
   const currentClimberRef = useRef(climber);
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Handle long press for block/report menu
-  const handlePressIn = () => {
-    longPressTimerRef.current = setTimeout(() => {
-      setShowBlockReportMenu(true);
-    }, 500); // 500ms long press
-  };
-
-  const handlePressOut = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  };
 
   // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-      }
-    };
-  }, []);
 
   // Calculate distance on mount and when location/climber changes
   useEffect(() => {
@@ -100,7 +78,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: (evt, gestureState) => {
-        return true;
+        return false; // Don't claim touch at start, let Pressable handle taps
       },
       onMoveShouldSetPanResponder: (evt, { dy, dx }) => {
         // Only activate pan responder if movement is significant (>10px)
@@ -110,11 +88,6 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
         useNativeDriver: false,
       }),
       onPanResponderRelease: (evt, { dx, dy }) => {
-        // Check if this was just a tap (minimal movement)
-        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
-          return; // Let normal press handlers work
-        }
-        
         const threshold = 100;
         if (dx > threshold) {
           // Swipe right = accept
@@ -176,14 +149,15 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
         ]}>
         <Pressable 
           onPress={onPress}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
+          delayLongPress={500}
+          onLongPress={() => setShowBlockReportMenu(true)}
+          hitSlop={10}
           style={styles.card}>
           <ImageCarousel
             images={climber.images || []}
             userId={climber.id}
             expandable={true}
-            height="100%"
+            height={"100%"}
             darkMode={darkMode}
             showIndicators={true}
           />
@@ -228,9 +202,13 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
               {climber.name}, {climber.age}
             </Text>
             <Text style={styles.gym}>{climber.home_gym}</Text>
-            <Text style={styles.bio} numberOfLines={2}>
+            <Text 
+              style={styles.bio} 
+              numberOfLines={3}
+            >
               {climber.bio}
             </Text>
+            {climber.bio && climber.bio.length > 150 && <Text style={styles.tapHint}>Tap to see more</Text>}
             <View style={styles.badgesContainer}>
               <View
                 style={[
@@ -391,6 +369,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.text,
     lineHeight: 16,
+    marginBottom: 8,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  tapHint: {
+    fontSize: 10,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
     marginBottom: 8,
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },

@@ -60,18 +60,23 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
           {climber ? (
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <ImageCarousel
-                images={climber.images || []}
-                userId={climber.id}
-                expandable={true}
-                height={250}
-                darkMode={darkMode}
-                showIndicators={true}
-              />
-              <View style={styles.headerSection}>
-                <Text style={styles.title}>{climber.name}</Text>
+            <>
+              <View style={styles.topBar}>
+                <Text style={styles.topBarTitle}>{climber.name}</Text>
+                <Pressable onPress={onClose} style={styles.closeButtonTop}>
+                  <Ionicons name="close" size={28} color={theme.colors.accent} />
+                </Pressable>
               </View>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                <ImageCarousel
+                  images={climber.images || []}
+                  userId={climber.id}
+                  expandable={true}
+                  height={250}
+                  darkMode={darkMode}
+                  showIndicators={true}
+                />
+                <View style={styles.headerSection}></View>
 
               <View style={styles.infoSection}>
                 <View style={styles.infoRow}>
@@ -127,10 +132,6 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                 >
                   <Text style={styles.requestButtonText}>{isRequestSent ? 'Request Sent' : 'Send Partner Request'}</Text>
                 </Pressable>
-
-                <Pressable style={styles.closeButton} onPress={onClose}>
-                  <Text style={styles.closeButtonText}>Close</Text>
-                </Pressable>
               </View>
 
               <BlockReportMenu
@@ -144,7 +145,8 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                 }}
                 darkMode={darkMode}
               />
-            </ScrollView>
+              </ScrollView>
+            </>
           ) : (
             <View />
           )}
@@ -170,14 +172,28 @@ const createStyles = (theme: typeof themeLight) =>
       maxHeight: '90%',
       overflow: 'hidden',
     },
-
-    headerSection: {
-      paddingHorizontal: 20,
-      paddingTop: 12,
-      paddingBottom: 12,
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
-      position: 'relative',
+      backgroundColor: theme.colors.surface,
+    },
+    topBarTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.text,
+      flex: 1,
+    },
+    closeButtonTop: {
+      padding: 8,
+      marginRight: -8,
+    },
+    headerSection: {
+      display: 'none',
     },
     title: {
       fontSize: 22,
@@ -239,20 +255,6 @@ const createStyles = (theme: typeof themeLight) =>
       gap: 8,
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
-    },
-    closeButton: {
-      backgroundColor: theme.colors.border,
-      borderRadius: 8,
-      paddingVertical: 10,
-      paddingHorizontal: 18,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    closeButtonText: {
-      color: theme.colors.text,
-      fontWeight: '600',
-      fontSize: 15,
-      textAlign: 'center',
     },
     requestButton: {
       backgroundColor: theme.colors.accent,

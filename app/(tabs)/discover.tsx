@@ -19,6 +19,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Modal,
   Pressable,
   View as RNView,
   StyleSheet,
@@ -49,6 +50,7 @@ export default function DiscoverScreen() {
   // Dating mode specific
   const [matchAnimationVisible, setMatchAnimationVisible] = useState(false);
   const [matchedClimber, setMatchedClimber] = useState<Climber | null>(null);
+  const [bioDetailClimber, setBioDetailClimber] = useState<Climber | null>(null);
 
   // Partner mode specific
   const [selectedPartner, setSelectedPartner] = useState<Climber | null>(null);
@@ -201,6 +203,7 @@ export default function DiscoverScreen() {
         // 3. Exclude blocked users (by me or who blocked me)
         // 4. Exclude declined users (if decline is still active)
         // 5. Only users with complete profiles
+        // 6. Only verified users
         const filtered = data.filter(
           (c) =>
             c.id !== user?.id &&
@@ -210,6 +213,7 @@ export default function DiscoverScreen() {
               return blockerId === (user?.id || "");
             })) &&
             !isActivelyDeclined(c.id) &&
+            c.verified === true &&
             Array.isArray(c.intent) && c.intent.includes('date') &&
             c.name !== '' &&
             typeof c.age === 'number' &&
@@ -259,7 +263,6 @@ export default function DiscoverScreen() {
 
         setClimbers(normalized);
         setFilteredClimbers(normalized);
-        console.log(`✅ Dating discover loaded: ${normalized.length} users after filtering`);
         setError(null);
       } catch (err) {
         console.error('Dating loading error:', err);
@@ -326,7 +329,7 @@ export default function DiscoverScreen() {
         }
 
         const data = await getAllAccounts(token);
-        // Only show users with 'partner' intent, exclude self and blocked users
+        // Only show users with 'partner' intent, exclude self and blocked users, only verified users
         let filtered = data.filter(
           (c) => c.id !== user.id && 
                  !blockedUserIds.includes(c.id) &&
@@ -334,6 +337,7 @@ export default function DiscoverScreen() {
                    const blockerId = typeof b === 'object' ? b.id : b;
                    return blockerId === (user?.id || "");
                  })) &&
+                 c.verified === true &&
                  Array.isArray(c.intent) && c.intent.includes('partner')
         );
         if (process.env.EXPO_DEV_MODE) {
@@ -380,7 +384,6 @@ export default function DiscoverScreen() {
           (Array.isArray(c.images) && c.images.length > 0)
         );
         setPartners(filtered);
-        console.log(`✅ Partner discover loaded: ${filtered.length} users after filtering`);
         setError(null);
       } catch (e) {
         console.error('Partner loading error:', e);
@@ -589,6 +592,18 @@ export default function DiscoverScreen() {
   const closePartnerModal = () => {
     setPartnerModalVisible(false);
     setSelectedPartner(null);
+  };
+
+  // Show full bio when card is tapped
+  const showFullBio = (climber: Climber) => {
+    // Only show modal if bio is actually long (more than ~150 chars or would wrap to 4+ lines)
+    if (climber.bio && climber.bio.length > 150) {
+      setBioDetailClimber(climber);
+    }
+  };
+
+  const closeBioDetail = () => {
+    setBioDetailClimber(null);
   };
 
   // Send partner request
@@ -828,6 +843,7 @@ export default function DiscoverScreen() {
               climber={currentClimber}
               onAccept={handleAccept}
               onReject={handleReject}
+              onPress={() => showFullBio(currentClimber)}
               userLatitude={user?.latitude}
               userLongitude={user?.longitude}
             />
@@ -920,6 +936,25 @@ export default function DiscoverScreen() {
           }}
         />
       )}
+
+      {/* Full Bio Detail Modal (Dating Mode) */}
+      <Modal visible={bioDetailClimber !== null} transparent animationType="fade">
+        <Pressable style={styles.bioModalOverlay} onPress={closeBioDetail}>
+          <Pressable style={styles.bioModalContent} onPress={(e) => e.stopPropagation()}>
+            {bioDetailClimber && (
+              <>
+                <View style={styles.bioModalHeader}>
+                  <Text style={styles.bioModalTitle}>{bioDetailClimber.name}'s Bio</Text>
+                  <Pressable onPress={closeBioDetail} style={styles.bioModalCloseBtn}>
+                    <Ionicons name="close" size={24} color={theme.colors.accent} />
+                  </Pressable>
+                </View>
+                <Text style={styles.bioModalText}>{bioDetailClimber.bio}</Text>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Partner Detail Modal (Partner Mode) */}
       <PartnerDetailModal
@@ -1081,6 +1116,43 @@ const createStyles = (theme: typeof themeLight) =>
       fontSize: 16,
       textAlign: 'center',
       marginTop: 20,
+    },
+    bioModalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    bioModalContent: {
+      backgroundColor: theme.colors.surface,
+      borderRadius: 16,
+      padding: 20,
+      width: '85%',
+      maxHeight: '75%',
+    },
+    bioModalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+      backgroundColor: 'transparent',
+      paddingBottom: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    bioModalTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: theme.colors.text,
+      flex: 1,
+    },
+    bioModalCloseBtn: {
+      padding: 4,
+    },
+    bioModalText: {
+      fontSize: 16,
+      color: theme.colors.text,
+      lineHeight: 24,
     },
   });
 

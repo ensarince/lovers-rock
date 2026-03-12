@@ -17,7 +17,7 @@ interface ImageCarouselProps {
   userId: string;
   onImagePress?: () => void;
   expandable?: boolean; // Whether clicking image opens full modal
-  height?: number;
+  height?: number | string;
   style?: any;
   darkMode: boolean;
   showIndicators?: boolean;
