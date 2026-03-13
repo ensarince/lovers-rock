@@ -87,13 +87,12 @@ function RootLayoutNav() {
       />
       <Stack
         screenOptions={{ headerShown: false }}
+        initialRouteName={isAuthenticated ? '(tabs)' : '(auth)'}
         key={isAuthenticated ? 'authenticated' : 'unauthenticated'}
       >
-        {isAuthenticated ? (
-          <Stack.Screen name="(tabs)" />
-        ) : (
-          <Stack.Screen name="(auth)" />
-        )}
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="chat" />
+        <Stack.Screen name="(auth)" />
       </Stack>
     </ThemeProvider>
   );

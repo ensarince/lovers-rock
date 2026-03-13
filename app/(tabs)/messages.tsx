@@ -84,7 +84,9 @@ export default function MessagesScreen() {
                 })
             );
 
-            setConversations(conversationsWithMessages);
+            // Filter out conversations with no messages
+            const filteredConversations = conversationsWithMessages.filter(conv => conv.lastMessage);
+            setConversations(filteredConversations);
         } catch (err) {
             if (process.env.EXPO_DEV_MODE) console.error('Failed to load conversations:', err);
         } finally {

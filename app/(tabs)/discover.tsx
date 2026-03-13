@@ -1010,7 +1010,6 @@ const createStyles = (theme: typeof themeLight) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       marginHorizontal: 20,
-      marginVertical: 8,
       paddingHorizontal: 0,
       paddingVertical: 0,
     },

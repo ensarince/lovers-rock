@@ -5,6 +5,9 @@ export interface Message {
   content: string;
   created: string;
   read: boolean;
+  reactions?: {
+    [userId: string]: string; // emoji reactions
+  };
 }
 
 export interface Conversation {

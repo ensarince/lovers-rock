@@ -194,12 +194,19 @@ export default function MatchesScreen() {
 
   const handleMessage = (match: Match) => {
     setModalVisible(false);
+    const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+    let avatarUrl = '';
+    if (match.climber.images && match.climber.images.length > 0) {
+      avatarUrl = `${POCKETBASE_URL}/api/files/users/${match.climber.id}/${match.climber.images[0]}?thumb=40x40`;
+    }
     router.push({
       pathname: '/chat',
       params: {
         matchId: match.id,
         climberName: match.climber.name,
-        climberId: match.climber.id
+        climberId: match.climber.id,
+        climberAvatar: avatarUrl,
+        climberData: JSON.stringify(match.climber)
       }
     });
   };

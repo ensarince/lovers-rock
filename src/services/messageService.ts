@@ -22,7 +22,8 @@ export class MessageService {
       sender_id: senderId,
       receiver_id: receiverId,
       content: content.trim(),
-      read: false
+      read: false,
+      reactions: {}
     };
 
     const record = await this.pb.collection('messages').create(data);
@@ -32,7 +33,8 @@ export class MessageService {
       receiver_id: record.receiver_id,
       content: record.content,
       created: record.created,
-      read: record.read
+      read: record.read,
+      reactions: record.reactions || {}
     };
     return message;
   }
@@ -49,7 +51,8 @@ export class MessageService {
       receiver_id: record.receiver_id,
       content: record.content,
       created: record.created,
-      read: record.read
+      read: record.read,
+      reactions: record.reactions || {}
     })) as Message[];
   }
 
@@ -80,6 +83,40 @@ export class MessageService {
     });
 
     return records.totalItems;
+  }
+
+  async deleteChat(userId1: string, userId2: string): Promise<void> {
+    // Get all messages between the two users
+    const records = await this.pb.collection('messages').getFullList({
+      filter: `((sender_id = "${userId1}" && receiver_id = "${userId2}") || (sender_id = "${userId2}" && receiver_id = "${userId1}"))`
+    });
+
+    // Delete each message
+    const deletePromises = records.map(record =>
+      this.pb.collection('messages').delete(record.id)
+    );
+
+    await Promise.all(deletePromises);
+  }
+
+  async updateMessageReaction(messageId: string, userId: string, reaction: string | null, token: string): Promise<void> {
+    try {
+      const record = await this.pb.collection('messages').getOne(messageId);
+      const reactions = record.reactions || {};
+
+      if (reaction === null || reaction === '') {
+        // Remove reaction
+        delete reactions[userId];
+      } else {
+        // Add/update reaction
+        reactions[userId] = reaction;
+      }
+
+      await this.pb.collection('messages').update(messageId, { reactions });
+    } catch (error) {
+      if (process.env.EXPO_DEV_MODE) console.error('Failed to update message reaction:', error);
+      throw error;
+    }
   }
 }
 

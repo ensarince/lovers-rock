@@ -1,4 +1,5 @@
 import { Text, View } from '@/components/Themed';
+import { ChatMenuModal } from '@/src/components/ChatMenuModal';
 import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import { useAuth } from '@/src/context/AuthContext';
 import { messageService } from '@/src/services/messageService';
@@ -33,11 +34,13 @@ export default function ChatScreen() {
   const [blocked, setBlocked] = useState(false);
   const [climberData, setClimberData] = useState<any>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
-  const { matchId, climberName, climberId, climberAvatar, climberData: climberDataStr } = useLocalSearchParams();
+  const { climberName, climberId, climberAvatar, climberData: climberDataStr } = useLocalSearchParams();
   const router = useRouter();
   const flatListRef = useRef<FlatList>(null);
+  const pollingIntervalRef = useRef<number | null>(null);
 
   // Parse climber data from route params
   useEffect(() => {
@@ -97,6 +100,32 @@ export default function ChatScreen() {
       fetchFullClimberData();
     }
   }, [detailModalVisible, climberData, climberId, token]);
+
+  // Polling for read receipt updates (check for new read status every 5 seconds)
+  useEffect(() => {
+    const startPolling = async () => {
+      if (!user?.id || !climberId) return;
+
+      // Set up polling interval
+      pollingIntervalRef.current = setInterval(async () => {
+        try {
+          const msgs = await messageService.getMessagesBetweenUsers(user.id, climberId as string);
+          setMessages(msgs.sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()));
+        } catch (error) {
+          if (process.env.EXPO_DEV_MODE) console.error('Polling error:', error);
+        }
+      }, 5000); // Poll every 5 seconds
+    };
+
+    startPolling();
+
+    // Cleanup: clear interval on unmount
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, [user?.id, climberId]);
 
   const loadMessages = async () => {
     if (!user?.id || !climberId) return;
@@ -163,21 +192,83 @@ export default function ChatScreen() {
 
   const renderMessage = ({ item }: { item: Message }) => {
     const isOwnMessage = item.sender_id === user?.id;
+    const userReaction = item.reactions ? item.reactions[user?.id || ''] : undefined;
 
     return (
       <View style={[styles.messageContainer, isOwnMessage ? styles.ownMessage : styles.otherMessage]}>
-        <Text style={[styles.messageText, isOwnMessage ? styles.ownMessageText : styles.otherMessageText]}>
-          {item.content}
-        </Text>
-        <Text style={[styles.timestamp, isOwnMessage ? styles.ownTimestamp : styles.otherTimestamp]}>
-          {new Date(item.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </Text>
+        <Pressable style={styles.messageBubble}>
+          <Text style={[styles.messageText, isOwnMessage ? styles.ownMessageText : styles.otherMessageText]}>
+            {item.content}
+          </Text>
+          <View style={styles.messageFooter}>
+            <Text style={[styles.timestamp, isOwnMessage ? styles.ownTimestamp : styles.otherTimestamp]}>
+              {new Date(item.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+            {isOwnMessage && (
+              <Ionicons
+                name={item.read ? "checkmark-done" : "checkmark"}
+                size={12}
+                color={item.read ? theme.colors.accent : theme.colors.textSecondary}
+                style={{ marginLeft: 4 }}
+              />
+            )}
+          </View>
+        </Pressable>
+        {!isOwnMessage && (
+          <Pressable style={styles.likeButton} onPress={() => toggleLike(item.id)}>
+            <Ionicons
+              name={userReaction === '❤️' ? "heart" : "heart-outline"}
+              size={14}
+              color={userReaction === '❤️' ? '#ef4444' : theme.colors.textSecondary}
+            />
+          </Pressable>
+        )}
       </View>
     );
   };
 
+  const toggleLike = async (messageId: string) => {
+    if (!user?.id || !token) return;
+    try {
+      const message = messages.find(m => m.id === messageId);
+      if (!message) return;
+
+      const currentReaction = message.reactions?.[user.id];
+      await messageService.updateMessageReaction(messageId, user.id, currentReaction === '❤️' ? null : '❤️', token);
+      
+      // Update local state
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === messageId
+            ? {
+                ...m,
+                reactions: {
+                  ...(m.reactions || {}),
+                  [user.id]: currentReaction === '❤️' ? '' : '❤️',
+                },
+              }
+            : m
+        )
+      );
+    } catch (error) {
+      if (process.env.EXPO_DEV_MODE) console.error('Failed to update reaction:', error);
+    }
+  };
+
   const goBack = () => {
     router.back();
+  };
+
+  const deleteChat = async () => {
+    if (!user?.id || !climberId) return;
+    try {
+      // Delete all messages between these two users
+      await messageService.deleteChat(user.id, climberId as string);
+      setMessages([]);
+      router.back();
+    } catch (error) {
+      if (process.env.EXPO_DEV_MODE) console.error('Failed to delete chat:', error);
+    }
   };
 
 
@@ -222,7 +313,9 @@ export default function ChatScreen() {
           )}
           <Text style={styles.headerTitle}>{climberName}</Text>
         </View>
-        <View style={styles.headerSpacer} />
+        <Pressable onPress={() => setMenuVisible(true)} style={styles.menuButton}>
+          <Ionicons name="ellipsis-vertical" size={24} color={theme.colors.text} />
+        </Pressable>
       </View>
 
       {/* Messages */}
@@ -243,6 +336,7 @@ export default function ChatScreen() {
             colors={['#ffffff']}
           />
         }
+        ListFooterComponent={null}
       />
 
       {/* Input */}
@@ -289,6 +383,15 @@ export default function ChatScreen() {
         userLatitude={user?.latitude}
         userLongitude={user?.longitude}
       />
+
+      {/* Chat Menu Modal */}
+      <ChatMenuModal
+        visible={menuVisible}
+        climberName={(climberName as string) || ''}
+        onClose={() => setMenuVisible(false)}
+        onDeleteChat={deleteChat}
+        darkMode={darkMode}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -334,8 +437,11 @@ const createStyles = (theme: typeof themeLight) =>
       fontWeight: '600',
       color: theme.colors.text,
     },
+    menuButton: {
+      padding: 8,
+    },
     headerSpacer: {
-      width: 40,
+      width: 0,
     },
     messagesList: {
       flex: 1,
@@ -346,8 +452,11 @@ const createStyles = (theme: typeof themeLight) =>
     },
     messageContainer: {
       marginBottom: 12,
-      maxWidth: '80%',
+      maxWidth: '85%',
       backgroundColor: 'transparent',
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 4,
     },
     ownMessage: {
       alignSelf: 'flex-end',
@@ -386,6 +495,34 @@ const createStyles = (theme: typeof themeLight) =>
     otherTimestamp: {
       color: theme.colors.textSecondary,
       textAlign: 'left',
+    },
+    messageBubble: {
+      maxWidth: '100%',
+    },
+    messageFooter: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      marginTop: 4,
+    },
+    likeButton: {
+      marginLeft: 8,
+      padding: 4,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    typingIndicator: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      gap: 4,
+    },
+    typingDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: theme.colors.textSecondary,
     },
     inputContainer: {
       flexDirection: 'row',
