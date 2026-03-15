@@ -18,9 +18,10 @@ interface PartnerDetailModalProps {
   onBlock?: () => void;
   userLatitude?: number;
   userLongitude?: number;
+  viewOnly?: boolean;
 }
 
-export default function PartnerDetailModal({ visible, climber, onClose, onSendRequest, onBlock, userLatitude, userLongitude }: PartnerDetailModalProps) {
+export default function PartnerDetailModal({ visible, climber, onClose, onSendRequest, onBlock, userLatitude, userLongitude, viewOnly = false }: PartnerDetailModalProps) {
   const { darkMode, user } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
@@ -121,18 +122,20 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                 </View>
               )}
 
-              <View style={styles.buttonSection}>
-                <Pressable
-                  style={[styles.requestButton, isRequestSent && styles.requestButtonSent]}
-                  onPress={async () => {
-                    onSendRequest(climber, isRequestSent);
-                    // Immediately toggle the button state for instant feedback
-                    setIsRequestSent(!isRequestSent);
-                  }}
-                >
-                  <Text style={styles.requestButtonText}>{isRequestSent ? 'Request Sent' : 'Send Partner Request'}</Text>
-                </Pressable>
-              </View>
+              {!viewOnly && (
+                <View style={styles.buttonSection}>
+                  <Pressable
+                    style={[styles.requestButton, isRequestSent && styles.requestButtonSent]}
+                    onPress={async () => {
+                      onSendRequest(climber, isRequestSent);
+                      // Immediately toggle the button state for instant feedback
+                      setIsRequestSent(!isRequestSent);
+                    }}
+                  >
+                    <Text style={styles.requestButtonText}>{isRequestSent ? 'Request Sent' : 'Send Partner Request'}</Text>
+                  </Pressable>
+                </View>
+              )}
 
               <BlockReportMenu
                 visible={showBlockReportMenu}

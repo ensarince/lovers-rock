@@ -1,6 +1,7 @@
 import { Text, View } from '@/components/Themed';
 import { BlockReportMenu } from '@/src/components/BlockReportMenu';
 import { MatchDetailModal } from '@/src/components/MatchDetailModal';
+import PartnerDetailModal from '@/src/components/PartnerDetailModal';
 import { useAuth } from '@/src/context/AuthContext';
 import { getAllAccounts } from '@/src/services/accountService';
 import { acceptPartnerRequest, declinePartnerRequest, getIncomingPartnerRequests, getMatches, unmatchUser } from '@/src/services/matchData';
@@ -32,6 +33,9 @@ export default function MatchesScreen() {
   const [loading, setLoading] = useState(true);
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<Climber | null>(null);
+  const [requestModalVisible, setRequestModalVisible] = useState(false);
+  const [hoveredRequestImageId, setHoveredRequestImageId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterChip>('all');
   const [acceptingRequestIds, setAcceptingRequestIds] = useState<string[]>([]);
   const [decliningRequestIds, setDecliningRequestIds] = useState<string[]>([]);
@@ -292,10 +296,27 @@ export default function MatchesScreen() {
 
   const renderRequest = ({ item }: { item: Climber }) => (
     <Pressable style={styles.requestCardMinimal}>
-      <Image
-        source={{ uri: getFirstImageUrl(item.images, item.id) || `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${item.id}/${item.avatar}?thumb=100x100` }}
-        style={styles.matchImageMinimal}
-      />
+      <Pressable 
+        style={styles.imageContainer}
+        onPress={() => {
+          setSelectedRequest(item);
+          setRequestModalVisible(true);
+          setHoveredRequestImageId(null);
+        }}
+        onPressIn={() => setHoveredRequestImageId(item.id)}
+        onPressOut={() => setHoveredRequestImageId(null)}
+      >
+        <Image
+          source={{ uri: getFirstImageUrl(item.images, item.id) || `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${item.id}/${item.avatar}?thumb=100x100` }}
+          style={styles.matchImageMinimal}
+        />
+        {hoveredRequestImageId === item.id && (
+          <View style={styles.viewProfileOverlay}>
+            <Ionicons name="eye" size={20} color="#fff" style={{ marginRight: 4 }} />
+            <Text style={styles.viewProfileText}>View Profile</Text>
+          </View>
+        )}
+      </Pressable>
 
       <View style={styles.matchInfoMinimal}>
         <Text style={styles.matchNameMinimal}>
@@ -514,6 +535,19 @@ export default function MatchesScreen() {
         userLatitude={user?.latitude}
         userLongitude={user?.longitude}
       />
+
+      <PartnerDetailModal
+        visible={requestModalVisible}
+        climber={selectedRequest}
+        onClose={() => {
+          setRequestModalVisible(false);
+          setSelectedRequest(null);
+        }}
+        onSendRequest={() => {}} // No-op since this is view-only for incoming requests
+        viewOnly={true}
+        userLatitude={user?.latitude}
+        userLongitude={user?.longitude}
+      />
     </View>
   );
 }
@@ -621,6 +655,31 @@ const createStyles = (theme: typeof themeLight) =>
       height: 70,
       borderRadius: 35,
       marginRight: 14,
+    },
+    imageContainer: {
+      position: 'relative',
+      width: 70,
+      height: 70,
+      marginRight: 14,
+    },
+    viewProfileOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      borderRadius: 35,
+      justifyContent: 'center',
+      alignItems: 'center',
+      flexDirection: 'row',
+    },
+    viewProfileText: {
+      color: '#fff',
+      fontSize: 10,
+      width: "50%",
+      textAlign: 'center',
+      fontWeight: '600',
     },
     hintImage: {
       width: 70,
