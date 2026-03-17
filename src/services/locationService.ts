@@ -32,7 +32,6 @@ class LocationService {
 
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
-        timeoutMs: 10000, // 10 second timeout
       });
 
       return location;
@@ -41,7 +40,6 @@ class LocationService {
       try {
         const location = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Low,
-          timeoutMs: 5000, // 5 second timeout
         });
         return location;
       } catch (fallbackError) {

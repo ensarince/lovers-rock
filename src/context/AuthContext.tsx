@@ -55,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Listen for notification responses (when user taps on notification)
     const responseListener = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
+      (response: any) => {
         handleNotificationResponse(response);
       }
     );
@@ -69,7 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const handleNotificationResponse = async (
-    response: Notifications.NotificationResponse
+    response: any
   ) => {
     const data = response.notification.request.content.data;
     // You can navigate based on notification type here if needed
@@ -141,6 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       id: record.id,
       name: record.name || '',
       age: typeof record.age === 'number' ? record.age : 0,
+      verified: record.verified || false,
       gender: record.gender || undefined,
       grade: parsedGrade,
       climbing_styles: Array.isArray(record.climbing_styles) ? record.climbing_styles : [],
