@@ -41,7 +41,10 @@ yarn-error.*
 /ios
 /android
 
-#pocketbase folder
-pocketbase/
+# Pocketbase - ignore data files, keep only deployment-needed files
+Pocketbase/pb_data/backups/
+Pocketbase/pb_data/storage/
+Pocketbase/pb_data/*.db
+Pocketbase/pb_data/*.db-*
 
 brainstorm/

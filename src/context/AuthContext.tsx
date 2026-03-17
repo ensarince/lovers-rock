@@ -1,12 +1,24 @@
 import { authService } from '@/src/services/authService';
 import { createDefaultGrade } from '@/src/services/gradeService';
 import { locationService } from '@/src/services/locationService';
+import { NotificationService } from '@/src/services/notificationService';
 import { preferenceService } from '@/src/services/preferenceService';
 import { initReportService } from '@/src/services/reportService';
 import { Climber } from '@/src/types/climber';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import PocketBase from 'pocketbase';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+
+// Import conditionally to avoid Expo Go issues on Android
+let Notifications: any = null;
+try {
+  Notifications = require('expo-notifications');
+} catch (error) {
+  // expo-notifications not available in Expo Go
+  if (process.env.EXPO_DEV_MODE) {
+    console.warn('expo-notifications not available:', error);
+  }
+}
 
 interface AuthContextType {
   user: Climber | null;
@@ -25,6 +37,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+let notificationService: NotificationService | null = null;
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -33,6 +47,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [preferencesSynced, setPreferencesSynced] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+
+  // Initialize notification listeners when component mounts
+  useEffect(() => {
+    if (!Notifications) return;
+
+    // Listen for notification responses (when user taps on notification)
+    const responseListener = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        handleNotificationResponse(response);
+      }
+    );
+
+    // Cleanup listener on unmount
+    return () => {
+      if (responseListener) {
+        Notifications.removeNotificationSubscription(responseListener);
+      }
+    };
+  }, []);
+
+  const handleNotificationResponse = async (
+    response: Notifications.NotificationResponse
+  ) => {
+    const data = response.notification.request.content.data;
+    // You can navigate based on notification type here if needed
+    // For now, just log it
+    if (process.env.EXPO_DEV_MODE) {
+      console.log('Notification tapped:', data);
+    }
+  };
+
+  /**
+   * Setup notification service for the user
+   */
+  const setupNotifications = async (userId: string, pb: PocketBase) => {
+    try {
+      notificationService = new NotificationService(pb, userId);
+
+      // Request notification permissions
+      const permissionGranted = await notificationService.requestPermissions();
+      if (process.env.EXPO_DEV_MODE) {
+        console.log('Notification permissions granted:', permissionGranted);
+      }
+
+      // Setup real-time listeners
+      await notificationService.setupRealtimeListeners();
+      if (process.env.EXPO_DEV_MODE) {
+        console.log('Real-time notification listeners set up');
+      }
+    } catch (error) {
+      console.error('Error setting up notifications:', error);
+    }
+  };
+
+  /**
+   * Cleanup notification service
+   */
+  const cleanupNotifications = () => {
+    if (notificationService) {
+      notificationService.cleanup();
+      notificationService = null;
+    }
+  };
 
   // Initialize ReportService on app start
   useEffect(() => {
@@ -98,6 +175,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setUser(parsedUser ? mapToClimber(parsedUser) : null);
           setToken(storedToken);
           
+          // Setup notifications for restored user
+          const pb = new PocketBase(`http://${process.env.EXPO_PUBLIC_IP}:8090`);
+          pb.authStore.save(storedToken, parsedUser);
+          await setupNotifications(parsedUser.id, pb);
+          
           // Refresh user data from PocketBase to ensure latest profile_completed status
           try {
             const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
@@ -130,6 +212,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           const currentToken = authService.getToken?.() || null;
           setUser(currentUser ? mapToClimber(currentUser) : null);
           setToken(currentToken);
+          
+          // Setup notifications for authenticated user
+          if (currentUser && currentToken) {
+            const pb = new PocketBase(`http://${process.env.EXPO_PUBLIC_IP}:8090`);
+            pb.authStore.save(currentToken, currentUser);
+            await setupNotifications(currentUser.id, pb);
+          }
+          
           // Reset preferences and sync for existing user
           if (currentUser && currentToken) {
             preferenceService.reset();
@@ -160,6 +250,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setToken(authData.token);
       await AsyncStorage.setItem('user', JSON.stringify(climberUser));
       await AsyncStorage.setItem('token', authData.token);
+      
+      // Setup notifications for logged-in user
+      const pb = new PocketBase(`http://${process.env.EXPO_PUBLIC_IP}:8090`);
+      pb.authStore.save(authData.token, authData.record);
+      await setupNotifications(authData.record.id, pb);
+      
       // Reset preferences and sync for the new user
       preferenceService.reset();
       await preferenceService.syncPreferences(authData.token, authData.record.id);
@@ -266,6 +362,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const logout = async () => {
     // Stop location tracking when logging out
     locationService.stopPeriodicLocationUpdates();
+    
+    // Clean up notifications
+    cleanupNotifications();
     
     authService.logout();
     setUser(null);
