@@ -46,5 +46,6 @@ Pocketbase/pb_data/backups/
 Pocketbase/pb_data/storage/
 Pocketbase/pb_data/*.db
 Pocketbase/pb_data/*.db-*
+Pocketbase/pocketbase.exe
 
 brainstorm/
