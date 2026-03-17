@@ -1,0 +1,28 @@
+# 1. Use a lightweight Linux base
+FROM alpine:latest
+
+# 2. Define the PocketBase version
+ARG PB_VERSION=0.22.20
+
+# 3. Install necessary tools to download and unzip
+RUN apk add --no-cache \
+    ca-certificates \
+    unzip \
+    wget \
+    bash
+
+# 4. Download the Linux version of PocketBase (NOT the .exe)
+RUN wget https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip \
+    && unzip pocketbase_${PB_VERSION}_linux_amd64.zip -d /pb/
+
+# 5. Copy your local migrations and hooks into the container
+# This ensures your tables are created automatically on Railway
+COPY ./pb_migrations /pb/pb_migrations
+COPY ./pb_hooks /pb/pb_hooks
+
+# 6. Expose the port Railway uses
+EXPOSE 8080
+
+# 7. Start PocketBase
+# We point the data to /pb/pb_data, which matches your Railway Volume
+CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8080", "--dir=/pb/pb_data"]
