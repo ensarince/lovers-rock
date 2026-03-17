@@ -1,6 +1,7 @@
 import PocketBase from 'pocketbase';
+import { getPocketBaseUrl } from '../utils/helperFunctions';
 
-const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+const POCKETBASE_URL = getPocketBaseUrl();
 let pb = new PocketBase(POCKETBASE_URL);
 
 // Verify PocketBase connection on startup
