@@ -5,6 +5,7 @@ import { createDefaultGrade, formatGradeDisplay, getExampleGrades } from '@/src/
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber, ClimbingGrade, ClimbingStyle, Gender, GeneralLevel, GradeSystem } from '@/src/types/climber';
+import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
@@ -37,7 +38,7 @@ const getStyleImage = (style: ClimbingStyle) => {
   return imageMap[style];
 };
 
-const pb = new PocketBase(`http://${process.env.EXPO_PUBLIC_IP}:8090`);
+const pb = new PocketBase(getPocketBaseUrl());
 
 const GENERAL_LEVELS: GeneralLevel[] = [
   'beginner',
@@ -147,7 +148,7 @@ export default function ProfileScreen() {
 
     try {
       setDeleting(true);
-      const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      const POCKETBASE_URL = getPocketBaseUrl();
       
       const response = await fetch(
         `${POCKETBASE_URL}/api/collections/users/records/${user.id}`,
@@ -187,7 +188,7 @@ export default function ProfileScreen() {
       setIntent(newIntent);
 
       // Save to database immediately using fetch
-      const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      const POCKETBASE_URL = getPocketBaseUrl();
       const response = await fetch(
         `${POCKETBASE_URL}/api/collections/users/records/${user?.id}`,
         {
@@ -265,7 +266,7 @@ export default function ProfileScreen() {
 
     setSaving(true);
     try {
-      const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      const POCKETBASE_URL = getPocketBaseUrl();
 
       // Ensure grade has all required fields
       const gradeToSave = {
@@ -388,6 +389,7 @@ export default function ProfileScreen() {
             // Map to Climber type
             const mappedUser: Climber = {
               id: latestUser.id,
+              verified: latestUser.verified || false,
               name: latestUser.name || '',
               age: typeof latestUser.age === 'number' ? latestUser.age : 0,
               gender: latestUser.gender,
@@ -483,7 +485,7 @@ export default function ProfileScreen() {
     if (images && images.length > 0) {
       const userId = typedUser?.id;
       if (userId) {
-        const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+        const baseUrl = getPocketBaseUrl();
         return `${baseUrl}/api/files/users/${userId}/${images[0]}?thumb=100x100`;
       }
     }
@@ -494,7 +496,7 @@ export default function ProfileScreen() {
 
     // 4. Manually construct the URL if we have the necessary parts
     if (filename && userId) {
-      const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      const baseUrl = getPocketBaseUrl();
       // PocketBase file path format: /api/files/COLLECTION_ID_OR_NAME/RECORD_ID/FILENAME
       return `${baseUrl}/api/files/users/${userId}/${filename}?thumb=100x100`;
     }
@@ -513,7 +515,7 @@ export default function ProfileScreen() {
     if (images && images.length > 0) {
       const userId = typedUser?.id;
       if (userId) {
-        const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+        const baseUrl = getPocketBaseUrl();
         return `${baseUrl}/api/files/users/${userId}/${images[0]}`;
       }
     }
@@ -524,7 +526,7 @@ export default function ProfileScreen() {
 
     // 4. Manually construct the URL if we have the necessary parts
     if (filename && userId) {
-      const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      const baseUrl = getPocketBaseUrl();
       return `${baseUrl}/api/files/users/${userId}/${filename}`;
     }
 
@@ -637,7 +639,7 @@ export default function ProfileScreen() {
                           source={{
                             uri: isNewPhoto
                               ? imageUri
-                              : `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${user.id}/${imageUri}?thumb=200x200`,
+                              : `${getPocketBaseUrl()}/api/files/users/${user.id}/${imageUri}?thumb=200x200`,
                           }}
                           style={{ width: '100%', height: '100%' }}
                         />

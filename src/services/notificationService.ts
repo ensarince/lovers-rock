@@ -1,3 +1,4 @@
+import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import PocketBase from 'pocketbase';
 
 // Import conditionally to avoid Expo Go issues on Android
@@ -221,6 +222,6 @@ export class NotificationService {
 }
 
 export const notificationService = new NotificationService(
-  new PocketBase(`http://${process.env.EXPO_PUBLIC_IP}:8090`),
+  new PocketBase(getPocketBaseUrl()),
   ''
 );

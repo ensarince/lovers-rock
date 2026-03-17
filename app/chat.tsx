@@ -8,6 +8,7 @@ import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Match } from '@/src/types/match';
 import { Message } from '@/src/types/message';
+import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
@@ -22,7 +23,7 @@ import {
   TextInput,
 } from 'react-native';
 
-const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+const POCKETBASE_URL = getPocketBaseUrl();
 
 export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);

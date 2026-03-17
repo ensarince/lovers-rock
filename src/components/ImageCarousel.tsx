@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import React, { useState } from 'react';
 import {
   Dimensions,
@@ -39,7 +40,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
 
   const getImageUrl = (filename: string) => {
     if (filename && userId) {
-      const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      const baseUrl = getPocketBaseUrl();
       return `${baseUrl}/api/files/users/${userId}/${filename}?thumb=800x800`;
     }
     return undefined;
@@ -47,7 +48,7 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
 
   const getThumbnailUrl = (filename: string) => {
     if (filename && userId) {
-      const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      const baseUrl = getPocketBaseUrl();
       return `${baseUrl}/api/files/users/${userId}/${filename}?thumb=200x200`;
     }
     return undefined;

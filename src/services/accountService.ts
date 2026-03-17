@@ -1,7 +1,8 @@
 import { createDefaultGrade } from '@/src/services/gradeService';
 import { Climber } from '@/src/types/climber';
+import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 
-const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+const POCKETBASE_URL = getPocketBaseUrl();
 
 // Helper to parse grade from PocketBase record
 const parseGrade = (grade: any) => {

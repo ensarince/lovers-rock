@@ -1,4 +1,5 @@
 import { Climber } from '@/src/types/climber';
+import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import { Match } from '../types/match';
 import { getAllAccounts } from './accountService';
 
@@ -80,7 +81,7 @@ export const getIncomingPartnerRequests = async (currentUserId: string, token: s
       const climbing_styles = typeof user.climbing_styles === 'string'
         ? JSON.parse(user.climbing_styles)
         : user.climbing_styles || [];
-      const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      const baseUrl = getPocketBaseUrl();
       // Preserve images array with filenames for ImageCarousel
       const images = user.images && user.images.length > 0 ? user.images : (user.avatar ? [user.avatar] : []);
       let avatarUrl = '';
@@ -116,7 +117,7 @@ export const acceptPartnerRequest = async (currentUserId: string, requesterId: s
     
     // Update both fields in backend
     await fetch(
-      `http://${process.env.EXPO_PUBLIC_IP}:8090/api/collections/users/records/${currentUserId}`,
+      `${getPocketBaseUrl()}/api/collections/users/records/${currentUserId}`,
       {
         method: 'PATCH',
         headers: {
@@ -187,7 +188,7 @@ export const declinePartnerRequest = async (currentUserId: string, requesterId: 
     
     // Update current user's declined_users_as_partner in database
     const updateResponse = await fetch(
-      `http://${process.env.EXPO_PUBLIC_IP}:8090/api/collections/users/records/${currentUserId}`,
+      `${getPocketBaseUrl()}/api/collections/users/records/${currentUserId}`,
       {
         method: 'PATCH',
         headers: {
@@ -264,7 +265,7 @@ export const declineDatingUser = async (currentUserId: string, declinedUserId: s
     
     // Update current user's declined_users_as_dating in database
     const updateResponse = await fetch(
-      `http://${process.env.EXPO_PUBLIC_IP}:8090/api/collections/users/records/${currentUserId}`,
+      `${getPocketBaseUrl()}/api/collections/users/records/${currentUserId}`,
       {
         method: 'PATCH',
         headers: {
@@ -358,7 +359,7 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
         const climbing_styles = typeof user.climbing_styles === 'string'
           ? JSON.parse(user.climbing_styles)
           : user.climbing_styles || [];
-        const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+        const baseUrl = getPocketBaseUrl();
         // Preserve images array with filenames for ImageCarousel
         const images = user.images && user.images.length > 0 ? user.images : (user.avatar ? [user.avatar] : []);
         let avatarUrl = '';
@@ -397,7 +398,7 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
         const climbing_styles = typeof user.climbing_styles === 'string'
           ? JSON.parse(user.climbing_styles)
           : user.climbing_styles || [];
-        const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+        const baseUrl = getPocketBaseUrl();
         // Preserve images array with filenames for ImageCarousel
         const images = user.images && user.images.length > 0 ? user.images : (user.avatar ? [user.avatar] : []);
         let avatarUrl = '';
@@ -467,7 +468,7 @@ export const unmatchUser = async (currentUserId: string, targetUserId: string, m
     // Update both users in backend
     await Promise.all([
       fetch(
-        `http://${process.env.EXPO_PUBLIC_IP}:8090/api/collections/users/records/${currentUserId}`,
+        `${getPocketBaseUrl()}/api/collections/users/records/${currentUserId}`,
         {
           method: 'PATCH',
           headers: {
@@ -478,7 +479,7 @@ export const unmatchUser = async (currentUserId: string, targetUserId: string, m
         }
       ),
       fetch(
-        `http://${process.env.EXPO_PUBLIC_IP}:8090/api/collections/users/records/${targetUserId}`,
+        `${getPocketBaseUrl()}/api/collections/users/records/${targetUserId}`,
         {
           method: 'PATCH',
           headers: {

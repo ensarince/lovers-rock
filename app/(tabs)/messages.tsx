@@ -5,6 +5,7 @@ import { messageService } from '@/src/services/messageService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import type { Conversation } from '@/src/types/message';
+import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useState } from 'react';
@@ -104,7 +105,7 @@ export default function MessagesScreen() {
     };
 
     const openChat = (conversation: Conversation) => {
-        const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+        const POCKETBASE_URL = getPocketBaseUrl();
         let avatarUrl = '';
         if (conversation.climber.images && conversation.climber.images.length > 0) {
             avatarUrl = `${POCKETBASE_URL}/api/files/users/${conversation.climber.id}/${conversation.climber.images[0]}?thumb=40x40`;
@@ -134,12 +135,12 @@ export default function MessagesScreen() {
         // Get the image URL - prefer images array, then image_url, then avatar
         let imageUrl = '';
         if (item.climber?.images && item.climber.images.length > 0) {
-            const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+            const baseUrl = getPocketBaseUrl();
             imageUrl = `${baseUrl}/api/files/users/${item.climber.id}/${item.climber.images[0]}?thumb=100x100`;
         } else if (item.climber?.image_url) {
             imageUrl = item.climber.image_url;
         } else if (item.climber?.avatar && item.climber?.id) {
-            const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+            const baseUrl = getPocketBaseUrl();
             imageUrl = `${baseUrl}/api/files/users/${item.climber.id}/${item.climber.avatar}?thumb=100x100`;
         }
 

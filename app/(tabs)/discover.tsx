@@ -12,6 +12,7 @@ import { getReportService } from '@/src/services/reportService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
+import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
@@ -28,7 +29,7 @@ import {
 } from 'react-native';
 import { getAllAccounts } from '../../src/services/accountService';
 
-const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+const POCKETBASE_URL = getPocketBaseUrl();
 
 export default function DiscoverScreen() {
   // Dating mode state
@@ -245,7 +246,7 @@ export default function DiscoverScreen() {
 
           let avatarUrl = '';
           if (c.id) {
-            const baseUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+            const baseUrl = getPocketBaseUrl();
             // Prioritize images array, fall back to avatar field
             if (Array.isArray(c.images) && c.images.length > 0) {
               avatarUrl = `${baseUrl}/api/files/users/${c.id}/${c.images[0]}?thumb=100x100`;
@@ -874,9 +875,9 @@ export default function DiscoverScreen() {
               let avatarUrl = '';
               if (item.id) {
                 if (Array.isArray(item.images) && item.images.length > 0) {
-                  avatarUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${item.id}/${item.images[0]}?thumb=100x100`;
+                  avatarUrl = `${getPocketBaseUrl()}/api/files/users/${item.id}/${item.images[0]}?thumb=100x100`;
                 } else if (item.avatar) {
-                  avatarUrl = `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${item.id}/${item.avatar}?thumb=100x100`;
+                  avatarUrl = `${getPocketBaseUrl()}/api/files/users/${item.id}/${item.avatar}?thumb=100x100`;
                 }
               }
               return (

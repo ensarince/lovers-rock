@@ -5,6 +5,7 @@ import { NotificationService } from '@/src/services/notificationService';
 import { preferenceService } from '@/src/services/preferenceService';
 import { initReportService } from '@/src/services/reportService';
 import { Climber } from '@/src/types/climber';
+import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import PocketBase from 'pocketbase';
 import React, { createContext, useContext, useEffect, useState } from 'react';
@@ -114,7 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Initialize ReportService on app start
   useEffect(() => {
     try {
-      const pb = new PocketBase(`http://${process.env.EXPO_PUBLIC_IP}:8090`);
+      const pb = new PocketBase(getPocketBaseUrl());
       initReportService(pb);
     } catch (error) {
       console.error('Failed to initialize ReportService:', error);
@@ -176,13 +177,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setToken(storedToken);
           
           // Setup notifications for restored user
-          const pb = new PocketBase(`http://${process.env.EXPO_PUBLIC_IP}:8090`);
+          const pb = new PocketBase(getPocketBaseUrl());
           pb.authStore.save(storedToken, parsedUser);
           await setupNotifications(parsedUser.id, pb);
           
           // Refresh user data from PocketBase to ensure latest profile_completed status
           try {
-            const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+            const POCKETBASE_URL = getPocketBaseUrl();
             const freshUserRes = await fetch(
               `${POCKETBASE_URL}/api/collections/users/records/${parsedUser.id}`,
               {
@@ -215,7 +216,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           
           // Setup notifications for authenticated user
           if (currentUser && currentToken) {
-            const pb = new PocketBase(`http://${process.env.EXPO_PUBLIC_IP}:8090`);
+            const pb = new PocketBase(getPocketBaseUrl());
             pb.authStore.save(currentToken, currentUser);
             await setupNotifications(currentUser.id, pb);
           }
@@ -252,7 +253,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       await AsyncStorage.setItem('token', authData.token);
       
       // Setup notifications for logged-in user
-      const pb = new PocketBase(`http://${process.env.EXPO_PUBLIC_IP}:8090`);
+      const pb = new PocketBase(getPocketBaseUrl());
       pb.authStore.save(authData.token, authData.record);
       await setupNotifications(authData.record.id, pb);
       
@@ -264,7 +265,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Location tracking will be started in the discover screen after 3 seconds
       
       // Fetch fresh user data
-      const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      const POCKETBASE_URL = getPocketBaseUrl();
       setTimeout(async () => {
         try {
           const updatedUserRes = await fetch(

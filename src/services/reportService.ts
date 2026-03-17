@@ -1,4 +1,6 @@
 
+import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
+
 export type ReportReason = 'harassment' | 'inappropriate_photos' | 'spam' | 'fake_profile' | 'other';
 export type ReportStatus = 'pending' | 'reviewed' | 'resolved';
 
@@ -25,7 +27,7 @@ class ReportService {
    */
   async blockUser(userId: string, blockedUserId: string, token: string): Promise<any> {
     try {
-      const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      const POCKETBASE_URL = getPocketBaseUrl();
       
       // Get current user to get existing blocked_users
       const response = await fetch(
@@ -105,7 +107,7 @@ class ReportService {
    */
   async unblockUser(userId: string, blockedUserId: string, token: string): Promise<void> {
     try {
-      const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      const POCKETBASE_URL = getPocketBaseUrl();
       
       // Get current user
       const response = await fetch(
@@ -177,7 +179,7 @@ class ReportService {
     token: string
   ): Promise<Report> {
     try {
-      const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      const POCKETBASE_URL = getPocketBaseUrl();
       
       const response = await fetch(
         `${POCKETBASE_URL}/api/collections/reports/records`,
@@ -215,7 +217,7 @@ class ReportService {
    */
   async getBlockedUsers(userId: string, token: string): Promise<string[]> {
     try {
-      const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      const POCKETBASE_URL = getPocketBaseUrl();
       
       // Fetch with expand to get full relation data
       const response = await fetch(
@@ -293,7 +295,7 @@ class ReportService {
    */
   async getUserReports(userId: string, token: string): Promise<Report[]> {
     try {
-      const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+      const POCKETBASE_URL = getPocketBaseUrl();
       
       const response = await fetch(
         `${POCKETBASE_URL}/api/collections/reports/records?filter=(from_user='${userId}')`,

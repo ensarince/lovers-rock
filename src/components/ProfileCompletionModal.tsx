@@ -1,6 +1,7 @@
 import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
 import { createDefaultGrade, formatGradeDisplay, getExampleGrades } from '@/src/services/gradeService';
+import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber, ClimbingGrade, ClimbingStyle, Gender, GeneralLevel, GradeSystem } from '@/src/types/climber';
@@ -186,7 +187,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                 return;
             }
 
-            const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+            const POCKETBASE_URL = getPocketBaseUrl();
             const formData = new FormData();
 
             // Add form fields
@@ -365,7 +366,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                                                     source={{
                                                         uri: isNewPhoto
                                                             ? imageUri
-                                                            : `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${user?.id}/${imageUri}?thumb=200x200`,
+                                                            : `${getPocketBaseUrl()}/api/files/users/${user?.id}/${imageUri}?thumb=200x200`,
                                                     }}
                                                     style={styles.imageThumb}
                                                 />

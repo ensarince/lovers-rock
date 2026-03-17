@@ -9,7 +9,7 @@ import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
 import { Match } from '@/src/types/match';
-import { getFirstImageUrl } from '@/src/utils/helperFunctions';
+import { getFirstImageUrl, getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
@@ -198,7 +198,7 @@ export default function MatchesScreen() {
 
   const handleMessage = (match: Match) => {
     setModalVisible(false);
-    const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+    const POCKETBASE_URL = getPocketBaseUrl();
     let avatarUrl = '';
     if (match.climber.images && match.climber.images.length > 0) {
       avatarUrl = `${POCKETBASE_URL}/api/files/users/${match.climber.id}/${match.climber.images[0]}?thumb=40x40`;
@@ -307,7 +307,7 @@ export default function MatchesScreen() {
         onPressOut={() => setHoveredRequestImageId(null)}
       >
         <Image
-          source={{ uri: getFirstImageUrl(item.images, item.id) || `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${item.id}/${item.avatar}?thumb=100x100` }}
+          source={{ uri: getFirstImageUrl(item.images, item.id) || `${getPocketBaseUrl()}/api/files/users/${item.id}/${item.avatar}?thumb=100x100` }}
           style={styles.matchImageMinimal}
         />
         {hoveredRequestImageId === item.id && (
@@ -372,7 +372,7 @@ export default function MatchesScreen() {
   const renderDatingLikedHint = () => (
     <Pressable style={styles.datingLikedHintCard}>
       <Image
-        source={{ uri: getFirstImageUrl(datingLikedHint!.images, datingLikedHint!.id) || `http://${process.env.EXPO_PUBLIC_IP}:8090/api/files/users/${datingLikedHint!.id}/${datingLikedHint!.avatar}?thumb=100x100` }}
+        source={{ uri: getFirstImageUrl(datingLikedHint!.images, datingLikedHint!.id) || `${getPocketBaseUrl()}/api/files/users/${datingLikedHint!.id}/${datingLikedHint!.avatar}?thumb=100x100` }}
         style={[styles.hintImage, { opacity: 0.2 }]}
       />
 

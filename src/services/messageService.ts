@@ -1,7 +1,8 @@
 import PocketBase from 'pocketbase/cjs';
+import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import { Message } from '../types/message';
 
-const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+const POCKETBASE_URL = getPocketBaseUrl();
 
 export class MessageService {
   private pb: PocketBase;

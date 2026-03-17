@@ -1,6 +1,7 @@
 import { Climber } from '@/src/types/climber';
+import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 
-const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+const POCKETBASE_URL = getPocketBaseUrl();
 
 export interface UserPreference {
   climberId: string;

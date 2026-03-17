@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
+import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 
-const POCKETBASE_URL = `http://${process.env.EXPO_PUBLIC_IP}:8090`;
+const POCKETBASE_URL = getPocketBaseUrl();
 
 class LocationService {
   private locationUpdateInterval: ReturnType<typeof setInterval> | null = null;
