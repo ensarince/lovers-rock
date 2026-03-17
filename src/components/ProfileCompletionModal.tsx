@@ -257,30 +257,30 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
 
             // If we uploaded new images, set avatar to the first image with its actual filename
             if (newPhotos.length > 0 && updatedImages.length > 0) {
-              try {
-                const avatarResponse = await fetch(
-                  `${POCKETBASE_URL}/api/collections/users/records/${user.id}`,
-                  {
-                    method: 'PATCH',
-                    headers: {
-                      Authorization: `Bearer ${token}`,
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      avatar: updatedImages[0],
-                    }),
-                  }
-                );
-                
-                if (avatarResponse.ok) {
-                  const finalRecord = await avatarResponse.json();
-                  avatarToUse = finalRecord.avatar || updatedImages[0];
+                try {
+                    const avatarResponse = await fetch(
+                        `${POCKETBASE_URL}/api/collections/users/records/${user.id}`,
+                        {
+                            method: 'PATCH',
+                            headers: {
+                                Authorization: `Bearer ${token}`,
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                avatar: updatedImages[0],
+                            }),
+                        }
+                    );
+
+                    if (avatarResponse.ok) {
+                        const finalRecord = await avatarResponse.json();
+                        avatarToUse = finalRecord.avatar || updatedImages[0];
+                    }
+                } catch (avatarErr) {
+                    console.error('Error setting avatar:', avatarErr);
+                    // Continue anyway, images are already uploaded
+                    avatarToUse = updatedImages[0];
                 }
-              } catch (avatarErr) {
-                console.error('Error setting avatar:', avatarErr);
-                // Continue anyway, images are already uploaded
-                avatarToUse = updatedImages[0];
-              }
             }
 
             const updatedClimber: Climber = {
@@ -746,10 +746,12 @@ const createStyles = (theme: any) =>
             justifyContent: 'space-between',
             gap: 12,
             marginVertical: 12,
+            backgroundColor: "transparent"
         },
         imageSlot: {
             flex: 1,
             alignItems: 'center',
+            backgroundColor: "transparent"
         },
         imageButton: {
             width: '100%',
@@ -769,7 +771,9 @@ const createStyles = (theme: any) =>
         imagePlaceholder: {
             width: '100%',
             height: '100%',
+            backgroundColor: "transparent",
             justifyContent: 'center',
+
             alignItems: 'center',
         },
         removeImageButton: {
