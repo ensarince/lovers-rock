@@ -102,7 +102,7 @@ export default function ChatScreen() {
     }
   }, [detailModalVisible, climberData, climberId, token]);
 
-  // Polling for read receipt updates (check for new read status every 5 seconds)
+  // Polling for read receipt updates (check for new read status every 1.5 seconds)
   useEffect(() => {
     const startPolling = async () => {
       if (!user?.id || !climberId) return;
@@ -115,7 +115,7 @@ export default function ChatScreen() {
         } catch (error) {
           if (process.env.EXPO_DEV_MODE) console.error('Polling error:', error);
         }
-      }, 5000); // Poll every 5 seconds
+      }, 1500); // Poll every 1.5 seconds
     };
 
     startPolling();
@@ -236,18 +236,18 @@ export default function ChatScreen() {
 
       const currentReaction = message.reactions?.[user.id];
       await messageService.updateMessageReaction(messageId, user.id, currentReaction === '❤️' ? null : '❤️', token);
-      
+
       // Update local state
       setMessages(prev =>
         prev.map(m =>
           m.id === messageId
             ? {
-                ...m,
-                reactions: {
-                  ...(m.reactions || {}),
-                  [user.id]: currentReaction === '❤️' ? '' : '❤️',
-                },
-              }
+              ...m,
+              reactions: {
+                ...(m.reactions || {}),
+                [user.id]: currentReaction === '❤️' ? '' : '❤️',
+              },
+            }
             : m
         )
       );
@@ -380,7 +380,7 @@ export default function ChatScreen() {
           unreadCount: 0,
         } as Match}
         onClose={() => setDetailModalVisible(false)}
-        onMessage={() => {}}
+        onMessage={() => { }}
         userLatitude={user?.latitude}
         userLongitude={user?.longitude}
       />
@@ -505,6 +505,7 @@ const createStyles = (theme: typeof themeLight) =>
       alignItems: 'center',
       justifyContent: 'flex-end',
       marginTop: 4,
+      backgroundColor: 'transparent',
     },
     likeButton: {
       marginLeft: 8,

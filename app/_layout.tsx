@@ -1,12 +1,12 @@
 import { ProfileCompletionModal } from '@/src/components/ProfileCompletionModal';
 import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StatusBar, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
@@ -78,22 +78,28 @@ function RootLayoutNav() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <ProfileCompletionModal
-        visible={showProfileCompletion}
-        user={user}
-        onComplete={handleProfileComplete}
-        darkMode={darkMode}
+    <>
+      <StatusBar
+        barStyle={darkMode ? 'light-content' : 'dark-content'}
+        backgroundColor={darkMode ? '#252A34' : '#FAFBFC'}
       />
-      <Stack
-        screenOptions={{ headerShown: false }}
-        initialRouteName={isAuthenticated ? '(tabs)' : '(auth)'}
-        key={isAuthenticated ? 'authenticated' : 'unauthenticated'}
-      >
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="chat" />
-        <Stack.Screen name="(auth)" />
-      </Stack>
-    </ThemeProvider>
+      <ThemeProvider value={DarkTheme}>
+        <ProfileCompletionModal
+          visible={showProfileCompletion}
+          user={user}
+          onComplete={handleProfileComplete}
+          darkMode={darkMode}
+        />
+        <Stack
+          screenOptions={{ headerShown: false }}
+          initialRouteName={isAuthenticated ? '(tabs)' : '(auth)'}
+          key={isAuthenticated ? 'authenticated' : 'unauthenticated'}
+        >
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="chat" />
+          <Stack.Screen name="(auth)" />
+        </Stack>
+      </ThemeProvider>
+    </>
   );
 }

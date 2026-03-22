@@ -1,10 +1,12 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
-import React, { useState } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import React, { useRef, useState } from 'react';
 import {
+  Animated,
   Dimensions,
   Image,
   Modal,
+  PanResponder,
   Pressable,
   StyleSheet,
   Text,
@@ -37,6 +39,8 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [expandedImageIndex, setExpandedImageIndex] = useState<number | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
+  const pan = useRef(new Animated.ValueXY()).current;
+  const expandedPan = useRef(new Animated.ValueXY()).current;
 
   const getImageUrl = (filename: string) => {
     if (filename && userId) {
@@ -71,6 +75,88 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
     }
   };
 
+  // Pan responder for main carousel swipe
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (evt, { dx, dy }) => {
+        // Activate if horizontal movement > 10px and greater than vertical movement
+        return Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy);
+      },
+      onPanResponderMove: Animated.event([null, { dx: pan.x }], {
+        useNativeDriver: false,
+      }),
+      onPanResponderRelease: (evt, { dx }) => {
+        const threshold = 40;
+        if (dx > threshold) {
+          // Swipe right = previous image
+          Animated.spring(pan, {
+            toValue: { x: width, y: 0 },
+            useNativeDriver: false,
+          }).start(() => {
+            handlePrevImage();
+            pan.setValue({ x: 0, y: 0 });
+          });
+        } else if (dx < -threshold) {
+          // Swipe left = next image
+          Animated.spring(pan, {
+            toValue: { x: -width, y: 0 },
+            useNativeDriver: false,
+          }).start(() => {
+            handleNextImage();
+            pan.setValue({ x: 0, y: 0 });
+          });
+        } else {
+          // Not enough movement, reset
+          Animated.spring(pan, {
+            toValue: { x: 0, y: 0 },
+            useNativeDriver: false,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  // Pan responder for expanded modal swipe
+  const expandedPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (evt, { dx, dy }) => {
+        return Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy);
+      },
+      onPanResponderMove: Animated.event([null, { dx: expandedPan.x }], {
+        useNativeDriver: false,
+      }),
+      onPanResponderRelease: (evt, { dx }) => {
+        const threshold = 40;
+        if (dx > threshold) {
+          Animated.spring(expandedPan, {
+            toValue: { x: width, y: 0 },
+            useNativeDriver: false,
+          }).start(() => {
+            setExpandedImageIndex((prev) =>
+              prev! - 1 < 0 ? images.length - 1 : prev! - 1
+            );
+            expandedPan.setValue({ x: 0, y: 0 });
+          });
+        } else if (dx < -threshold) {
+          Animated.spring(expandedPan, {
+            toValue: { x: -width, y: 0 },
+            useNativeDriver: false,
+          }).start(() => {
+            setExpandedImageIndex((prev) => (prev! + 1) % images.length);
+            expandedPan.setValue({ x: 0, y: 0 });
+          });
+        } else {
+          Animated.spring(expandedPan, {
+            toValue: { x: 0, y: 0 },
+            useNativeDriver: false,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
   if (!images || images.length === 0) {
     return (
       <View
@@ -96,15 +182,22 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
   return (
     <>
       <View style={[styles.container, { height }, style]}>
-        <Pressable
-          onPress={handleImagePress}
-          style={styles.imageContainer}>
-          <Image
-            source={{ uri: getThumbnailUrl(images[currentIndex]) }}
-            style={styles.image}
-            resizeMode="cover"
-          />
-        </Pressable>
+        <Animated.View
+          {...panResponder.panHandlers}
+          style={[
+            styles.imageContainer,
+            pan.getLayout(),
+          ]}>
+          <Pressable
+            onPress={handleImagePress}
+            style={styles.imageContainer}>
+            <Image
+              source={{ uri: getThumbnailUrl(images[currentIndex]) }}
+              style={styles.image}
+              resizeMode="cover"
+            />
+          </Pressable>
+        </Animated.View>
 
         {/* Navigation buttons */}
         {images.length > 1 && (
@@ -168,23 +261,26 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
               <Ionicons name="close" size={32} color="#fff" />
             </Pressable>
 
-            <View style={styles.expandedImageContainer}>
+            <Animated.View
+              {...expandedPanResponder.panHandlers}
+              style={[
+                styles.expandedImageContainer,
+                expandedPan.getLayout(),
+              ]}>
               <Image
                 source={{ uri: getImageUrl(images[expandedImageIndex]) }}
                 style={styles.expandedImage}
                 resizeMode="contain"
               />
-            </View>
+            </Animated.View>
 
             {/* Navigation in expanded view */}
             {images.length > 1 && (
               <>
                 <Pressable
                   onPress={() => {
-                    handlePrevImage();
-                    setExpandedImageIndex(
-                      (prev) =>
-                        (prev! - 1 + images.length) % images.length
+                    setExpandedImageIndex((prev) =>
+                      prev! - 1 < 0 ? images.length - 1 : prev! - 1
                     );
                   }}
                   style={[styles.expandedNavButton, styles.expandedLeftButton]}>
@@ -192,7 +288,6 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
                 </Pressable>
                 <Pressable
                   onPress={() => {
-                    handleNextImage();
                     setExpandedImageIndex((prev) => (prev! + 1) % images.length);
                   }}
                   style={[styles.expandedNavButton, styles.expandedRightButton]}>

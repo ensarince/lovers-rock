@@ -42,6 +42,7 @@ export const BlockReportMenu: React.FC<BlockReportMenuProps> = ({
   const [reportReason, setReportReason] = useState<string>('');
   const [reportDescription, setReportDescription] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const handleBlock = async () => {
     if (!user?.id || !token) {
@@ -88,11 +89,10 @@ export const BlockReportMenu: React.FC<BlockReportMenuProps> = ({
         reportDescription,
         token
       );
-      Alert.alert('Success', 'Report submitted. Thank you for helping keep the community safe.');
+      setShowSuccessModal(true);
       setShowReportDialog(false);
       setReportReason('');
       setReportDescription('');
-      onClose();
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to submit report');
     } finally {
@@ -264,6 +264,55 @@ export const BlockReportMenu: React.FC<BlockReportMenuProps> = ({
           </View>
         </Pressable>
       </Modal>
+
+      {/* Success Modal */}
+      <Modal
+        visible={showSuccessModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowSuccessModal(false);
+          onClose();
+        }}
+      >
+        <Pressable
+          style={styles.successOverlay}
+          onPress={() => {
+            setShowSuccessModal(false);
+            onClose();
+          }}
+        >
+          <View style={styles.successContainer}>
+            <View style={styles.successIconContainer}>
+              <Ionicons
+                name="checkmark-circle"
+                size={72}
+                color={theme.colors.success}
+              />
+            </View>
+
+            <Text style={styles.successTitle}>Report Submitted</Text>
+
+            <Text style={styles.successMessage}>
+              Thank you for reporting this user. Our team will review your report and take appropriate action if needed.
+            </Text>
+
+            <Text style={styles.successSubtext}>
+              The safety of our community is important to us.
+            </Text>
+
+            <Pressable
+              style={styles.successButton}
+              onPress={() => {
+                setShowSuccessModal(false);
+                onClose();
+              }}
+            >
+              <Text style={styles.successButtonText}>Got It</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
     </>
   );
 };
@@ -412,5 +461,58 @@ const createStyles = (theme: typeof themeLight) =>
       fontSize: 14,
       fontWeight: '600',
       color: '#fff',
+    },
+    successOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      justifyContent: 'center',
+      paddingHorizontal: 20,
+    },
+    successContainer: {
+      backgroundColor: theme.colors.background,
+      borderRadius: 16,
+      paddingHorizontal: 24,
+      paddingVertical: 32,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    successIconContainer: {
+      marginBottom: 20,
+    },
+    successTitle: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginBottom: 12,
+      textAlign: 'center',
+    },
+    successMessage: {
+      fontSize: 15,
+      color: theme.colors.text,
+      textAlign: 'center',
+      marginBottom: 12,
+      lineHeight: 22,
+    },
+    successSubtext: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 24,
+      fontWeight: '500',
+    },
+    successButton: {
+      backgroundColor: theme.colors.success,
+      paddingVertical: 12,
+      paddingHorizontal: 32,
+      borderRadius: 8,
+    },
+    successButtonText: {
+      color: '#fff',
+      fontSize: 15,
+      fontWeight: '600',
     },
   });

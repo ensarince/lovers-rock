@@ -1,6 +1,7 @@
 
 import { Text } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
+import { getAllAccounts } from '@/src/services/accountService';
 import { createDefaultGrade, formatGradeDisplay, getExampleGrades } from '@/src/services/gradeService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
@@ -10,7 +11,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import PocketBase from 'pocketbase';
 import { useEffect, useState } from 'react';
 
 import {
@@ -37,8 +37,6 @@ const getStyleImage = (style: ClimbingStyle) => {
   };
   return imageMap[style];
 };
-
-const pb = new PocketBase(getPocketBaseUrl());
 
 const GENERAL_LEVELS: GeneralLevel[] = [
   'beginner',
@@ -79,9 +77,12 @@ export default function ProfileScreen() {
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
+  const [showBlockedUsers, setShowBlockedUsers] = useState(false);
+  const [blockedUsersData, setBlockedUsersData] = useState<Record<string, { name: string; avatarId: string | null }>>({});
   const [deleteConfirmationVisible, setDeleteConfirmationVisible] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [imageExpanded, setImageExpanded] = useState(false);
+  const [unblockingUserId, setUnblockingUserId] = useState<string | null>(null);
 
   // Profile fields
   const [name, setName] = useState(typedUser?.name || '');
@@ -101,7 +102,6 @@ export default function ProfileScreen() {
   // Image state for edit mode
   const [images, setImages] = useState(typedUser?.images || []);
   const [newPhotos, setNewPhotos] = useState<string[]>([]);
-  const [photo, setPhoto] = useState<string | null>(null);
   const [avatar, setAvatar] = useState(typedUser?.avatar || '');
   // Grade edit state
   const [showGradeSystemModal, setShowGradeSystemModal] = useState(false);
@@ -128,7 +128,6 @@ export default function ProfileScreen() {
     setAvatar(typedUser?.avatar || '');
     setNewPhotos([]);
     setIntent(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
-    setPhoto(null);
   }, [user]);
 
   const handleLogout = async () => {
@@ -138,6 +137,133 @@ export default function ProfileScreen() {
   const handleDarkModeToggle = async (value: boolean) => {
     setDarkMode(value);
     await AsyncStorage.setItem('darkMode', JSON.stringify(value));
+  };
+
+  const fetchBlockedUsersData = async () => {
+    if (!user?.blocked_users || !token) {
+      return;
+    }
+
+    try {
+      // Parse blocked_users to get array of IDs
+      let blockedUserIds: string[] = [];
+      
+      if (typeof user.blocked_users === 'string') {
+        try {
+          blockedUserIds = JSON.parse(user.blocked_users);
+        } catch (e) {
+          blockedUserIds = [];
+        }
+      } else if (Array.isArray(user.blocked_users)) {
+        blockedUserIds = user.blocked_users;
+      }
+
+      // Fetch all climbers and extract data for blocked users
+      if (blockedUserIds.length > 0) {
+        const allClimbers = await getAllAccounts(token);
+        
+        const dataMap: Record<string, { name: string; avatarId: string | null }> = {};
+        
+        blockedUserIds.forEach((blockedUserId) => {
+          const blockedUser = allClimbers.find(c => c.id === blockedUserId);
+          
+          if (blockedUser) {
+            const avatarId =
+              blockedUser.images && Array.isArray(blockedUser.images) && blockedUser.images.length > 0
+                ? blockedUser.images[0]
+                : blockedUser.avatar || null;
+            
+            dataMap[blockedUserId] = {
+              name: blockedUser.name || 'Unknown User',
+              avatarId,
+            };
+          } else {
+            // User not found in list, use fallback
+            dataMap[blockedUserId] = {
+              name: 'Unknown User',
+              avatarId: null,
+            };
+          }
+        });
+        
+        setBlockedUsersData(dataMap);
+      }
+    } catch (error: any) {
+      console.error('Error fetching blocked users data:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (showBlockedUsers && user?.blocked_users) {
+      fetchBlockedUsersData();
+    }
+  }, [showBlockedUsers, user?.blocked_users]);
+
+  const handleUnblock = async (blockedUserId: string) => {
+    if (!user?.id || !token) {
+      Alert.alert('Error', 'Authentication required');
+      return;
+    }
+
+    try {
+      setUnblockingUserId(blockedUserId);
+      const POCKETBASE_URL = getPocketBaseUrl();
+      
+      // Parse blocked_users (might be string or array)
+      let currentBlockedUsers: string[] = [];
+      if (typeof user.blocked_users === 'string') {
+        try {
+          currentBlockedUsers = JSON.parse(user.blocked_users);
+        } catch {
+          currentBlockedUsers = [];
+        }
+      } else if (Array.isArray(user.blocked_users)) {
+        currentBlockedUsers = user.blocked_users;
+      }
+
+      // Filter out the user to unblock
+      const updatedBlockedUsers = currentBlockedUsers.filter(id => id !== blockedUserId);
+      
+      // Update the user record - send as JSON string
+      const response = await fetch(
+        `${POCKETBASE_URL}/api/collections/users/records/${user.id}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            blocked_users: JSON.stringify(updatedBlockedUsers),
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to unblock user');
+      }
+
+      // Update local user state
+      const updatedUser = { ...user, blocked_users: updatedBlockedUsers };
+      setUser(updatedUser);
+      
+      // Remove from data map
+      const newDataMap = { ...blockedUsersData };
+      delete newDataMap[blockedUserId];
+      setBlockedUsersData(newDataMap);
+      
+      // Re-fetch data if more users remain
+      if (updatedBlockedUsers.length > 0) {
+        // Wait a moment then re-fetch
+        setTimeout(() => fetchBlockedUsersData(), 500);
+      }
+      
+      Alert.alert('Success', 'User has been unblocked');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to unblock user');
+    } finally {
+      setUnblockingUserId(null);
+    }
   };
 
   const handleDeleteAccount = async () => {
@@ -239,7 +365,6 @@ export default function ProfileScreen() {
       const newPhotoCopy = [...newPhotos];
       newPhotoCopy[index] = result.assets[0].uri;
       setNewPhotos(newPhotoCopy);
-      setPhoto(null); // Clear old single photo state
     }
   };
 
@@ -354,7 +479,6 @@ export default function ProfileScreen() {
       }
 
       setEditMode(false);
-      setPhoto(null);
       setNewPhotos([]);
       
       // Fetch latest user from backend and update context/cache
@@ -1158,6 +1282,19 @@ export default function ProfileScreen() {
 
             <Pressable
               style={[styles.settingItem, { borderTopWidth: 1, borderTopColor: theme.colors.border }]}
+              onPress={() => setShowBlockedUsers(true)}
+            >
+              <View style={styles.settingLabelRow}>
+                <Ionicons name="ban" size={20} color={theme.colors.accent} style={{ marginRight: 12 }} />
+                <Text style={[styles.settingLabel, { color: theme.colors.text }]}>
+                  Blocked Users {user?.blocked_users && user.blocked_users.length > 0 ? `(${user.blocked_users.length})` : ''}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+            </Pressable>
+
+            <Pressable
+              style={[styles.settingItem, { borderTopWidth: 1, borderTopColor: theme.colors.border }]}
               onPress={() => setDeleteConfirmationVisible(true)}
             >
               <View style={styles.settingLabelRow}>
@@ -1202,6 +1339,115 @@ export default function ProfileScreen() {
                 )}
               </Pressable>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Blocked Users Modal */}
+      <Modal
+        visible={showBlockedUsers}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowBlockedUsers(false)}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.5)' }]}>
+          <View style={[styles.blockedUsersModal, { backgroundColor: theme.colors.background }]}>
+            <View style={styles.blockedUsersHeader}>
+              <Text style={[styles.blockedUsersTitle, { color: theme.colors.text }]}>Blocked Users</Text>
+              <Pressable onPress={() => setShowBlockedUsers(false)} style={styles.closeButton}>
+                <Ionicons name="close" size={26} color={theme.colors.text} />
+              </Pressable>
+            </View>
+
+            {user?.blocked_users ? (
+              (() => {
+                // Parse blocked_users to get array
+                let blockedUserIds: any[] = [];
+                if (typeof user.blocked_users === 'string') {
+                  try {
+                    blockedUserIds = JSON.parse(user.blocked_users);
+                  } catch {
+                    blockedUserIds = [];
+                  }
+                } else if (Array.isArray(user.blocked_users)) {
+                  blockedUserIds = user.blocked_users;
+                }
+
+                return blockedUserIds && blockedUserIds.length > 0 ? (
+                  <ScrollView style={styles.blockedUsersList} showsVerticalScrollIndicator={false}>
+                    {blockedUserIds.map((blockedUser: any) => {
+                      // blockedUser might be an object or a string ID
+                      const userId = typeof blockedUser === 'string' ? blockedUser : blockedUser?.id;
+                      const userData = blockedUsersData[userId];
+                      
+                      // Also check if blockedUser itself has the data (relationship object)
+                      const avatarId = userData?.avatarId || 
+                        (blockedUser?.images?.length > 0 ? blockedUser.images[0] : blockedUser?.avatar) || 
+                        null;
+                      const userName = userData?.name || blockedUser?.name || 'Unknown User';
+                      const imageUrl = avatarId ? `${getPocketBaseUrl()}/api/files/users/${userId}/${avatarId}` : null;
+
+                      return (
+                        <View key={userId} style={[styles.blockedUserItem, { backgroundColor: theme.colors.surface }]}>
+                          {imageUrl ? (
+                            <Image
+                              source={{ uri: imageUrl }}
+                              style={styles.blockedUserAvatar}
+                            />
+                          ) : (
+                            <View style={[styles.blockedUserAvatar, { backgroundColor: theme.colors.accent, justifyContent: 'center', alignItems: 'center' }]}>
+                              <Ionicons name="person" size={20} color={theme.colors.background} />
+                            </View>
+                          )}
+                          <View style={styles.blockedUserInfo}>
+                            <Text style={[styles.blockedUserName, { color: theme.colors.text }]} numberOfLines={1}>
+                              {userName}
+                            </Text>
+                          </View>
+                          <Pressable
+                            style={[
+                              styles.unblockButton,
+                              unblockingUserId === userId && styles.unblockButtonLoading,
+                            ]}
+                            onPress={() => handleUnblock(userId)}
+                            disabled={unblockingUserId === userId}
+                          >
+                            {unblockingUserId === userId ? (
+                              <ActivityIndicator size="small" color="white" />
+                            ) : (
+                              <>
+                                <Ionicons name="checkmark" size={16} color="white" style={{ marginRight: 4 }} />
+                                <Text style={styles.unblockButtonText}>Unblock</Text>
+                              </>
+                            )}
+                          </Pressable>
+                        </View>
+                      );
+                    })}
+                  </ScrollView>
+                ) : (
+                  <View style={styles.emptyBlockedUsersContainer}>
+                    <Ionicons name="checkmark-circle" size={48} color={theme.colors.success} />
+                    <Text style={[styles.emptyBlockedUsersText, { color: theme.colors.text }]}>
+                      No blocked users
+                    </Text>
+                    <Text style={[styles.emptyBlockedUsersSubtext, { color: theme.colors.textSecondary }]}>
+                      Users you block will appear here
+                    </Text>
+                  </View>
+                );
+              })()
+            ) : (
+              <View style={styles.emptyBlockedUsersContainer}>
+                <Ionicons name="checkmark-circle" size={48} color={theme.colors.success} />
+                <Text style={[styles.emptyBlockedUsersText, { color: theme.colors.text }]}>
+                  No blocked users
+                </Text>
+                <Text style={[styles.emptyBlockedUsersSubtext, { color: theme.colors.textSecondary }]}>
+                  Users you block will appear here
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </Modal>
@@ -1431,5 +1677,100 @@ const createStyles = (theme: typeof themeLight) =>
     confirmationButtonText: {
       fontSize: 14,
       fontWeight: '600',
+    },
+    blockedUsersModal: {
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      maxHeight: '90%',
+      marginTop: 'auto',
+      flex: 1,
+    },
+    blockedUsersHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    blockedUsersTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      flex: 1,
+    },
+    closeButton: {
+      padding: 4,
+    },
+    blockedUsersList: {
+      flex: 1,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+    },
+    blockedUserItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      marginBottom: 10,
+      borderRadius: 12,
+      elevation: 2,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 2,
+    },
+    blockedUserAvatar: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      marginRight: 12,
+    },
+    blockedUserInfo: {
+      flex: 1,
+      justifyContent: 'center',
+    },
+    blockedUserName: {
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    unblockButton: {
+      flexDirection: 'row',
+      backgroundColor: theme.colors.success,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: 8,
+    },
+    unblockButtonLoading: {
+      opacity: 0.6,
+    },
+    unblockButtonText: {
+      color: '#fff',
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    emptyBlockedUsersContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 48,
+    },
+    emptyBlockedUsersText: {
+      fontSize: 18,
+      fontWeight: '600',
+      marginTop: 12,
+      marginBottom: 4,
+    },
+    emptyBlockedUsersSubtext: {
+      fontSize: 13,
+      fontWeight: '500',
     },
   });

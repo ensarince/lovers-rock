@@ -1,10 +1,10 @@
 import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
 import { createDefaultGrade, formatGradeDisplay, getExampleGrades } from '@/src/services/gradeService';
-import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber, ClimbingGrade, ClimbingStyle, Gender, GeneralLevel, GradeSystem } from '@/src/types/climber';
+import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
@@ -342,8 +342,30 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                     showsVerticalScrollIndicator={false}
                 >
                     {/* Images Section - 3 images required */}
-                    <View style={styles.imagesSection}>
-                        <Text style={styles.label}>Photos * (3 required)</Text>
+                    <View style={[styles.imagesSection, totalImages < 3 && styles.imagesSectionIncomplete]}>
+                        <View style={styles.imagesHeaderRow}>
+                            <View style={styles.imagesHeaderContent}>
+                                <Text style={styles.imagesHeaderLabel}>
+                                    <Text style={styles.requirementAsterisk}>*</Text> Upload Photos
+                                </Text>
+                                <Text style={styles.imagesHeaderSubtitle}>Required for your profile</Text>
+                            </View>
+                            <View style={styles.progressBadge}>
+                                <Text style={styles.progressText}>{totalImages}</Text>
+                                <Text style={styles.progressTotal}>/3</Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.progressBar}>
+                            <View
+                                style={[
+                                    styles.progressBarFill,
+                                    { width: `${(totalImages / 3) * 100}%` },
+                                    totalImages === 3 && styles.progressBarFillComplete,
+                                ]}
+                            />
+                        </View>
+
                         <View style={styles.imagesGrid}>
                             {[0, 1, 2].map((index) => {
                                 const hasExistingImage = index < images.length;
@@ -373,8 +395,8 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                                             ) : (
                                                 <View style={styles.imagePlaceholder}>
                                                     <Ionicons
-                                                        name="camera"
-                                                        size={32}
+                                                        name="camera-outline"
+                                                        size={36}
                                                         color={theme.colors.textSecondary}
                                                     />
                                                 </View>
@@ -393,11 +415,24 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                                 );
                             })}
                         </View>
-                        <Text style={styles.imagesHint}>
-                            {totalImages < 3
-                                ? `Add ${3 - totalImages} more image(s)`
-                                : 'All 3 images added'}
-                        </Text>
+
+                        <View style={styles.imagesFooter}>
+                            <Ionicons
+                                name={totalImages === 3 ? 'checkmark-circle' : 'information-circle'}
+                                size={16}
+                                color={totalImages === 3 ? theme.colors.success : theme.colors.error}
+                                style={{ marginRight: 8 }}
+                            />
+                            <Text style={[
+                                styles.imagesHint,
+                                totalImages === 3 && styles.imagesHintComplete,
+                                totalImages < 3 && styles.imagesHintIncomplete,
+                            ]}>
+                                {totalImages < 3
+                                    ? `Add ${3 - totalImages} more image${3 - totalImages > 1 ? 's' : ''}`
+                                    : 'Perfect! All 3 images uploaded'}
+                            </Text>
+                        </View>
                     </View>
 
                     {/* Name Input */}
@@ -740,13 +775,88 @@ const createStyles = (theme: any) =>
         },
         imagesSection: {
             marginBottom: 24,
-            backgroundColor: "transparent"
+            backgroundColor: theme.colors.surface,
+            borderRadius: 12,
+            borderWidth: 2,
+            borderColor: theme.colors.border,
+            padding: 16,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            elevation: 4,
+        },
+        imagesSectionIncomplete: {
+            borderColor: theme.colors.error,
+            borderWidth: 2,
+            shadowColor: theme.colors.error,
+            shadowOpacity: 0.15,
+        },
+        imagesHeaderRow: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            backgroundColor: "transparent",
+            marginBottom: 12,
+        },
+        imagesHeaderContent: {
+            flex: 1,
+            backgroundColor: "transparent",
+        },
+        imagesHeaderLabel: {
+            fontSize: 16,
+            fontWeight: '700',
+            color: theme.colors.text,
+            marginBottom: 4,
+        },
+        imagesHeaderSubtitle: {
+            fontSize: 12,
+            color: theme.colors.textSecondary,
+            fontWeight: '500',
+        },
+        requirementAsterisk: {
+            color: theme.colors.error,
+            fontWeight: '800',
+        },
+        progressBadge: {
+            flexDirection: 'row',
+            alignItems: 'baseline',
+            backgroundColor: theme.colors.accent + '15',
+            paddingHorizontal: 12,
+            paddingVertical: 6,
+            borderRadius: 8,
+        },
+        progressText: {
+            fontSize: 18,
+            fontWeight: '700',
+            color: theme.colors.accent,
+        },
+        progressTotal: {
+            fontSize: 14,
+            fontWeight: '600',
+            color: theme.colors.textSecondary,
+            marginLeft: 2,
+        },
+        progressBar: {
+            height: 6,
+            backgroundColor: theme.colors.border,
+            borderRadius: 3,
+            overflow: 'hidden',
+            marginBottom: 12,
+        },
+        progressBarFill: {
+            height: '100%',
+            backgroundColor: theme.colors.accent,
+            borderRadius: 3,
+        },
+        progressBarFillComplete: {
+            backgroundColor: theme.colors.success,
         },
         imagesGrid: {
             flexDirection: 'row',
             justifyContent: 'space-between',
             gap: 12,
-            marginVertical: 12,
+            marginVertical: 8,
             backgroundColor: "transparent"
         },
         imageSlot: {
@@ -797,10 +907,23 @@ const createStyles = (theme: any) =>
             fontWeight: '500',
         },
         imagesHint: {
-            fontSize: 12,
+            fontSize: 13,
             color: theme.colors.textSecondary,
-            textAlign: 'center',
-            marginTop: 8,
+            fontWeight: '500',
+        },
+        imagesHintComplete: {
+            color: theme.colors.success,
+            fontWeight: '600',
+        },
+        imagesHintIncomplete: {
+            color: theme.colors.error,
+            fontWeight: '600',
+        },
+        imagesFooter: {
+            flexDirection: 'row',
+            backgroundColor: "transparent",
+            alignItems: 'center',
+            marginTop: 12,
         },
         styleGrid: {
             flexDirection: 'row',

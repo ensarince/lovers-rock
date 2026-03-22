@@ -17,6 +17,7 @@
       "supportsTablet": true,
       "infoPlist": {
         "UIBackgroundModes": [
+          "remote-notification",
           "remote-notification"
         ]
       }
@@ -30,6 +31,7 @@
       "predictiveBackGestureEnabled": false,
       "useNextNotificationApi": true,
       "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
         "android.permission.POST_NOTIFICATIONS"
       ],
       "package": "com.ensarince.loversrock"
@@ -59,6 +61,12 @@
         "projectId": "fea56759-fdfc-46dd-a45c-5b61ff8af166"
       }
     },
-    "owner": "ensarince"
+    "owner": "ensarince",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/fea56759-fdfc-46dd-a45c-5b61ff8af166"
+    }
   }
 }

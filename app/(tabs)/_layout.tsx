@@ -4,6 +4,7 @@ import { theme as themeLight } from '@/src/themeLight';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs, useRouter } from 'expo-router';
 import { useEffect } from 'react';
+import { StatusBar } from 'react-native';
 
 export default function TabLayout() {
   const { darkMode, user } = useAuth();
@@ -19,23 +20,28 @@ export default function TabLayout() {
   }, [user?.profile_completed, router]);
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: theme.colors.accent,
-        tabBarInactiveTintColor: theme.colors.textSecondary,
-        tabBarStyle: {
-          backgroundColor: theme.colors.surface,
-          borderTopColor: theme.colors.border,
-        },
-        headerStyle: {
-          backgroundColor: theme.colors.surface,
-        },
-        headerTintColor: theme.colors.text,
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-      }}
-    >
+    <>
+      <StatusBar
+        barStyle={darkMode ? 'light-content' : 'dark-content'}
+        backgroundColor={darkMode ? '#252A34' : '#FAFBFC'}
+      />
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: theme.colors.accent,
+          tabBarInactiveTintColor: theme.colors.textSecondary,
+          tabBarStyle: {
+            backgroundColor: theme.colors.surface,
+            borderTopColor: theme.colors.border,
+          },
+          headerStyle: {
+            backgroundColor: theme.colors.surface,
+          },
+          headerTintColor: theme.colors.text,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      >
       <Tabs.Screen
         name="discover"
         options={{
@@ -77,6 +83,7 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </>
   );
 }
 
