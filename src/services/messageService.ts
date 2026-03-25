@@ -1,8 +1,25 @@
 import PocketBase from 'pocketbase/cjs';
+import EventSource from 'react-native-sse';
 import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import { Message } from '../types/message';
 
 const POCKETBASE_URL = getPocketBaseUrl();
+
+const globalWithEventSource = globalThis as typeof globalThis & { EventSource?: any };
+
+if (!globalWithEventSource.EventSource) {
+  globalWithEventSource.EventSource = EventSource;
+}
+
+const mapMessageRecord = (record: any): Message => ({
+  id: record.id,
+  sender_id: record.sender_id,
+  receiver_id: record.receiver_id,
+  content: record.content,
+  created: record.created,
+  read: record.read,
+  reactions: record.reactions || {}
+});
 
 export class MessageService {
   private pb: PocketBase;
@@ -28,16 +45,7 @@ export class MessageService {
     };
 
     const record = await this.pb.collection('messages').create(data);
-    const message: Message = {
-      id: record.id,
-      sender_id: record.sender_id,
-      receiver_id: record.receiver_id,
-      content: record.content,
-      created: record.created,
-      read: record.read,
-      reactions: record.reactions || {}
-    };
-    return message;
+    return mapMessageRecord(record);
   }
 
   async getMessagesBetweenUsers(userId1: string, userId2: string, page = 1, perPage = 50): Promise<Message[]> {
@@ -46,15 +54,7 @@ export class MessageService {
       sort: 'created'
     });
 
-    return records.items.map((record: any) => ({
-      id: record.id,
-      sender_id: record.sender_id,
-      receiver_id: record.receiver_id,
-      content: record.content,
-      created: record.created,
-      read: record.read,
-      reactions: record.reactions || {}
-    })) as Message[];
+    return records.items.map((record: any) => mapMessageRecord(record)) as Message[];
   }
 
   async markMessagesAsRead(senderId: string, receiverId: string): Promise<void> {
@@ -62,6 +62,10 @@ export class MessageService {
     const records = await this.pb.collection('messages').getFullList({
       filter: `sender_id = "${senderId}" && receiver_id = "${receiverId}" && read = false`
     });
+
+    if (!records.length) {
+      return;
+    }
 
     // Update each message individually
     const updatePromises = records.map(record =>
@@ -71,11 +75,23 @@ export class MessageService {
     await Promise.all(updatePromises);
   }
 
-  subscribeToMessages(userId: string, callback: (message: Message) => void) {
-    // TODO: Implement real-time subscriptions for React Native
-    // EventSource is not available in React Native, so we'll use polling or another approach
-    if (process.env.EXPO_DEV_MODE) console.log('Real-time subscriptions not implemented for React Native yet');
-    return () => {}; // Return empty unsubscribe function
+  async subscribeToConversation(
+    userId1: string,
+    userId2: string,
+    callback: (event: { action: string; message: Message }) => void
+  ): Promise<() => Promise<void>> {
+    const filter = `((sender_id = "${userId1}" && receiver_id = "${userId2}") || (sender_id = "${userId2}" && receiver_id = "${userId1}"))`;
+
+    const unsubscribe = await this.pb.collection('messages').subscribe('*', (event: any) => {
+      callback({
+        action: event.action,
+        message: mapMessageRecord(event.record),
+      });
+    }, { filter });
+
+    return async () => {
+      await unsubscribe();
+    };
   }
 
   async getUnreadCount(userId: string): Promise<number> {
@@ -100,7 +116,7 @@ export class MessageService {
     await Promise.all(deletePromises);
   }
 
-  async updateMessageReaction(messageId: string, userId: string, reaction: string | null, token: string): Promise<void> {
+  async updateMessageReaction(messageId: string, userId: string, reaction: string | null): Promise<void> {
     try {
       const record = await this.pb.collection('messages').getOne(messageId);
       const reactions = record.reactions || {};

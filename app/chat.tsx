@@ -4,6 +4,7 @@ import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import { useAuth } from '@/src/context/AuthContext';
 import { messageService } from '@/src/services/messageService';
 import { getReportService } from '@/src/services/reportService';
+import { typingService } from '@/src/services/typingService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Match } from '@/src/types/match';
@@ -24,6 +25,53 @@ import {
 } from 'react-native';
 
 const POCKETBASE_URL = getPocketBaseUrl();
+const HEART_REACTION = '\u2764\uFE0F';
+const LEGACY_HEART_REACTION = '\u00e2\u009d\u00a4\u00ef\u00b8\u008f';
+
+const sortMessages = (msgs: Message[]) =>
+  [...msgs].sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime());
+
+const messagesAreEqual = (prev: Message[], next: Message[]) => {
+  if (prev === next) return true;
+  if (prev.length !== next.length) return false;
+
+  return prev.every((message, index) => {
+    const nextMessage = next[index];
+    if (!nextMessage) return false;
+
+    const prevReactions = message.reactions || {};
+    const nextReactions = nextMessage.reactions || {};
+    const prevReactionKeys = Object.keys(prevReactions);
+    const nextReactionKeys = Object.keys(nextReactions);
+
+    if (prevReactionKeys.length !== nextReactionKeys.length) return false;
+    if (prevReactionKeys.some((key) => prevReactions[key] !== nextReactions[key])) return false;
+
+    return (
+      message.id === nextMessage.id &&
+      message.content === nextMessage.content &&
+      message.created === nextMessage.created &&
+      message.read === nextMessage.read &&
+      message.sender_id === nextMessage.sender_id &&
+      message.receiver_id === nextMessage.receiver_id
+    );
+  });
+};
+
+const upsertMessage = (messages: Message[], nextMessage: Message) => {
+  const existingIndex = messages.findIndex((message) => message.id === nextMessage.id);
+
+  if (existingIndex === -1) {
+    return sortMessages([...messages, nextMessage]);
+  }
+
+  const nextMessages = [...messages];
+  nextMessages[existingIndex] = nextMessage;
+  return sortMessages(nextMessages);
+};
+
+const isHeartReaction = (reaction?: string) =>
+  reaction === HEART_REACTION || reaction === LEGACY_HEART_REACTION;
 
 export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -31,17 +79,58 @@ export default function ChatScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
+  const [isPartnerTyping, setIsPartnerTyping] = useState(false);
   const { user, token, darkMode } = useAuth();
   const [blocked, setBlocked] = useState(false);
   const [climberData, setClimberData] = useState<any>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [reactingToMessageIds, setReactingToMessageIds] = useState<string[]>([]);
   const theme = darkMode ? themeDark : themeLight;
-  const styles = createStyles(theme);
+  const styles = darkMode ? darkStyles : lightStyles;
   const { climberName, climberId, climberAvatar, climberData: climberDataStr } = useLocalSearchParams();
   const router = useRouter();
   const flatListRef = useRef<FlatList>(null);
-  const pollingIntervalRef = useRef<number | null>(null);
+  const fallbackPollingIntervalRef = useRef<number | null>(null);
+  const conversationUnsubscribeRef = useRef<null | (() => Promise<void>)>(null);
+  const typingUnsubscribeRef = useRef<null | (() => Promise<void>)>(null);
+  const typingExpireTimeoutRef = useRef<number | null>(null);
+  const lastTypingSentAtRef = useRef(0);
+
+  const updateMessages = (nextMessages: Message[]) => {
+    const sortedMessages = sortMessages(nextMessages);
+    setMessages((prev) => (messagesAreEqual(prev, sortedMessages) ? prev : sortedMessages));
+  };
+
+  const applyMessageUpdate = (nextMessage: Message) => {
+    setMessages((prev) => {
+      const nextMessages = upsertMessage(prev, nextMessage);
+      return messagesAreEqual(prev, nextMessages) ? prev : nextMessages;
+    });
+  };
+
+  const setReactionForMessage = (messageId: string, reaction: string | null, reactingUserId: string) => {
+    setMessages((prev) =>
+      prev.map((message) => {
+        if (message.id !== messageId) {
+          return message;
+        }
+
+        const nextReactions = { ...(message.reactions || {}) };
+
+        if (reaction) {
+          nextReactions[reactingUserId] = reaction;
+        } else {
+          delete nextReactions[reactingUserId];
+        }
+
+        return {
+          ...message,
+          reactions: nextReactions,
+        };
+      })
+    );
+  };
 
   // Parse climber data from route params
   useEffect(() => {
@@ -69,12 +158,68 @@ export default function ChatScreen() {
 
     if (token) {
       messageService.setToken(token);
+      typingService.setToken(token);
     }
     if (user?.id && climberId) {
       checkBlocked();
       loadMessages();
     }
   }, [user?.id, climberId, token]);
+
+  useEffect(() => {
+    if (!user?.id || !climberId) return;
+
+    let isActive = true;
+
+    const clearTypingTimeout = () => {
+      if (typingExpireTimeoutRef.current) {
+        clearTimeout(typingExpireTimeoutRef.current);
+        typingExpireTimeoutRef.current = null;
+      }
+    };
+
+    const handleTypingRecord = (record: { is_typing: boolean; expires_at?: string | null }) => {
+      if (!isActive) return;
+
+      const expiresAt = record.expires_at ? new Date(record.expires_at).getTime() : 0;
+      const now = Date.now();
+      const shouldShowTyping = record.is_typing && expiresAt > now;
+
+      setIsPartnerTyping(shouldShowTyping);
+      clearTypingTimeout();
+
+      if (shouldShowTyping) {
+        typingExpireTimeoutRef.current = setTimeout(() => {
+          setIsPartnerTyping(false);
+        }, Math.max(0, expiresAt - now));
+      }
+    };
+
+    const subscribeToTyping = async () => {
+      try {
+        typingUnsubscribeRef.current = await typingService.subscribeToTyping(
+          climberId as string,
+          user.id,
+          handleTypingRecord
+        );
+      } catch (error) {
+        if (process.env.EXPO_DEV_MODE) console.error('Failed to subscribe to typing status:', error);
+      }
+    };
+
+    subscribeToTyping();
+
+    return () => {
+      isActive = false;
+      clearTypingTimeout();
+      if (typingUnsubscribeRef.current) {
+        typingUnsubscribeRef.current().catch((error) => {
+          if (process.env.EXPO_DEV_MODE) console.error('Failed to unsubscribe from typing status:', error);
+        });
+        typingUnsubscribeRef.current = null;
+      }
+    };
+  }, [user?.id, climberId]);
 
   // Fetch full climber data only if needed for details not in route params
   useEffect(() => {
@@ -102,28 +247,83 @@ export default function ChatScreen() {
     }
   }, [detailModalVisible, climberData, climberId, token]);
 
-  // Polling for read receipt updates (check for new read status every 1.5 seconds)
+  // Realtime conversation updates, with slower polling as a fallback.
   useEffect(() => {
-    const startPolling = async () => {
-      if (!user?.id || !climberId) return;
+    let isActive = true;
 
-      // Set up polling interval
-      pollingIntervalRef.current = setInterval(async () => {
-        try {
-          const msgs = await messageService.getMessagesBetweenUsers(user.id, climberId as string);
-          setMessages(msgs.sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()));
-        } catch (error) {
-          if (process.env.EXPO_DEV_MODE) console.error('Polling error:', error);
-        }
-      }, 1500); // Poll every 1.5 seconds
+    const clearFallbackPolling = () => {
+      if (fallbackPollingIntervalRef.current) {
+        clearInterval(fallbackPollingIntervalRef.current);
+        fallbackPollingIntervalRef.current = null;
+      }
     };
 
-    startPolling();
+    const startFallbackPolling = () => {
+      if (fallbackPollingIntervalRef.current || !user?.id || !climberId) return;
 
-    // Cleanup: clear interval on unmount
+      fallbackPollingIntervalRef.current = setInterval(async () => {
+        try {
+          const msgs = await messageService.getMessagesBetweenUsers(user.id, climberId as string);
+          updateMessages(msgs);
+        } catch (error) {
+          if (process.env.EXPO_DEV_MODE) console.error('Fallback polling error:', error);
+        }
+      }, 10000);
+    };
+
+    const setupConversationSubscription = async () => {
+      if (!user?.id || !climberId) return;
+
+      clearFallbackPolling();
+
+      try {
+        conversationUnsubscribeRef.current = await messageService.subscribeToConversation(
+          user.id,
+          climberId as string,
+          async ({ action, message }) => {
+            if (!isActive) return;
+
+            if (action === 'delete') {
+              setMessages((prev) => prev.filter((existingMessage) => existingMessage.id !== message.id));
+              return;
+            }
+
+            const nextMessage =
+              action === 'create' && message.sender_id !== user.id
+                ? { ...message, read: true }
+                : message;
+
+            applyMessageUpdate(nextMessage);
+
+            if (action === 'create' && message.sender_id !== user.id) {
+              try {
+                await messageService.markMessagesAsRead(climberId as string, user.id);
+              } catch (error) {
+                if (process.env.EXPO_DEV_MODE) console.error('Failed to mark realtime message as read:', error);
+              }
+            }
+
+            setTimeout(() => {
+              flatListRef.current?.scrollToEnd({ animated: action === 'create' });
+            }, 50);
+          }
+        );
+      } catch (error) {
+        if (process.env.EXPO_DEV_MODE) console.error('Realtime subscription failed, using fallback polling:', error);
+        startFallbackPolling();
+      }
+    };
+
+    setupConversationSubscription();
+
     return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
+      isActive = false;
+      clearFallbackPolling();
+      if (conversationUnsubscribeRef.current) {
+        conversationUnsubscribeRef.current().catch((error) => {
+          if (process.env.EXPO_DEV_MODE) console.error('Failed to unsubscribe from conversation:', error);
+        });
+        conversationUnsubscribeRef.current = null;
       }
     };
   }, [user?.id, climberId]);
@@ -134,7 +334,7 @@ export default function ChatScreen() {
     try {
       setLoading(true);
       const msgs = await messageService.getMessagesBetweenUsers(user.id, climberId as string);
-      setMessages(msgs.sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime()));
+      updateMessages(msgs);
 
       // Mark messages from the other user as read
       await messageService.markMessagesAsRead(climberId as string, user.id);
@@ -178,9 +378,12 @@ export default function ChatScreen() {
         setSending(false);
         return;
       }
-      await messageService.sendMessage(user.id, climberId as string, newMessage);
+      const sentMessage = await messageService.sendMessage(user.id, climberId as string, newMessage);
       setNewMessage('');
-      await loadMessages(); // Reload messages to show the new message
+      applyMessageUpdate(sentMessage);
+      typingService.setTyping(user.id, climberId as string, false).catch((error) => {
+        if (process.env.EXPO_DEV_MODE) console.error('Failed to clear typing status after send:', error);
+      });
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
@@ -194,7 +397,8 @@ export default function ChatScreen() {
   const renderMessage = ({ item }: { item: Message }) => {
     const isOwnMessage = item.sender_id === user?.id;
     const userReaction = item.reactions ? item.reactions[user?.id || ''] : undefined;
-
+    const isReacting = reactingToMessageIds.includes(item.id);
+    const likedByCurrentUser = isHeartReaction(userReaction);
     return (
       <View style={[styles.messageContainer, isOwnMessage ? styles.ownMessage : styles.otherMessage]}>
         <Pressable style={styles.messageBubble}>
@@ -216,43 +420,59 @@ export default function ChatScreen() {
           </View>
         </Pressable>
         {!isOwnMessage && (
-          <Pressable style={styles.likeButton} onPress={() => toggleLike(item.id)}>
+          <Pressable
+            style={[styles.likeButton, isReacting && styles.likeButtonDisabled]}
+            onPress={() => handleToggleLike(item.id)}
+            disabled={isReacting}
+          >
             <Ionicons
-              name={userReaction === '❤️' ? "heart" : "heart-outline"}
+              name={likedByCurrentUser ? "heart" : "heart-outline"}
               size={14}
-              color={userReaction === '❤️' ? '#ef4444' : theme.colors.textSecondary}
+              color={likedByCurrentUser ? '#ef4444' : theme.colors.textSecondary}
             />
           </Pressable>
         )}
       </View>
     );
   };
-
-  const toggleLike = async (messageId: string) => {
+  const handleToggleLike = async (messageId: string) => {
     if (!user?.id || !token) return;
+    const message = messages.find((currentMessage) => currentMessage.id === messageId);
+    if (!message) return;
+    const previousReaction = message.reactions?.[user.id];
+    const nextReaction = isHeartReaction(previousReaction) ? null : HEART_REACTION;
     try {
-      const message = messages.find(m => m.id === messageId);
-      if (!message) return;
-
-      const currentReaction = message.reactions?.[user.id];
-      await messageService.updateMessageReaction(messageId, user.id, currentReaction === '❤️' ? null : '❤️', token);
-
-      // Update local state
-      setMessages(prev =>
-        prev.map(m =>
-          m.id === messageId
-            ? {
-              ...m,
-              reactions: {
-                ...(m.reactions || {}),
-                [user.id]: currentReaction === '❤️' ? '' : '❤️',
-              },
-            }
-            : m
-        )
-      );
+      setReactingToMessageIds((prev) => (prev.includes(messageId) ? prev : [...prev, messageId]));
+      setReactionForMessage(messageId, nextReaction, user.id);
+      await messageService.updateMessageReaction(messageId, user.id, nextReaction);
     } catch (error) {
+      setReactionForMessage(messageId, previousReaction || null, user.id);
       if (process.env.EXPO_DEV_MODE) console.error('Failed to update reaction:', error);
+    } finally {
+      setReactingToMessageIds((prev) => prev.filter((id) => id !== messageId));
+    }
+  };
+
+  const handleInputChange = (text: string) => {
+    setNewMessage(text);
+
+    if (!user?.id || !climberId) return;
+
+    const trimmed = text.trim();
+    const now = Date.now();
+
+    if (trimmed.length === 0) {
+      typingService.setTyping(user.id, climberId as string, false).catch((error) => {
+        if (process.env.EXPO_DEV_MODE) console.error('Failed to clear typing status:', error);
+      });
+      return;
+    }
+
+    if (now - lastTypingSentAtRef.current > 1500) {
+      lastTypingSentAtRef.current = now;
+      typingService.setTyping(user.id, climberId as string, true).catch((error) => {
+        if (process.env.EXPO_DEV_MODE) console.error('Failed to update typing status:', error);
+      });
     }
   };
 
@@ -337,7 +557,16 @@ export default function ChatScreen() {
             colors={['#ffffff']}
           />
         }
-        ListFooterComponent={null}
+        ListFooterComponent={
+          isPartnerTyping ? (
+            <View style={styles.typingIndicator}>
+              <View style={styles.typingDot} />
+              <View style={[styles.typingDot, styles.typingDotMiddle]} />
+              <View style={[styles.typingDot, styles.typingDotLast]} />
+              <Text style={styles.typingText}>Typing...</Text>
+            </View>
+          ) : null
+        }
       />
 
       {/* Input */}
@@ -345,11 +574,18 @@ export default function ChatScreen() {
         <TextInput
           style={styles.input}
           value={newMessage}
-          onChangeText={setNewMessage}
+          onChangeText={handleInputChange}
           placeholder="Type a message..."
           placeholderTextColor="#a1a1aa"
           multiline
           maxLength={1000}
+          onBlur={() => {
+            if (user?.id && climberId) {
+              typingService.setTyping(user.id, climberId as string, false).catch((error) => {
+                if (process.env.EXPO_DEV_MODE) console.error('Failed to clear typing status on blur:', error);
+              });
+            }
+          }}
         />
         <Pressable
           style={[styles.sendButton, (!newMessage.trim() || sending) && styles.sendButtonDisabled]}
@@ -513,6 +749,9 @@ const createStyles = (theme: typeof themeLight) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
+    likeButtonDisabled: {
+      opacity: 0.5,
+    },
     typingIndicator: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -525,6 +764,17 @@ const createStyles = (theme: typeof themeLight) =>
       height: 8,
       borderRadius: 4,
       backgroundColor: theme.colors.textSecondary,
+    },
+    typingDotMiddle: {
+      opacity: 0.6,
+    },
+    typingDotLast: {
+      opacity: 0.3,
+    },
+    typingText: {
+      marginLeft: 6,
+      color: theme.colors.textSecondary,
+      fontSize: 12,
     },
     inputContainer: {
       flexDirection: 'row',
@@ -558,3 +808,8 @@ const createStyles = (theme: typeof themeLight) =>
       backgroundColor: '#374151',
     },
   });
+
+const lightStyles = createStyles(themeLight);
+const darkStyles = createStyles(themeDark);
+
+

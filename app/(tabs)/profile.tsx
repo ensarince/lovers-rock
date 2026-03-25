@@ -101,8 +101,8 @@ export default function ProfileScreen() {
   const [intent, setIntent] = useState<string[]>(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
   // Image state for edit mode
   const [images, setImages] = useState(typedUser?.images || []);
-  const [newPhotos, setNewPhotos] = useState<string[]>([]);
   const [avatar, setAvatar] = useState(typedUser?.avatar || '');
+  const [imageSlots, setImageSlots] = useState<Array<{ kind: 'existing' | 'new'; value: string } | null>>([]);
   // Grade edit state
   const [showGradeSystemModal, setShowGradeSystemModal] = useState(false);
 
@@ -126,7 +126,6 @@ export default function ProfileScreen() {
     setHomeGym(typedUser?.home_gym || '');
     setImages(typedUser?.images || []);
     setAvatar(typedUser?.avatar || '');
-    setNewPhotos([]);
     setIntent(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
   }, [user]);
 
@@ -348,13 +347,46 @@ export default function ProfileScreen() {
     }
   };
 
-  const pickImage = async (index: number) => {
-    const currentImageCount = newPhotos.length + images.length;
-    if (currentImageCount >= 3 && !newPhotos[index]) {
-      Alert.alert('Limit Reached', 'You can upload a maximum of 3 images');
-      return;
-    }
+  const buildImageSlots = (existingImages: string[]) => {
+    const slots: Array<{ kind: 'existing' | 'new'; value: string } | null> = [null, null, null];
+    existingImages.slice(0, 3).forEach((image, index) => {
+      slots[index] = { kind: 'existing', value: image };
+    });
+    return slots;
+  };
 
+  const getSlotData = (slots: Array<{ kind: 'existing' | 'new'; value: string } | null>) => {
+    const existing: string[] = [];
+    const newLocal: string[] = [];
+
+    slots.forEach((slot) => {
+      if (!slot) return;
+      if (slot.kind === 'existing') {
+        existing.push(slot.value);
+      } else {
+        newLocal.push(slot.value);
+      }
+    });
+
+    return {
+      existing,
+      newLocal,
+      total: existing.length + newLocal.length,
+    };
+  };
+
+  const getFirstSlot = (slots: Array<{ kind: 'existing' | 'new'; value: string } | null>) =>
+    slots.find((slot) => slot !== null) || null;
+
+  useEffect(() => {
+    if (editMode) {
+      setImageSlots(buildImageSlots(images));
+    } else {
+      setImageSlots([]);
+    }
+  }, [editMode, images]);
+
+  const pickImage = async (index: number) => {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
@@ -362,30 +394,30 @@ export default function ProfileScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      const newPhotoCopy = [...newPhotos];
-      newPhotoCopy[index] = result.assets[0].uri;
-      setNewPhotos(newPhotoCopy);
+      const newUri = result.assets[0].uri;
+      setImageSlots((prev) => {
+        const next = [...prev];
+        next[index] = { kind: 'new', value: newUri };
+        return next;
+      });
     }
   };
 
   const removeImage = (index: number) => {
-    if (index < images.length) {
-      // Remove existing image
-      setImages((prev) => prev.filter((_, i) => i !== index));
-    } else {
-      // Remove new photo
-      const imageIndex = index - images.length;
-      const newPhotoCopy = [...newPhotos];
-      newPhotoCopy.splice(imageIndex, 1);
-      setNewPhotos(newPhotoCopy);
-    }
+    setImageSlots((prev) => {
+      const next = [...prev];
+      next[index] = null;
+      return next;
+    });
   };
 
   const handleSave = async () => {
     // Validate that we have images if this is edit mode for images
-    const totalImages = images.length + newPhotos.filter(p => p).length;
-    if (totalImages === 0) {
-      Alert.alert('Required', 'Please add at least one image');
+      const slotsForSave = imageSlots.length > 0 ? imageSlots : buildImageSlots(images);
+      const { total: totalImages, newLocal: newPhotosForSave } = getSlotData(slotsForSave);
+
+    if (totalImages < 3) {
+      Alert.alert('Required', `Please upload ${3 - totalImages} more image(s). You need 3 images total.`);
       return;
     }
 
@@ -414,27 +446,32 @@ export default function ProfileScreen() {
       // intent as array
       intent.forEach((val) => formData.append('intent', val));
       
-      // Add new image files
-      newPhotos.forEach((photoUri, index) => {
-        if (photoUri) {
-          const extension = photoUri.split('.').pop()?.toLowerCase() || 'jpg';
-          let mimeType = 'image/jpeg';
-          if (extension === 'png') mimeType = 'image/png';
-          else if (extension === 'jpg' || extension === 'jpeg') mimeType = 'image/jpeg';
-          else if (extension === 'webp') mimeType = 'image/webp';
-
-          const file = {
-            uri: photoUri,
-            name: `image_${index}.${extension}`,
-            type: mimeType,
-          } as any;
-          formData.append('images', file);
+      // Add existing and new image files in slot order
+      slotsForSave.forEach((slot, index) => {
+        if (!slot) return;
+        if (slot.kind === 'existing') {
+          formData.append('images', slot.value);
+          return;
         }
+
+        const photoUri = slot.value;
+        const extension = photoUri.split('.').pop()?.toLowerCase() || 'jpg';
+        let mimeType = 'image/jpeg';
+        if (extension === 'png') mimeType = 'image/png';
+        else if (extension === 'jpg' || extension === 'jpeg') mimeType = 'image/jpeg';
+        else if (extension === 'webp') mimeType = 'image/webp';
+
+        const file = {
+          uri: photoUri,
+          name: `image_${index}.${extension}`,
+          type: mimeType,
+        } as any;
+        formData.append('images', file);
       });
 
       // Only set avatar if we have NEW images being uploaded
       // Don't touch avatar field if we're not uploading new images - PocketBase will keep the existing one
-      if (newPhotos.length > 0 && newPhotos.some(p => p)) {
+      if (newPhotosForSave.length > 0) {
         // We'll set the avatar after the upload completes and we know the filenames
         // For now, just don't append it
       }
@@ -479,7 +516,6 @@ export default function ProfileScreen() {
       }
 
       setEditMode(false);
-      setNewPhotos([]);
       
       // Fetch latest user from backend and update context/cache
       if (user?.id && token) {
@@ -531,7 +567,7 @@ export default function ProfileScreen() {
             await AsyncStorage.setItem('user', JSON.stringify(mappedUser));
 
             // If we uploaded new images, set avatar to the first image
-            if (newPhotos.length > 0 && latestUser.images?.length > 0) {
+            if (newPhotosForSave.length > 0 && latestUser.images?.length > 0) {
               try {
                 const avatarResponse = await fetch(
                   `${POCKETBASE_URL}/api/collections/users/records/${user.id}`,
@@ -598,19 +634,22 @@ export default function ProfileScreen() {
     );
   }
 
+  const slotsForDisplay = editMode && imageSlots.length > 0 ? imageSlots : buildImageSlots(images);
+  const { total: totalImages } = getSlotData(slotsForDisplay);
+  const imagesRequirementMet = totalImages >= 3;
+
   // Always show the avatar from the DB unless a new photo is picked
   const getAvatarUrl = () => {
-    // 1. Priority: First new photo if any
-    if (newPhotos.length > 0 && newPhotos[0]) {
-      return newPhotos[0];
+    const firstSlot = getFirstSlot(slotsForDisplay);
+    if (firstSlot?.kind === 'new') {
+      return firstSlot.value;
     }
 
-    // 2. First image from images array
-    if (images && images.length > 0) {
+    if (firstSlot?.kind === 'existing') {
       const userId = typedUser?.id;
       if (userId) {
         const baseUrl = getPocketBaseUrl();
-        return `${baseUrl}/api/files/users/${userId}/${images[0]}?thumb=100x100`;
+        return `${baseUrl}/api/files/users/${userId}/${firstSlot.value}?thumb=100x100`;
       }
     }
 
@@ -630,17 +669,16 @@ export default function ProfileScreen() {
 
   // Full resolution avatar URL for expanded view
   const getFullResolutionAvatarUrl = () => {
-    // 1. Priority: First new photo if any
-    if (newPhotos.length > 0 && newPhotos[0]) {
-      return newPhotos[0];
+    const firstSlot = getFirstSlot(slotsForDisplay);
+    if (firstSlot?.kind === 'new') {
+      return firstSlot.value;
     }
 
-    // 2. First image from images array
-    if (images && images.length > 0) {
+    if (firstSlot?.kind === 'existing') {
       const userId = typedUser?.id;
       if (userId) {
         const baseUrl = getPocketBaseUrl();
-        return `${baseUrl}/api/files/users/${userId}/${images[0]}`;
+        return `${baseUrl}/api/files/users/${userId}/${firstSlot.value}`;
       }
     }
 
@@ -730,17 +768,28 @@ export default function ProfileScreen() {
         {/* Images Section in Edit Mode */}
         {editMode && (
           <View style={{ marginHorizontal: 24, marginBottom: 24, backgroundColor: "transparent" }}>
-            <Text style={[styles.labelMinimal, { marginBottom: 12 }]}>Photos (Max 3)</Text>
+            <Text style={[styles.labelMinimal, { marginBottom: 4 }]}>Photos (Required 3)</Text>
+            <Text
+              style={[
+                styles.valueMinimal,
+                {
+                  fontSize: 12,
+                  color: imagesRequirementMet ? theme.colors.textSecondary : theme.colors.error,
+                  marginBottom: 12,
+                },
+              ]}
+            >
+              {imagesRequirementMet ? 'Requirement met' : 'Required for your profile'}
+            </Text>
             <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'space-between' }}>
               {[0, 1, 2].map((index) => {
-                const hasExistingImage = index < images.length;
-                const hasNewPhoto =
-                  index - images.length >= 0 &&
-                  newPhotos[index - images.length];
-                const imageUri = hasExistingImage
-                  ? images[index]
-                  : newPhotos[index - images.length];
-                const isNewPhoto = hasNewPhoto && !hasExistingImage;
+                const slot = slotsForDisplay[index];
+                const imageUri =
+                  slot?.kind === 'existing'
+                    ? `${getPocketBaseUrl()}/api/files/users/${user.id}/${slot.value}?thumb=200x200`
+                    : slot?.kind === 'new'
+                      ? slot.value
+                      : null;
 
                 return (
                   <View key={index} style={{ flex: 1, alignItems: 'center' }}>
@@ -761,9 +810,7 @@ export default function ProfileScreen() {
                       {imageUri ? (
                         <Image
                           source={{
-                            uri: isNewPhoto
-                              ? imageUri
-                              : `${getPocketBaseUrl()}/api/files/users/${user.id}/${imageUri}?thumb=200x200`,
+                            uri: imageUri,
                           }}
                           style={{ width: '100%', height: '100%' }}
                         />
@@ -792,8 +839,13 @@ export default function ProfileScreen() {
                 );
               })}
             </View>
-            <Text style={[styles.valueMinimal, { marginTop: 8, fontSize: 12, color: theme.colors.textSecondary }]}>
-              {images.length + newPhotos.filter(p => p).length} / 3 images
+            <Text
+              style={[
+                styles.valueMinimal,
+                { marginTop: 8, fontSize: 12, color: imagesRequirementMet ? theme.colors.textSecondary : theme.colors.error },
+              ]}
+            >
+              {totalImages} / 3 images
             </Text>
           </View>
         )}

@@ -671,9 +671,20 @@ export default function DiscoverScreen() {
       return;
     }
 
+    const removeFromDatingFeed = (climberId: string) => {
+      setFilteredClimbers((prev) => {
+        const next = prev.filter(c => c.id !== climberId);
+        setCurrentIndex((current) => {
+          if (next.length === 0) return 0;
+          return Math.min(current, next.length - 1);
+        });
+        return next;
+      });
+    };
+
     // Check if already liked for dating mode
     if (isDatingMode && preferenceService.isAcceptedForDating(climber.id)) {
-      setCurrentIndex((prev) => prev + 1);
+      removeFromDatingFeed(climber.id);
       return;
     }
 
@@ -700,15 +711,7 @@ export default function DiscoverScreen() {
     }
 
     // Update filtered climbers to exclude the newly liked user
-    setFilteredClimbers(prev => {
-      const filtered = prev.filter(c => c.id !== climber.id);
-      return filtered;
-    });
-
-    setCurrentIndex((prev) => {
-      const newIndex = prev + 1;
-      return newIndex;
-    });
+    removeFromDatingFeed(climber.id);
   };
 
   const handleReject = async (climber: Climber) => {
@@ -728,12 +731,20 @@ export default function DiscoverScreen() {
     }
 
     // Update filtered climbers to exclude the rejected user (they don't want to see them again)
-    setFilteredClimbers(prev => prev.filter(c => c.id !== climber.id && !(Array.isArray(c.blocked_users) && c.blocked_users.includes(user?.id || ""))));
+    setFilteredClimbers(prev => {
+      const next = prev.filter(
+        c => c.id !== climber.id && !(Array.isArray(c.blocked_users) && c.blocked_users.includes(user?.id || ""))
+      );
+      setCurrentIndex((current) => {
+        if (next.length === 0) return 0;
+        return Math.min(current, next.length - 1);
+      });
+      return next;
+    });
 
     // Trigger a refresh of blocked users to pick up any new blocks
     setBlockRefreshTrigger(prev => prev + 1);
 
-    setCurrentIndex((prev) => prev + 1);
     if (process.env.EXPO_DEV_MODE) console.log('Rejected:', climber.name);
   };
 
@@ -1155,4 +1166,3 @@ const createStyles = (theme: typeof themeLight) =>
       lineHeight: 24,
     },
   });
-
