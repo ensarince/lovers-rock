@@ -599,7 +599,7 @@ export default function ProfileScreen() {
       const userId = typedUser?.id;
       if (userId) {
         const baseUrl = getPocketBaseUrl();
-        return `${baseUrl}/api/files/users/${userId}/${firstSlot.value}?thumb=100x100`;
+        return `${baseUrl}/api/files/users/${userId}/${firstSlot.value}?thumb=300x300`;
       }
     }
 
@@ -611,7 +611,7 @@ export default function ProfileScreen() {
     if (filename && userId) {
       const baseUrl = getPocketBaseUrl();
       // PocketBase file path format: /api/files/COLLECTION_ID_OR_NAME/RECORD_ID/FILENAME
-      return `${baseUrl}/api/files/users/${userId}/${filename}?thumb=100x100`;
+      return `${baseUrl}/api/files/users/${userId}/${filename}?thumb=300x300`;
     }
 
     return '';
@@ -673,6 +673,7 @@ export default function ProfileScreen() {
                 <Image
                   source={{ uri: getAvatarUrl() }}
                   style={styles.heroAvatar}
+                  resizeMode="cover"
                 />
               ) : (
                 <Ionicons name="person-circle" size={72} color={theme.colors.text} style={styles.heroAvatarFallback} />
