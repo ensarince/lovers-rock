@@ -3,6 +3,7 @@ import { ImageCarousel } from '@/src/components/ImageCarousel';
 import { useAuth } from '@/src/context/AuthContext';
 import { calculateDistance, formatDistance } from '@/src/services/geoService';
 import { formatGradeDisplay } from '@/src/services/gradeService';
+import { getOutgoingLikes } from '@/src/services/socialGraphService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
@@ -22,7 +23,7 @@ interface PartnerDetailModalProps {
 }
 
 export default function PartnerDetailModal({ visible, climber, onClose, onSendRequest, onBlock, userLatitude, userLongitude, viewOnly = false }: PartnerDetailModalProps) {
-  const { darkMode, user } = useAuth();
+  const { darkMode, user, token } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
   const [isRequestSent, setIsRequestSent] = React.useState(false);
@@ -44,17 +45,35 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
     }
   }, [userLatitude, userLongitude, climber?.latitude, climber?.longitude]);
 
-  // Check if climber is in liked_users_partner when climber changes
+  // Check if climber is in outgoing partner likes
   React.useEffect(() => {
-    if (climber && user) {
-      // Check the new liked_users_partner field
-      const likedUsersPartner = user.liked_users_partner || [];
-      const isLiked = Array.isArray(likedUsersPartner) ? likedUsersPartner.includes(climber.id) : false;
-      setIsRequestSent(isLiked);
-    } else {
-      setIsRequestSent(false);
-    }
-  }, [climber, user]);
+    let active = true;
+
+    const checkLike = async () => {
+      if (!climber || !user?.id || !token) {
+        setIsRequestSent(false);
+        return;
+      }
+
+      try {
+        const likes = await getOutgoingLikes(user.id, token, 'partner');
+        const isLiked = likes.some((like) => like.to_user === climber.id);
+        if (active) {
+          setIsRequestSent(isLiked);
+        }
+      } catch {
+        if (active) {
+          setIsRequestSent(false);
+        }
+      }
+    };
+
+    checkLike();
+
+    return () => {
+      active = false;
+    };
+  }, [climber, user?.id, token]);
 
   return (
     <Modal visible={visible} transparent animationType="slide">

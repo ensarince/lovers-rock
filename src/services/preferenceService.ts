@@ -1,5 +1,6 @@
 import { Climber } from '@/src/types/climber';
 import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
+import { createLike, getOutgoingLikes, removeLike } from '@/src/services/socialGraphService';
 
 const POCKETBASE_URL = getPocketBaseUrl();
 
@@ -20,65 +21,70 @@ class PreferenceService {
   // Sync preferences with server
   async syncPreferences(token: string | null, userId: string): Promise<void> {
     if (!token) {
-      if (process.env.EXPO_DEV_MODE) console.log('⚠️ No token for syncing preferences');
+      if (process.env.EXPO_DEV_MODE) console.log('âš ï¸ No token for syncing preferences');
       return;
     }
-    
+
     try {
-      // Get current user data
-      const response = await fetch(
-        `${POCKETBASE_URL}/api/collections/users/records/${userId}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const [datingLikes, partnerLikes] = await Promise.all([
+        getOutgoingLikes(userId, token, 'dating'),
+        getOutgoingLikes(userId, token, 'partner'),
+      ]);
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch user data');
-      }
+      let likedUsersDating = datingLikes.map((like) => like.to_user).filter(Boolean);
+      let likedUsersPartner = partnerLikes.map((like) => like.to_user).filter(Boolean);
 
-      const userData = await response.json();
-      
-      // Parse dating likes
-      let likedUsersDating: string[] = [];
-      const likedUsersDatingRaw = userData.liked_users_dating;
-      if (Array.isArray(likedUsersDatingRaw)) {
-        likedUsersDating = likedUsersDatingRaw;
-      } else if (typeof likedUsersDatingRaw === 'string') {
-        try {
-          likedUsersDating = JSON.parse(likedUsersDatingRaw);
-        } catch (e) {
-          likedUsersDating = [];
-        }
-      }
-
-      // Parse partner likes
-      let likedUsersPartner: string[] = [];
-      const likedUsersPartnerRaw = userData.liked_users_partner;
-      if (Array.isArray(likedUsersPartnerRaw)) {
-        likedUsersPartner = likedUsersPartnerRaw;
-      } else if (typeof likedUsersPartnerRaw === 'string') {
-        try {
-          likedUsersPartner = JSON.parse(likedUsersPartnerRaw);
-        } catch (e) {
-          likedUsersPartner = [];
-        }
-      }
-
-      // For backward compatibility, also check legacy liked_users field
       let legacyLikedUsers: string[] = [];
-      const likedUsersRaw = userData.liked_users;
-      if (Array.isArray(likedUsersRaw)) {
-        legacyLikedUsers = likedUsersRaw;
-      } else if (typeof likedUsersRaw === 'string') {
-        try {
-          legacyLikedUsers = JSON.parse(likedUsersRaw);
-        } catch (e) {
-          legacyLikedUsers = [];
+
+      if (likedUsersDating.length === 0 && likedUsersPartner.length === 0) {
+        // Fallback to legacy fields if no likes found (old data)
+        const response = await fetch(
+          `${POCKETBASE_URL}/api/collections/users/records/${userId}`,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch user data');
+        }
+
+        const userData = await response.json();
+        const likedUsersRaw = userData.liked_users;
+        if (Array.isArray(likedUsersRaw)) {
+          legacyLikedUsers = likedUsersRaw;
+        } else if (typeof likedUsersRaw === 'string') {
+          try {
+            legacyLikedUsers = JSON.parse(likedUsersRaw);
+          } catch (e) {
+            legacyLikedUsers = [];
+          }
+        }
+
+        const likedUsersDatingRaw = userData.liked_users_dating;
+        if (Array.isArray(likedUsersDatingRaw)) {
+          likedUsersDating = likedUsersDatingRaw;
+        } else if (typeof likedUsersDatingRaw === 'string') {
+          try {
+            likedUsersDating = JSON.parse(likedUsersDatingRaw);
+          } catch (e) {
+            likedUsersDating = [];
+          }
+        }
+
+        const likedUsersPartnerRaw = userData.liked_users_partner;
+        if (Array.isArray(likedUsersPartnerRaw)) {
+          likedUsersPartner = likedUsersPartnerRaw;
+        } else if (typeof likedUsersPartnerRaw === 'string') {
+          try {
+            likedUsersPartner = JSON.parse(likedUsersPartnerRaw);
+          } catch (e) {
+            likedUsersPartner = [];
+          }
         }
       }
 
@@ -87,7 +93,7 @@ class PreferenceService {
       this.acceptedClimbersForPartner = new Set(likedUsersPartner);
       // For backward compatibility, merge legacy likes into both
       this.acceptedClimbers = new Set([...likedUsersDating, ...likedUsersPartner, ...legacyLikedUsers]);
-      
+
       // Update preferences tracking
       this.preferences = [
         ...likedUsersDating.map((id: string) => ({
@@ -103,76 +109,17 @@ class PreferenceService {
           intent: 'partner' as const,
         })),
       ];
-      
     } catch (error) {
-      if (process.env.EXPO_DEV_MODE) console.error('❌ Failed to sync preferences:', error);
-    }
-  }
-
-  // Save preference to server
-  private async saveToServer(token: string, userId: string, intent?: 'dating' | 'partner'): Promise<void> {
-    try {
-      const updateData: Record<string, any> = {};
-
-      if (intent === 'dating') {
-        updateData.liked_users_dating = Array.from(this.acceptedClimbersForDating);
-      } else if (intent === 'partner') {
-        updateData.liked_users_partner = Array.from(this.acceptedClimbersForPartner);
-      } else {
-        // If no intent specified, update both
-        updateData.liked_users_dating = Array.from(this.acceptedClimbersForDating);
-        updateData.liked_users_partner = Array.from(this.acceptedClimbersForPartner);
-      }
-
-      const response = await fetch(
-        `${POCKETBASE_URL}/api/collections/users/records/${userId}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(updateData),
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        if (process.env.EXPO_DEV_MODE) console.error('❌ Failed to save preferences:', response.status, errorText);
-        throw new Error('Failed to save preferences');
-      }
-      
-      // Verify the save worked
-      try {
-        const verifyResponse = await fetch(
-          `${POCKETBASE_URL}/api/collections/users/records/${userId}`,
-          {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-        
-        if (verifyResponse.ok) {
-          const verifyData = await verifyResponse.json();
-          if (process.env.EXPO_DEV_MODE) console.log('✅ Preferences saved successfully');
-        }
-      } catch (verifyError) {
-        console.warn('⚠️ Could not verify save:', verifyError);
-      }
-    } catch (error) {
-      if (process.env.EXPO_DEV_MODE) console.error('❌ Failed to save preferences to server:', error);
+      if (process.env.EXPO_DEV_MODE) console.error('âŒ Failed to sync preferences:', error);
     }
   }
 
   async accept(climber: Climber, token?: string | null, userId?: string, intent?: 'dating' | 'partner'): Promise<void> {
     if (!userId) {
-      if (process.env.EXPO_DEV_MODE) console.error('❌ No userId provided to accept method!');
+      if (process.env.EXPO_DEV_MODE) console.error('âŒ No userId provided to accept method!');
       return;
     }
-    
+
     // Track in appropriate set based on intent
     if (intent === 'dating') {
       this.acceptedClimbersForDating.add(climber.id);
@@ -184,11 +131,11 @@ class PreferenceService {
       // Default to dating if no intent specified (backward compatibility)
       this.acceptedClimbersForDating.add(climber.id);
     }
-    
+
     // Also update the combined set
     this.acceptedClimbers.add(climber.id);
     this.rejectedClimbers.delete(climber.id);
-    
+
     this.preferences.push({
       climberId: climber.id,
       action: 'accept',
@@ -198,9 +145,19 @@ class PreferenceService {
 
     // Save to server if token and userId provided
     if (token && userId) {
-      await this.saveToServer(token, userId, intent);
+      const resolvedIntent = intent || 'dating';
+      try {
+        await createLike(userId, climber.id, resolvedIntent, token);
+        if (resolvedIntent === 'dating') {
+          await removeLike(userId, climber.id, 'partner', token);
+        } else if (resolvedIntent === 'partner') {
+          await removeLike(userId, climber.id, 'dating', token);
+        }
+      } catch (error) {
+        if (process.env.EXPO_DEV_MODE) console.error('âŒ Failed to save preferences to server:', error);
+      }
     } else {
-      console.warn('⚠️ Not saving to server - missing token or userId');
+      console.warn('âš ï¸ Not saving to server - missing token or userId');
     }
   }
 

@@ -1,6 +1,6 @@
 import { createDefaultGrade } from '@/src/services/gradeService';
 import { Climber } from '@/src/types/climber';
-import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
+import { getPocketBaseUrl, normalizeIntentValue } from '@/src/utils/helperFunctions';
 
 const POCKETBASE_URL = getPocketBaseUrl();
 
@@ -19,27 +19,86 @@ const parseGrade = (grade: any) => {
 
 // Accept token as an argument instead of importing getAccessToken
 export async function getAllAccounts(token: string): Promise<Climber[]> {
-  const response = await fetch(
-    `${POCKETBASE_URL}/api/collections/users/records`,
-    {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
+  const perPage = 200;
+  let page = 1;
+  const allItems: any[] = [];
 
-  if (!response.ok) {
-    throw new Error('Failed to fetch accounts');
+  while (true) {
+    const response = await fetch(
+      `${POCKETBASE_URL}/api/collections/public_profiles/records?page=${page}&perPage=${perPage}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch accounts');
+    }
+
+    const data = await response.json();
+    allItems.push(...(data.items || []));
+
+    if (!data.totalPages || page >= data.totalPages) {
+      break;
+    }
+
+    page += 1;
   }
 
-  const data = await response.json();
-  // PocketBase returns { items: [...] }
-  return data.items.map((item: any) => ({
+  return allItems.map((item: any) => ({
     ...item,
+    email: item.email || '',
     grade: parseGrade(item.grade),
     blocked_users: Array.isArray(item.blocked_users) ? item.blocked_users : [],
+    intent: Array.isArray(item.intent)
+      ? item.intent.map((value: string) => normalizeIntentValue(value)).filter(Boolean)
+      : [],
+  })) as Climber[];
+}
+
+export async function getPublicProfiles(token: string): Promise<Climber[]> {
+  const perPage = 200;
+  let page = 1;
+  const allItems: any[] = [];
+
+  while (true) {
+    const response = await fetch(
+      `${POCKETBASE_URL}/api/collections/public_profiles/records?page=${page}&perPage=${perPage}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch public profiles');
+    }
+
+    const data = await response.json();
+    allItems.push(...(data.items || []));
+
+    if (!data.totalPages || page >= data.totalPages) {
+      break;
+    }
+
+    page += 1;
+  }
+
+  return allItems.map((item: any) => ({
+    ...item,
+    email: item.email || '',
+    grade: parseGrade(item.grade),
+    blocked_users: Array.isArray(item.blocked_users) ? item.blocked_users : [],
+    intent: Array.isArray(item.intent)
+      ? item.intent.map((value: string) => normalizeIntentValue(value)).filter(Boolean)
+      : [],
   })) as Climber[];
 }
 
@@ -58,8 +117,33 @@ export async function getUserById(userId: string, token: string): Promise<Climbe
     );
 
     if (!response.ok) {
-      console.error('Failed to fetch user:', userId, response.status);
-      return null;
+      // Fallback to public_profiles if users collection is locked down
+      const publicResponse = await fetch(
+        `${POCKETBASE_URL}/api/collections/public_profiles/records/${userId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!publicResponse.ok) {
+        console.error('Failed to fetch user:', userId, response.status);
+        return null;
+      }
+
+      const userData = await publicResponse.json();
+      return {
+        ...userData,
+        email: userData.email || '',
+        grade: parseGrade(userData.grade),
+        blocked_users: Array.isArray(userData.blocked_users) ? userData.blocked_users : [],
+        intent: Array.isArray(userData.intent)
+          ? userData.intent.map((value: string) => normalizeIntentValue(value)).filter(Boolean)
+          : [],
+      } as Climber;
     }
 
     const userData = await response.json();
@@ -67,6 +151,9 @@ export async function getUserById(userId: string, token: string): Promise<Climbe
       ...userData,
       grade: parseGrade(userData.grade),
       blocked_users: Array.isArray(userData.blocked_users) ? userData.blocked_users : [],
+      intent: Array.isArray(userData.intent)
+        ? userData.intent.map((value: string) => normalizeIntentValue(value)).filter(Boolean)
+        : [],
     } as Climber;
   } catch (error: any) {
     console.error('Error fetching user:', userId, error);

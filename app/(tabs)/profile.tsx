@@ -1,7 +1,8 @@
 
 import { Text } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
-import { getAllAccounts } from '@/src/services/accountService';
+import { getBlockedUsersData } from '@/src/services/accountService';
+import { getReportService } from '@/src/services/reportService';
 import { createDefaultGrade, formatGradeDisplay, getExampleGrades } from '@/src/services/gradeService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
@@ -10,6 +11,7 @@ import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
@@ -78,6 +80,7 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
   const [showBlockedUsers, setShowBlockedUsers] = useState(false);
+  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
   const [blockedUsersData, setBlockedUsersData] = useState<Record<string, { name: string; avatarId: string | null }>>({});
   const [deleteConfirmationVisible, setDeleteConfirmationVisible] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -139,64 +142,38 @@ export default function ProfileScreen() {
   };
 
   const fetchBlockedUsersData = async () => {
-    if (!user?.blocked_users || !token) {
+    if (!user?.id || !token) {
       return;
     }
 
     try {
-      // Parse blocked_users to get array of IDs
-      let blockedUserIds: string[] = [];
-      
-      if (typeof user.blocked_users === 'string') {
-        try {
-          blockedUserIds = JSON.parse(user.blocked_users);
-        } catch (e) {
-          blockedUserIds = [];
-        }
-      } else if (Array.isArray(user.blocked_users)) {
-        blockedUserIds = user.blocked_users;
+      const reportService = getReportService();
+      const ids = await reportService.getBlockedUsersByMe(user.id, token);
+      setBlockedUserIds(ids);
+
+      if (ids.length === 0) {
+        setBlockedUsersData({});
+        return;
       }
 
-      // Fetch all climbers and extract data for blocked users
-      if (blockedUserIds.length > 0) {
-        const allClimbers = await getAllAccounts(token);
-        
-        const dataMap: Record<string, { name: string; avatarId: string | null }> = {};
-        
-        blockedUserIds.forEach((blockedUserId) => {
-          const blockedUser = allClimbers.find(c => c.id === blockedUserId);
-          
-          if (blockedUser) {
-            const avatarId =
-              blockedUser.images && Array.isArray(blockedUser.images) && blockedUser.images.length > 0
-                ? blockedUser.images[0]
-                : blockedUser.avatar || null;
-            
-            dataMap[blockedUserId] = {
-              name: blockedUser.name || 'Unknown User',
-              avatarId,
-            };
-          } else {
-            // User not found in list, use fallback
-            dataMap[blockedUserId] = {
-              name: 'Unknown User',
-              avatarId: null,
-            };
-          }
-        });
-        
-        setBlockedUsersData(dataMap);
-      }
+      const dataMap = await getBlockedUsersData(ids, token);
+      setBlockedUsersData(dataMap);
     } catch (error: any) {
       console.error('Error fetching blocked users data:', error);
     }
   };
 
   useEffect(() => {
-    if (showBlockedUsers && user?.blocked_users) {
+    if (showBlockedUsers) {
       fetchBlockedUsersData();
     }
-  }, [showBlockedUsers, user?.blocked_users]);
+  }, [showBlockedUsers, user?.id, token]);
+
+  useEffect(() => {
+    if (user?.id && token) {
+      fetchBlockedUsersData();
+    }
+  }, [user?.id, token]);
 
   const handleUnblock = async (blockedUserId: string) => {
     if (!user?.id || !token) {
@@ -206,57 +183,20 @@ export default function ProfileScreen() {
 
     try {
       setUnblockingUserId(blockedUserId);
-      const POCKETBASE_URL = getPocketBaseUrl();
-      
-      // Parse blocked_users (might be string or array)
-      let currentBlockedUsers: string[] = [];
-      if (typeof user.blocked_users === 'string') {
-        try {
-          currentBlockedUsers = JSON.parse(user.blocked_users);
-        } catch {
-          currentBlockedUsers = [];
-        }
-      } else if (Array.isArray(user.blocked_users)) {
-        currentBlockedUsers = user.blocked_users;
-      }
+      const reportService = getReportService();
+      await reportService.unblockUser(user.id, blockedUserId, token);
 
-      // Filter out the user to unblock
-      const updatedBlockedUsers = currentBlockedUsers.filter(id => id !== blockedUserId);
-      
-      // Update the user record - send as JSON string
-      const response = await fetch(
-        `${POCKETBASE_URL}/api/collections/users/records/${user.id}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            blocked_users: JSON.stringify(updatedBlockedUsers),
-          }),
-        }
-      );
+      const updatedBlockedUsers = blockedUserIds.filter((id) => id !== blockedUserId);
+      setBlockedUserIds(updatedBlockedUsers);
 
-      if (!response.ok) {
-        throw new Error('Failed to unblock user');
-      }
-
-      // Update local user state
-      const updatedUser = { ...user, blocked_users: updatedBlockedUsers };
-      setUser(updatedUser);
-      
-      // Remove from data map
       const newDataMap = { ...blockedUsersData };
       delete newDataMap[blockedUserId];
       setBlockedUsersData(newDataMap);
-      
-      // Re-fetch data if more users remain
+
       if (updatedBlockedUsers.length > 0) {
-        // Wait a moment then re-fetch
         setTimeout(() => fetchBlockedUsersData(), 500);
       }
-      
+
       Alert.alert('Success', 'User has been unblocked');
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to unblock user');
@@ -292,7 +232,7 @@ export default function ProfileScreen() {
 
       // Clear local storage and logout
       await AsyncStorage.removeItem('user');
-      await AsyncStorage.removeItem('token');
+      await SecureStore.deleteItemAsync('token');
       setDeleteConfirmationVisible(false);
       await logout();
       router.replace('/(auth)/login');
@@ -1339,7 +1279,7 @@ export default function ProfileScreen() {
               <View style={styles.settingLabelRow}>
                 <Ionicons name="ban" size={20} color={theme.colors.accent} style={{ marginRight: 12 }} />
                 <Text style={[styles.settingLabel, { color: theme.colors.text }]}>
-                  Blocked Users {user?.blocked_users && user.blocked_users.length > 0 ? `(${user.blocked_users.length})` : ''}
+                  Blocked Users {blockedUserIds.length > 0 ? `(${blockedUserIds.length})` : ''}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
@@ -1411,84 +1351,52 @@ export default function ProfileScreen() {
               </Pressable>
             </View>
 
-            {user?.blocked_users ? (
-              (() => {
-                // Parse blocked_users to get array
-                let blockedUserIds: any[] = [];
-                if (typeof user.blocked_users === 'string') {
-                  try {
-                    blockedUserIds = JSON.parse(user.blocked_users);
-                  } catch {
-                    blockedUserIds = [];
-                  }
-                } else if (Array.isArray(user.blocked_users)) {
-                  blockedUserIds = user.blocked_users;
-                }
+            {blockedUserIds.length > 0 ? (
+              <ScrollView style={styles.blockedUsersList} showsVerticalScrollIndicator={false}>
+                {blockedUserIds.map((blockedUserId) => {
+                  const userData = blockedUsersData[blockedUserId];
+                  const avatarId = userData?.avatarId || null;
+                  const userName = userData?.name || 'Unknown User';
+                  const imageUrl = avatarId ? `${getPocketBaseUrl()}/api/files/users/${blockedUserId}/${avatarId}` : null;
 
-                return blockedUserIds && blockedUserIds.length > 0 ? (
-                  <ScrollView style={styles.blockedUsersList} showsVerticalScrollIndicator={false}>
-                    {blockedUserIds.map((blockedUser: any) => {
-                      // blockedUser might be an object or a string ID
-                      const userId = typeof blockedUser === 'string' ? blockedUser : blockedUser?.id;
-                      const userData = blockedUsersData[userId];
-                      
-                      // Also check if blockedUser itself has the data (relationship object)
-                      const avatarId = userData?.avatarId || 
-                        (blockedUser?.images?.length > 0 ? blockedUser.images[0] : blockedUser?.avatar) || 
-                        null;
-                      const userName = userData?.name || blockedUser?.name || 'Unknown User';
-                      const imageUrl = avatarId ? `${getPocketBaseUrl()}/api/files/users/${userId}/${avatarId}` : null;
-
-                      return (
-                        <View key={userId} style={[styles.blockedUserItem, { backgroundColor: theme.colors.surface }]}>
-                          {imageUrl ? (
-                            <Image
-                              source={{ uri: imageUrl }}
-                              style={styles.blockedUserAvatar}
-                            />
-                          ) : (
-                            <View style={[styles.blockedUserAvatar, { backgroundColor: theme.colors.accent, justifyContent: 'center', alignItems: 'center' }]}>
-                              <Ionicons name="person" size={20} color={theme.colors.background} />
-                            </View>
-                          )}
-                          <View style={styles.blockedUserInfo}>
-                            <Text style={[styles.blockedUserName, { color: theme.colors.text }]} numberOfLines={1}>
-                              {userName}
-                            </Text>
-                          </View>
-                          <Pressable
-                            style={[
-                              styles.unblockButton,
-                              unblockingUserId === userId && styles.unblockButtonLoading,
-                            ]}
-                            onPress={() => handleUnblock(userId)}
-                            disabled={unblockingUserId === userId}
-                          >
-                            {unblockingUserId === userId ? (
-                              <ActivityIndicator size="small" color="white" />
-                            ) : (
-                              <>
-                                <Ionicons name="checkmark" size={16} color="white" style={{ marginRight: 4 }} />
-                                <Text style={styles.unblockButtonText}>Unblock</Text>
-                              </>
-                            )}
-                          </Pressable>
+                  return (
+                    <View key={blockedUserId} style={[styles.blockedUserItem, { backgroundColor: theme.colors.surface }]}>
+                      {imageUrl ? (
+                        <Image
+                          source={{ uri: imageUrl }}
+                          style={styles.blockedUserAvatar}
+                        />
+                      ) : (
+                        <View style={[styles.blockedUserAvatar, { backgroundColor: theme.colors.accent, justifyContent: 'center', alignItems: 'center' }]}>
+                          <Ionicons name="person" size={20} color={theme.colors.background} />
                         </View>
-                      );
-                    })}
-                  </ScrollView>
-                ) : (
-                  <View style={styles.emptyBlockedUsersContainer}>
-                    <Ionicons name="checkmark-circle" size={48} color={theme.colors.success} />
-                    <Text style={[styles.emptyBlockedUsersText, { color: theme.colors.text }]}>
-                      No blocked users
-                    </Text>
-                    <Text style={[styles.emptyBlockedUsersSubtext, { color: theme.colors.textSecondary }]}>
-                      Users you block will appear here
-                    </Text>
-                  </View>
-                );
-              })()
+                      )}
+                      <View style={styles.blockedUserInfo}>
+                        <Text style={[styles.blockedUserName, { color: theme.colors.text }]} numberOfLines={1}>
+                          {userName}
+                        </Text>
+                      </View>
+                      <Pressable
+                        style={[
+                          styles.unblockButton,
+                          unblockingUserId === blockedUserId && styles.unblockButtonLoading,
+                        ]}
+                        onPress={() => handleUnblock(blockedUserId)}
+                        disabled={unblockingUserId === blockedUserId}
+                      >
+                        {unblockingUserId === blockedUserId ? (
+                          <ActivityIndicator size="small" color="white" />
+                        ) : (
+                          <>
+                            <Ionicons name="checkmark" size={16} color="white" style={{ marginRight: 4 }} />
+                            <Text style={styles.unblockButtonText}>Unblock</Text>
+                          </>
+                        )}
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </ScrollView>
             ) : (
               <View style={styles.emptyBlockedUsersContainer}>
                 <Ionicons name="checkmark-circle" size={48} color={theme.colors.success} />

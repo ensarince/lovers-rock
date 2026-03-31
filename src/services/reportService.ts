@@ -1,5 +1,5 @@
-
 import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
+import { createBlock, getBlockedAgainstUser, getBlockedByUser, removeBlock } from '@/src/services/socialGraphService';
 
 export type ReportReason = 'harassment' | 'inappropriate_photos' | 'spam' | 'fake_profile' | 'other';
 export type ReportStatus = 'pending' | 'reviewed' | 'resolved';
@@ -27,75 +27,9 @@ class ReportService {
    */
   async blockUser(userId: string, blockedUserId: string, token: string): Promise<any> {
     try {
-      const POCKETBASE_URL = getPocketBaseUrl();
-      
-      // Get current user to get existing blocked_users
-      const response = await fetch(
-        `${POCKETBASE_URL}/api/collections/users/records/${userId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch user');
-      }
-
-      const user = await response.json();
-      let blockedUsers: string[] = [];
-      
-      // Handle string (single user), array, or objects
-      if (typeof user.blocked_users === 'string' && user.blocked_users) {
-        blockedUsers = [user.blocked_users];
-      } else if (Array.isArray(user.blocked_users)) {
-        blockedUsers = user.blocked_users.map((item: any) => {
-          if (typeof item === 'object' && item !== null && item.id) {
-            return item.id;
-          }
-          return String(item);
-        });
-      }
-
-      // Add new blocked user if not already blocked
-      if (!blockedUsers.includes(blockedUserId)) {
-        blockedUsers.push(blockedUserId);
-      }
-
-      // Send as JSON string since blocked_users is now a TEXT field
-      const blockedUsersJson = JSON.stringify(blockedUsers);
-
-      // Update user with new blocked list
-      const updateResponse = await fetch(
-        `${POCKETBASE_URL}/api/collections/users/records/${userId}`,
-        {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            blocked_users: blockedUsersJson,
-          }),
-        }
-      );
-
-      if (!updateResponse.ok) {
-        const errorText = await updateResponse.text();
-        let errorData: { message?: string } = {};
-        try {
-          errorData = JSON.parse(errorText);
-        } catch {
-          errorData = { message: errorText };
-        }
-        throw new Error(errorData?.message || 'Failed to block user');
-      }
-
-      const updatedUser = await updateResponse.json();
-      
-      // Return updated user data so caller can update context
-      return updatedUser;
+      await createBlock(userId, blockedUserId, token);
+      const blockedByMe = await this.getBlockedUsersByMe(userId, token);
+      return { blocked_users: blockedByMe };
     } catch (error: any) {
       console.error('Block user error:', error);
       throw error;
@@ -107,61 +41,7 @@ class ReportService {
    */
   async unblockUser(userId: string, blockedUserId: string, token: string): Promise<void> {
     try {
-      const POCKETBASE_URL = getPocketBaseUrl();
-      
-      // Get current user
-      const response = await fetch(
-        `${POCKETBASE_URL}/api/collections/users/records/${userId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch user');
-      }
-
-      const user = await response.json();
-      let blockedUsers: string[] = [];
-      
-      // Handle string (single user), array, or objects
-      if (typeof user.blocked_users === 'string' && user.blocked_users) {
-        blockedUsers = [user.blocked_users];
-      } else if (Array.isArray(user.blocked_users)) {
-        blockedUsers = user.blocked_users.map((item: any) => {
-          if (typeof item === 'object' && item !== null && item.id) {
-            return item.id;
-          }
-          return String(item);
-        });
-      }
-
-      // Remove from blocked list
-      blockedUsers = blockedUsers.filter((id: string) => id !== blockedUserId);
-
-      // Send as JSON string since blocked_users is now a TEXT field
-      const blockedUsersJson = JSON.stringify(blockedUsers);
-
-      // Update user with new blocked list
-      const updateResponse = await fetch(
-        `${POCKETBASE_URL}/api/collections/users/records/${userId}`,
-        {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            blocked_users: blockedUsersJson,
-          }),
-        }
-      );
-
-      if (!updateResponse.ok) {
-        throw new Error('Failed to unblock user');
-      }
+      await removeBlock(userId, blockedUserId, token);
     } catch (error: any) {
       console.error('Unblock user error:', error);
       throw error;
@@ -180,7 +60,7 @@ class ReportService {
   ): Promise<Report> {
     try {
       const POCKETBASE_URL = getPocketBaseUrl();
-      
+
       const response = await fetch(
         `${POCKETBASE_URL}/api/collections/reports/records`,
         {
@@ -213,67 +93,34 @@ class ReportService {
   }
 
   /**
-   * Get blocked users for current user
+   * Get blocked users for current user (both directions)
    */
   async getBlockedUsers(userId: string, token: string): Promise<string[]> {
     try {
-      const POCKETBASE_URL = getPocketBaseUrl();
-      
-      // Fetch with expand to get full relation data
-      const response = await fetch(
-        `${POCKETBASE_URL}/api/collections/users/records/${userId}?expand=blocked_users`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const [blockedByMe, blockedAgainstMe] = await Promise.all([
+        getBlockedByUser(userId, token),
+        getBlockedAgainstUser(userId, token),
+      ]);
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          console.warn(`⚠️ User ${userId} not found when fetching blocked users - returning empty array`);
-          return [];
-        }
-        throw new Error('Failed to fetch user');
-      }
-
-      const user = await response.json();
-      
-      // Try expanded relation first, then fall back to raw field
-      let blockedArray = user.expand?.blocked_users || user.blocked_users;
-      
-      if (!blockedArray) {
-        return [];
-      }
-
-      // If it's already an array, return it as-is
-      if (Array.isArray(blockedArray)) {
-        return blockedArray.map(item => {
-          if (typeof item === 'object' && item?.id) return item.id;
-          return String(item);
-        });
-      }
-
-      // Handle string case - try JSON parse first
-      if (typeof blockedArray === 'string') {
-        try {
-          const parsed = JSON.parse(blockedArray);
-          if (Array.isArray(parsed)) {
-            return parsed;
-          }
-        } catch (e) {
-          // If JSON parse fails, treat as comma-separated
-          const result = blockedArray
-            .split(',')
-            .map(id => id.trim())
-            .filter(id => id.length > 0);
-          return result;
-        }
-      }
-      return [];
+      return Array.from(new Set([
+        ...blockedByMe.map((record) => record.to_user),
+        ...blockedAgainstMe.map((record) => record.from_user),
+      ])).filter(Boolean);
     } catch (error: any) {
       console.error('Get blocked users error:', error);
-      // Return empty array instead of crashing the app
+      return [];
+    }
+  }
+
+  /**
+   * Get blocked users by the current user only
+   */
+  async getBlockedUsersByMe(userId: string, token: string): Promise<string[]> {
+    try {
+      const blockedByMe = await getBlockedByUser(userId, token);
+      return blockedByMe.map((record) => record.to_user).filter(Boolean);
+    } catch (error: any) {
+      console.error('Get blocked users by me error:', error);
       return [];
     }
   }
@@ -296,7 +143,7 @@ class ReportService {
   async getUserReports(userId: string, token: string): Promise<Report[]> {
     try {
       const POCKETBASE_URL = getPocketBaseUrl();
-      
+
       const response = await fetch(
         `${POCKETBASE_URL}/api/collections/reports/records?filter=(from_user='${userId}')`,
         {

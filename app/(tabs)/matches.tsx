@@ -3,13 +3,21 @@ import { BlockReportMenu } from '@/src/components/BlockReportMenu';
 import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import PartnerDetailModal from '@/src/components/PartnerDetailModal';
 import { useAuth } from '@/src/context/AuthContext';
-import { getAllAccounts } from '@/src/services/accountService';
+import { getPublicProfiles } from '@/src/services/accountService';
 import { acceptPartnerRequest, declinePartnerRequest, getIncomingPartnerRequests, getMatches, unmatchUser } from '@/src/services/matchData';
+import {
+  getActiveDeclinedUserIds,
+  getBlockedAgainstUser,
+  getBlockedByUser,
+  getIncomingLikes,
+  getOutgoingDeclines,
+  getOutgoingLikes,
+} from '@/src/services/socialGraphService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
 import { Match } from '@/src/types/match';
-import { getFirstImageUrl, getPocketBaseUrl } from '@/src/utils/helperFunctions';
+import { getFirstImageUrl, getPocketBaseUrl, intentIncludes } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
@@ -45,8 +53,8 @@ export default function MatchesScreen() {
   const styles = createStyles(theme);
 
   // Check intents
-  const hasDatingIntent = user && (Array.isArray(user.intent) ? user.intent.includes('date') : user.intent === 'date');
-  const hasPartnerIntent = user && (Array.isArray(user.intent) ? user.intent.includes('partner') : user.intent === 'partner');
+  const hasDatingIntent = user && intentIncludes(user.intent, 'date');
+  const hasPartnerIntent = user && intentIncludes(user.intent, 'partner');
   const hasBothIntents = hasDatingIntent && hasPartnerIntent;
 
   // Split matches by type
@@ -82,66 +90,43 @@ export default function MatchesScreen() {
       // Fetch users who liked you in dating mode
       if (hasDatingIntent) {
         try {
-          const allUsers = await getAllAccounts(token);
-          
-          // Get your declined dating list
-          const currentUserData = allUsers.find(u => u.id === user.id);
-          const yourDeclinedDating = (() => {
-            const declined = currentUserData?.declined_users_as_dating || [];
-            if (Array.isArray(declined)) {
-              return declined.map((item: any) => {
-                if (typeof item === 'object' && item.userId) return item.userId;
-                return item;
-              });
-            }
-            return [];
-          })();
-          
-          // Get your blocked users from freshly fetched data (not stale context)
-          const yourBlockedUsers = (() => {
-            const blocked = currentUserData?.blocked_users || [];
-            if (Array.isArray(blocked)) {
-              return blocked.map((item: any) => {
-                if (typeof item === 'object' && item !== null && item.id) return item.id;
-                return String(item);
-              });
-            }
-            return [];
-          })();
-          
-          // Get your liked users in dating mode from freshly fetched data
-          const yourLikedDating = Array.isArray(currentUserData?.liked_users_dating)
-            ? currentUserData.liked_users_dating
-            : typeof currentUserData?.liked_users_dating === 'string'
-              ? (() => { try { return JSON.parse(currentUserData.liked_users_dating); } catch { return []; } })()
-              : [];
-          
-          // Find users with 'date' intent who have liked you in dating mode
-          const dateLikers = allUsers.filter((u: Climber) => {
-            const theirLikesDating = Array.isArray(u.liked_users_dating)
-              ? u.liked_users_dating
-              : typeof u.liked_users_dating === 'string'
-                ? (() => { try { return JSON.parse(u.liked_users_dating); } catch { return []; } })()
-                : [];
-            
-            // Check if they have blocked you
-            const theirBlockedUsers = Array.isArray(u.blocked_users)
-              ? u.blocked_users.map((item: any) => {
-                  if (typeof item === 'object' && item !== null && item.id) return item.id;
-                  return String(item);
-                })
-              : [];
-            
-            return (
-              Array.isArray(u.intent) && u.intent.includes('date') &&
-              theirLikesDating.includes(user.id) &&
-              !allMatches.some(m => m.climber.id === u.id && m.type === 'dating') &&
-              !yourDeclinedDating.includes(u.id) && // Don't show if you declined them
-              !yourBlockedUsers.includes(u.id) && // Don't show if you blocked them
-              !theirBlockedUsers.includes(user.id) && // Don't show if they blocked you
-              !yourLikedDating.includes(u.id) // Don't show if you already liked them (covers mutual matches too)
-            );
-          });
+          const [
+            incomingLikes,
+            outgoingLikes,
+            outgoingDeclines,
+            blockedByMe,
+            blockedAgainstMe,
+            profiles,
+          ] = await Promise.all([
+            getIncomingLikes(user.id, token, 'dating'),
+            getOutgoingLikes(user.id, token, 'dating'),
+            getOutgoingDeclines(user.id, token, 'dating'),
+            getBlockedByUser(user.id, token),
+            getBlockedAgainstUser(user.id, token),
+            getPublicProfiles(token),
+          ]);
+
+          const blockedIds = new Set([
+            ...blockedByMe.map((record) => record.to_user),
+            ...blockedAgainstMe.map((record) => record.from_user),
+          ]);
+
+          const declinedDatingIds = new Set(
+            getActiveDeclinedUserIds(outgoingDeclines, 'dating', 'outgoing')
+          );
+          const outgoingDatingIds = new Set(outgoingLikes.map((like) => like.to_user));
+          const incomingDatingIds = incomingLikes.map((like) => like.from_user).filter(Boolean);
+          const profileMap = new Map(profiles.map((profile) => [profile.id, profile]));
+
+          const dateLikers = incomingDatingIds
+            .filter((id) => !allMatches.some(m => m.climber.id === id && m.type === 'dating'))
+            .filter((id) => !declinedDatingIds.has(id))
+            .filter((id) => !blockedIds.has(id))
+            .filter((id) => !outgoingDatingIds.has(id))
+            .map((id) => profileMap.get(id))
+            .filter(Boolean)
+            .filter((profile) => intentIncludes((profile as Climber).intent, 'date')) as Climber[];
+
           // Set only one hint
           if (dateLikers.length > 0) {
             setDatingLikedHint(dateLikers[0]);
@@ -234,7 +219,7 @@ export default function MatchesScreen() {
   const handleDeclineRequest = async (request: Climber) => {
     try {
       setDecliningRequestIds(prev => [...prev, request.id]);
-      // Remove the current user's ID from the requester's liked_users_partner array
+      // Record decline and hide the request
       await declinePartnerRequest(user!.id, request.id, token!);
       // Remove from the local requests list
       setIncomingRequests(prev => prev.filter(r => r.id !== request.id));

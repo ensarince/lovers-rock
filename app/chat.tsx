@@ -1,4 +1,3 @@
-import { Text, View } from '@/components/Themed';
 import { ChatMenuModal } from '@/src/components/ChatMenuModal';
 import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import { useAuth } from '@/src/context/AuthContext';
@@ -21,7 +20,9 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
+  Text,
   TextInput,
+  View,
 } from 'react-native';
 
 const POCKETBASE_URL = getPocketBaseUrl();
@@ -72,6 +73,9 @@ const upsertMessage = (messages: Message[], nextMessage: Message) => {
 
 const isHeartReaction = (reaction?: string) =>
   reaction === HEART_REACTION || reaction === LEGACY_HEART_REACTION;
+
+const getHeartReactionCount = (message: Message) =>
+  Object.values(message.reactions || {}).filter((reaction) => isHeartReaction(reaction)).length;
 
 export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -399,8 +403,11 @@ export default function ChatScreen() {
     const userReaction = item.reactions ? item.reactions[user?.id || ''] : undefined;
     const isReacting = reactingToMessageIds.includes(item.id);
     const likedByCurrentUser = isHeartReaction(userReaction);
+    const heartReactionCount = getHeartReactionCount(item);
+    const showReactionBadge = heartReactionCount > 0;
     return (
       <View style={[styles.messageContainer, isOwnMessage ? styles.ownMessage : styles.otherMessage]}>
+        <View style={styles.messageContent}>
         <Pressable style={styles.messageBubble}>
           <Text style={[styles.messageText, isOwnMessage ? styles.ownMessageText : styles.otherMessageText]}>
             {item.content}
@@ -419,6 +426,15 @@ export default function ChatScreen() {
             )}
           </View>
         </Pressable>
+        {showReactionBadge && (
+          <View style={[styles.reactionBadge, isOwnMessage ? styles.ownReactionBadge : styles.otherReactionBadge]}>
+            <Text style={styles.reactionBadgeText}>
+              {HEART_REACTION}
+              {heartReactionCount > 1 ? ` ${heartReactionCount}` : ''}
+            </Text>
+          </View>
+        )}
+        </View>
         {!isOwnMessage && (
           <Pressable
             style={[styles.likeButton, isReacting && styles.likeButtonDisabled]}
@@ -495,10 +511,15 @@ export default function ChatScreen() {
 
   if (blocked) {
     return (
-      <View style={styles.container}>
-        <Text style={{ color: theme.colors.error, textAlign: 'center', marginTop: 32 }}>
-          You cannot message this user.
+      <View style={styles.blockedContainer}>
+        <Text style={styles.blockedTitle}>You cannot message this user.</Text>
+        <Text style={styles.blockedSubtitle}>
+          This conversation is unavailable because one of you has blocked the other.
         </Text>
+        <Pressable onPress={goBack} style={styles.blockedBackButton}>
+          <Ionicons name="arrow-back" size={18} color="#ffffff" />
+          <Text style={styles.blockedBackButtonText}>Go back</Text>
+        </Pressable>
       </View>
     );
   }
@@ -701,6 +722,10 @@ const createStyles = (theme: typeof themeLight) =>
     otherMessage: {
       alignSelf: 'flex-start',
     },
+    messageContent: {
+      maxWidth: '100%',
+      backgroundColor: 'transparent',
+    },
     messageText: {
       paddingHorizontal: 16,
       paddingVertical: 12,
@@ -736,6 +761,26 @@ const createStyles = (theme: typeof themeLight) =>
     messageBubble: {
       maxWidth: '100%',
     },
+    reactionBadge: {
+      alignSelf: 'flex-start',
+      marginTop: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 999,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    ownReactionBadge: {
+      alignSelf: 'flex-end',
+    },
+    otherReactionBadge: {
+      alignSelf: 'flex-start',
+    },
+    reactionBadgeText: {
+      fontSize: 12,
+      color: theme.colors.text,
+    },
     messageFooter: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -752,11 +797,47 @@ const createStyles = (theme: typeof themeLight) =>
     likeButtonDisabled: {
       opacity: 0.5,
     },
+    blockedContainer: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 24,
+      backgroundColor: theme.colors.background,
+    },
+    blockedTitle: {
+      color: theme.colors.error,
+      textAlign: 'center',
+      fontSize: 18,
+      fontWeight: '600',
+      marginBottom: 12,
+    },
+    blockedSubtitle: {
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      fontSize: 14,
+      lineHeight: 20,
+      marginBottom: 20,
+    },
+    blockedBackButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: theme.colors.accent,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 999,
+    },
+    blockedBackButtonText: {
+      color: '#ffffff',
+      fontSize: 14,
+      fontWeight: '600',
+    },
     typingIndicator: {
       flexDirection: 'row',
       alignItems: 'center',
       paddingVertical: 8,
       paddingHorizontal: 12,
+      backgroundColor: "transparent",
       gap: 4,
     },
     typingDot: {
@@ -811,5 +892,4 @@ const createStyles = (theme: typeof themeLight) =>
 
 const lightStyles = createStyles(themeLight);
 const darkStyles = createStyles(themeDark);
-
 

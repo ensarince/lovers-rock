@@ -5,7 +5,7 @@ import { messageService } from '@/src/services/messageService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import type { Conversation } from '@/src/types/message';
-import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
+import { getPocketBaseUrl, intentIncludes } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useState } from 'react';
@@ -27,8 +27,8 @@ export default function MessagesScreen() {
     const styles = createStyles(theme);
 
     // Check intents
-    const hasDatingIntent = user && (Array.isArray(user.intent) ? user.intent.includes('date') : user.intent === 'date');
-    const hasPartnerIntent = user && (Array.isArray(user.intent) ? user.intent.includes('partner') : user.intent === 'partner');
+    const hasDatingIntent = user && intentIncludes(user.intent, 'date');
+    const hasPartnerIntent = user && intentIncludes(user.intent, 'partner');
 
     useFocusEffect(
         React.useCallback(() => {

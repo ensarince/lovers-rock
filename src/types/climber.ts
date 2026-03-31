@@ -27,6 +27,7 @@ export interface Climber {
   email: string;
   images?: string[]; // Array of image filenames (max 3)
   avatar?: string; // Legacy field - for backward compatibility
+  image_url?: string; // Derived image URL for UI helpers
   liked_users?: string[]; // Legacy field - deprecated
   liked_users_dating?: string[]; // Users liked in dating mode
   liked_users_partner?: string[]; // Users liked in partner mode

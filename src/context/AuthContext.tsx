@@ -5,8 +5,9 @@ import { NotificationService } from '@/src/services/notificationService';
 import { preferenceService } from '@/src/services/preferenceService';
 import { initReportService } from '@/src/services/reportService';
 import { Climber } from '@/src/types/climber';
-import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
+import { getPocketBaseUrl, normalizeIntentValue } from '@/src/utils/helperFunctions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import PocketBase from 'pocketbase';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
@@ -150,7 +151,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       email: record.email || '',
       avatar: record.avatar || '',
       images: Array.isArray(record.images) ? record.images : [],
-      intent: Array.isArray(record.intent) ? record.intent : [],
+      intent: Array.isArray(record.intent)
+        ? record.intent.map((value: string) => normalizeIntentValue(value)).filter(Boolean) as Array<'date' | 'partner'>
+        : [],
       latitude: typeof record.latitude === 'number' ? record.latitude : undefined,
       longitude: typeof record.longitude === 'number' ? record.longitude : undefined,
       last_location_update: record.last_location_update || undefined,
@@ -165,7 +168,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Try to restore from AsyncStorage first
       try {
         const storedUser = await AsyncStorage.getItem('user');
-        const storedToken = await AsyncStorage.getItem('token');
+        const storedToken = await SecureStore.getItemAsync('token');
         const storedDarkMode = await AsyncStorage.getItem('darkMode');
 
         if (storedDarkMode) {
@@ -251,7 +254,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(climberUser);
       setToken(authData.token);
       await AsyncStorage.setItem('user', JSON.stringify(climberUser));
-      await AsyncStorage.setItem('token', authData.token);
+          await SecureStore.setItemAsync('token', authData.token);
       
       // Setup notifications for logged-in user
       const pb = new PocketBase(getPocketBaseUrl());
@@ -349,7 +352,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(climberUser);
       setToken(authData.token);
       await AsyncStorage.setItem('user', JSON.stringify(climberUser));
-      await AsyncStorage.setItem('token', authData.token);
+      await SecureStore.setItemAsync('token', authData.token);
       // Reset preferences and sync for the new user
       preferenceService.reset();
       await preferenceService.syncPreferences(authData.token, authData.record.id);
@@ -373,7 +376,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setToken(null);
     setPreferencesSynced(false);
     await AsyncStorage.removeItem('user');
-    await AsyncStorage.removeItem('token');
+    await SecureStore.deleteItemAsync('token');
     // Reset preference service when logging out
     preferenceService.reset();
   };

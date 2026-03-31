@@ -8,13 +8,21 @@ import { calculateDistance } from '@/src/services/geoService';
 import { locationService } from '@/src/services/locationService';
 import { declineDatingUser } from '@/src/services/matchData';
 import { preferenceService } from '@/src/services/preferenceService';
+import {
+  createLike,
+  getActiveDeclinedUserIds,
+  getIncomingLikes,
+  getOutgoingDeclines,
+  getOutgoingLikes,
+  hasIncomingLike,
+  removeLike,
+} from '@/src/services/socialGraphService';
 import { getReportService } from '@/src/services/reportService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
-import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
+import { getPocketBaseUrl, intentIncludes } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -27,9 +35,7 @@ import {
   Switch,
   TextInput
 } from 'react-native';
-import { getAllAccounts } from '../../src/services/accountService';
-
-const POCKETBASE_URL = getPocketBaseUrl();
+import { getPublicProfiles } from '../../src/services/accountService';
 
 export default function DiscoverScreen() {
   // Dating mode state
@@ -57,7 +63,6 @@ export default function DiscoverScreen() {
   const [selectedPartner, setSelectedPartner] = useState<Climber | null>(null);
   const [partnerModalVisible, setPartnerModalVisible] = useState(false);
   const [requestSentIds, setRequestSentIds] = useState<string[]>([]);
-  const [acceptedUserIds, setAcceptedUserIds] = useState<string[]>([]);
 
   // Dating mode interactions (swiped left or right)
   const [datingInteractionIds, setDatingInteractionIds] = useState<string[]>([]);
@@ -71,7 +76,7 @@ export default function DiscoverScreen() {
   // Trigger for manual refresh of blocked users
   const [blockRefreshTrigger, setBlockRefreshTrigger] = useState(0);
 
-  const { token, user, preferencesSynced, darkMode, setUser } = useAuth();
+  const { token, user, preferencesSynced, darkMode } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
 
@@ -139,65 +144,29 @@ export default function DiscoverScreen() {
   // Track users I have liked (for partner mode)
   useEffect(() => {
     if (!user || !token) return;
-    const fetchAccepted = async () => {
+    const syncPreferences = async () => {
       await preferenceService.syncPreferences(token, user.id);
-      setAcceptedUserIds(preferenceService.getAccepted());
+      setRequestSentIds(preferenceService.getAcceptedForPartner());
     };
-    fetchAccepted();
-  }, [user?.id, token, requestSentIds]);
+    syncPreferences();
+  }, [user?.id, token]);
 
-  // Load dating mode data - runs on load and when blocked_users changes
+  // Load dating mode data - runs on load and when blocked list changes
   useEffect(() => {
     const loadDatingData = async () => {
       setLoading(true);
       try {
         if (!token || !user?.id) return;
 
-        // Fetch current user to get declined_users_as_dating
-        const userRes = await fetch(`${POCKETBASE_URL}/api/collections/users/records/${user.id}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        let declinedDatingList = [];
-        if (userRes.ok) {
-          const freshUser = await userRes.json();
-          // Parse declined_users_as_dating
-          const declinedRaw = freshUser.declined_users_as_dating;
-          if (Array.isArray(declinedRaw)) {
-            declinedDatingList = declinedRaw;
-          } else if (typeof declinedRaw === 'string') {
-            try {
-              declinedDatingList = JSON.parse(declinedRaw);
-            } catch {
-              declinedDatingList = [];
-            }
-          }
-        }
+        const declinedDatingRecords = await getOutgoingDeclines(user.id, token, 'dating');
+        const declinedDatingIds = new Set(
+          getActiveDeclinedUserIds(declinedDatingRecords, 'dating', 'outgoing')
+        );
 
         // Fetch climbers
-        const data = await getAllAccounts(token);
+        const data = await getPublicProfiles(token);
 
-        // Helper: Check if a user is in the active declined list (not expired)
-        const isActivelyDeclined = (userId: string): boolean => {
-          const ONE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
-          return declinedDatingList.some((item: any) => {
-            const id = typeof item === 'string' ? item : item.userId;
-            const timestamp = typeof item === 'string' ? 0 : item.declinedAt;
-            
-            if (id !== userId) return false;
-            
-            // If no timestamp, consider it old and expired
-            if (!timestamp) return false;
-            
-            // Check if decline is still active (less than 1 month)
-            const timeSinceDeclining = Date.now() - timestamp;
-            return timeSinceDeclining < ONE_MONTH_MS;
-          });
-        };
+        const isActivelyDeclined = (userId: string): boolean => declinedDatingIds.has(userId);
 
         // 1. Only users with 'date' intent
         // 2. Exclude self
@@ -209,13 +178,9 @@ export default function DiscoverScreen() {
           (c) =>
             c.id !== user?.id &&
             !blockedUserIds.includes(c.id) &&
-            !(Array.isArray(c.blocked_users) && c.blocked_users.some((b: any) => {
-              const blockerId = typeof b === 'object' ? b.id : b;
-              return blockerId === (user?.id || "");
-            })) &&
             !isActivelyDeclined(c.id) &&
             c.verified === true &&
-            Array.isArray(c.intent) && c.intent.includes('date') &&
+            intentIncludes(c.intent, 'date') &&
             c.name !== '' &&
             typeof c.age === 'number' &&
             c.grade &&
@@ -223,11 +188,11 @@ export default function DiscoverScreen() {
             c.home_gym !== '' &&
             c.bio !== '' &&
             (Array.isArray(c.images) && c.images.length > 0) &&
-            c.email !== ''
+            c.profile_completed === true
         );
         
         if (process.env.EXPO_DEV_MODE) {
-          const blockedButShown = data.filter(c => blockedUserIds.includes(c.id) && Array.isArray(c.intent) && c.intent.includes('date'));
+          const blockedButShown = data.filter(c => blockedUserIds.includes(c.id) && intentIncludes(c.intent, 'date'));
           if (blockedButShown.length > 0) {
             console.warn('❌ BLOCKED USERS STILL IN DATING DATA:', blockedButShown.map(c => `${c.name} (${c.id})`));
             console.warn('Blocked IDs:', blockedUserIds);
@@ -235,7 +200,7 @@ export default function DiscoverScreen() {
           } else {
             console.log('✅ No blocked users in dating feed. Total users after filter:', filtered.length);
           }
-          console.log('📋 Active declined users in dating:', declinedDatingList.length);
+          console.log('📋 Active declined users in dating:', declinedDatingIds.size);
         }
 
         // Normalize climbing_styles and avatar URL for each climber
@@ -278,71 +243,42 @@ export default function DiscoverScreen() {
     if (token && user?.id) {
       loadDatingData();
     }
-  }, [token, user?.id]);
+  }, [token, user?.id, blockedUserIds]);
 
-  // Load partner mode data - runs on load and when blocked_users changes
+  // Load partner mode data - runs on load and when blocked list changes
   useEffect(() => {
     const loadPartnerData = async () => {
       setLoading(true);
       try {
         if (!token || !user) return;
         
-        // Fetch fresh user data to get latest liked_users_partner AND liked_users_dating
-        const userRes = await fetch(`${POCKETBASE_URL}/api/collections/users/records/${user.id}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        
-        let likedUsersDating: string[] = [];
-        let declinedUsers: string[] = [];
-        let likedUsersPartner: string[] = [];
-        let likedUsersDatingList: string[] = [];
-        
-        if (userRes.ok) {
-          const freshUser = await userRes.json();
-          setUser({ ...user, liked_users_partner: freshUser.liked_users_partner });
-          
-          // Parse declined_users_as_partner
-          declinedUsers = freshUser.declined_users_as_partner || [];
-          
-          // Parse liked_users_partner
-          likedUsersPartner = Array.isArray(freshUser.liked_users_partner) 
-            ? freshUser.liked_users_partner 
-            : [];
-          
-          // Parse liked_users_dating
-          const likedUsersDatingRaw = freshUser.liked_users_dating;
-          if (Array.isArray(likedUsersDatingRaw)) {
-            likedUsersDating = likedUsersDatingRaw;
-            likedUsersDatingList = likedUsersDatingRaw;
-          } else if (typeof likedUsersDatingRaw === 'string') {
-            try {
-              likedUsersDating = JSON.parse(likedUsersDatingRaw);
-              likedUsersDatingList = likedUsersDating;
-            } catch {
-              likedUsersDating = [];
-              likedUsersDatingList = [];
-            }
-          }
-        }
+        const [
+          outgoingPartnerLikes,
+          outgoingDatingLikes,
+          incomingPartnerLikes,
+          outgoingPartnerDeclines,
+        ] = await Promise.all([
+          getOutgoingLikes(user.id, token, 'partner'),
+          getOutgoingLikes(user.id, token, 'dating'),
+          getIncomingLikes(user.id, token, 'partner'),
+          getOutgoingDeclines(user.id, token, 'partner'),
+        ]);
 
-        const data = await getAllAccounts(token);
+        const likedUsersPartner = outgoingPartnerLikes.map((like) => like.to_user).filter(Boolean);
+        const likedUsersDating = outgoingDatingLikes.map((like) => like.to_user).filter(Boolean);
+        const incomingPartnerLikeIds = new Set(incomingPartnerLikes.map((like) => like.from_user).filter(Boolean));
+        const declinedUsers = getActiveDeclinedUserIds(outgoingPartnerDeclines, 'partner', 'outgoing');
+
+        const data = await getPublicProfiles(token);
         // Only show users with 'partner' intent, exclude self and blocked users, only verified users
         let filtered = data.filter(
           (c) => c.id !== user.id && 
                  !blockedUserIds.includes(c.id) &&
-                 !(Array.isArray(c.blocked_users) && c.blocked_users.some((b: any) => {
-                   const blockerId = typeof b === 'object' ? b.id : b;
-                   return blockerId === (user?.id || "");
-                 })) &&
                  c.verified === true &&
-                 Array.isArray(c.intent) && c.intent.includes('partner')
+                 intentIncludes(c.intent, 'partner')
         );
         if (process.env.EXPO_DEV_MODE) {
-          const blockedButShown = data.filter(c => blockedUserIds.includes(c.id) && Array.isArray(c.intent) && c.intent.includes('partner'));
+          const blockedButShown = data.filter(c => blockedUserIds.includes(c.id) && intentIncludes(c.intent, 'partner'));
           if (blockedButShown.length > 0) {
             console.warn('❌ BLOCKED USERS STILL IN PARTNER DATA:', blockedButShown.map(c => `${c.name} (${c.id})`));
             console.warn('Blocked IDs:', blockedUserIds);
@@ -353,13 +289,8 @@ export default function DiscoverScreen() {
         }
         // Remove users who are already matched/connected (mutual like in partner mode)
         filtered = filtered.filter((c) => {
-          const theirLikesPartner = Array.isArray(c.liked_users_partner)
-            ? c.liked_users_partner
-            : typeof c.liked_users_partner === 'string'
-              ? (() => { try { return JSON.parse(c.liked_users_partner); } catch { return []; } })()
-              : [];
-          const iLikeThem = acceptedUserIds.includes(c.id);
-          const theyLikeMe = theirLikesPartner.includes(user.id);
+          const iLikeThem = likedUsersPartner.includes(c.id);
+          const theyLikeMe = incomingPartnerLikeIds.has(c.id);
           // If both liked each other in partner mode, it's a match, so filter out
           return !(iLikeThem && theyLikeMe);
         });
@@ -369,10 +300,8 @@ export default function DiscoverScreen() {
         filtered = filtered.filter((c) => !datingInteractionIds.includes(c.id));
         // Filter out users we've declined (from database) - they shouldn't reappear
         filtered = filtered.filter((c) => !declinedUsers.includes(c.id));
-        // Filter out users already matched with in dating mode
-        filtered = filtered.filter((c) => !likedUsersDatingList.includes(c.id));
         // Filter out users already matched with in partner mode (both liked each other)
-        filtered = filtered.filter((c) => !likedUsersPartner.includes(c.id));
+        filtered = filtered.filter((c) => !likedUsersPartner.includes(c.id) || !incomingPartnerLikeIds.has(c.id));
         // Only include users with complete profiles
         filtered = filtered.filter((c) =>
           c.name !== '' &&
@@ -381,7 +310,7 @@ export default function DiscoverScreen() {
           Array.isArray(c.climbing_styles) && c.climbing_styles.length > 0 &&
           c.home_gym !== '' &&
           c.bio !== '' &&
-          c.email !== '' &&
+          c.profile_completed === true &&
           (Array.isArray(c.images) && c.images.length > 0)
         );
         setPartners(filtered);
@@ -395,37 +324,33 @@ export default function DiscoverScreen() {
       }
     };
     if (token && user) loadPartnerData();
-  }, [token, user?.id]);
+  }, [token, user?.id, blockedUserIds]);
 
   // Filter climbers when preferences are synced (dating mode)
   useEffect(() => {
     if (preferencesSynced && climbers.length > 0) {
-      let notLiked = climbers.filter(c => !preferenceService.isAccepted(c.id));
+      let notLiked = climbers.filter(c => !preferenceService.isAcceptedForDating(c.id));
       // Filter out users already sent partner requests to
       notLiked = notLiked.filter(c => !requestSentIds.includes(c.id));
       // Filter out users already interacted with in this session (swiped left or right)
       notLiked = notLiked.filter(c => !datingInteractionIds.includes(c.id));
-      // Filter out users already matched with (appeared in liked_users_dating)
-      notLiked = notLiked.filter(c => !(user?.liked_users_dating && Array.isArray(user.liked_users_dating) && user.liked_users_dating.includes(c.id)));
       const filtered = applyFiltersAndSearch(notLiked, searchText, activeFilters, blockedUserIds);
       setFilteredClimbers(filtered);
     }
-  }, [preferencesSynced, climbers, requestSentIds, blockedUserIds, datingInteractionIds, user?.liked_users_dating]);
+  }, [preferencesSynced, climbers, requestSentIds, blockedUserIds, datingInteractionIds]);
 
   // Re-apply search and filters when they change (dating mode)
   useEffect(() => {
     if (preferencesSynced && climbers.length > 0) {
-      let notLiked = climbers.filter(c => !preferenceService.isAccepted(c.id));
+      let notLiked = climbers.filter(c => !preferenceService.isAcceptedForDating(c.id));
       // Filter out users already sent partner requests to
       notLiked = notLiked.filter(c => !requestSentIds.includes(c.id));
       // Filter out users already interacted with in this session (swiped left or right)
       notLiked = notLiked.filter(c => !datingInteractionIds.includes(c.id));
-      // Filter out users already matched with (appeared in liked_users_dating)
-      notLiked = notLiked.filter(c => !(user?.liked_users_dating && Array.isArray(user.liked_users_dating) && user.liked_users_dating.includes(c.id)));
       const filtered = applyFiltersAndSearch(notLiked, searchText, activeFilters, blockedUserIds);
       setFilteredClimbers(filtered);
     }
-  }, [searchText, activeFilters, preferencesSynced, climbers, requestSentIds, blockedUserIds, datingInteractionIds, user?.liked_users_dating]);
+  }, [searchText, activeFilters, preferencesSynced, climbers, requestSentIds, blockedUserIds, datingInteractionIds]);
 
   // Filter partners when search/filters change (partner mode)
   useEffect(() => {
@@ -496,8 +421,7 @@ export default function DiscoverScreen() {
     let result = baseClimbers.filter(
       (c) =>
         !blocked.includes(c.id) &&
-        !(Array.isArray(c.blocked_users) && c.blocked_users.includes(user?.id || "")) &&
-        Array.isArray(c.intent) && c.intent.includes('date') &&
+        intentIncludes(c.intent, 'date') &&
         c.name !== '' &&
         typeof c.age === 'number' &&
         c.grade &&
@@ -505,7 +429,7 @@ export default function DiscoverScreen() {
         c.home_gym !== '' &&
         c.bio !== '' &&
         (Array.isArray(c.images) && c.images.length > 0) &&
-        c.email !== ''
+        c.profile_completed === true
     );
 
     // Filter by search text
@@ -614,47 +538,18 @@ export default function DiscoverScreen() {
     }
 
     try {
-      // Fetch my own user record
-      const res = await fetch(`${POCKETBASE_URL}/api/collections/users/records/${user.id}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!res.ok) throw new Error('Failed to fetch current user');
-      const me = await res.json();
-      let likedUsersPartner: string[] = [];
-      if (Array.isArray(me.liked_users_partner)) likedUsersPartner = me.liked_users_partner;
-      else if (typeof me.liked_users_partner === 'string') {
-        try { likedUsersPartner = JSON.parse(me.liked_users_partner); } catch { likedUsersPartner = []; }
-      }
-
-      // Add or remove climber from liked_users_partner
       if (isRemoving) {
-        likedUsersPartner = likedUsersPartner.filter(id => id !== climber.id);
+        await removeLike(user.id, climber.id, 'partner', token);
       } else {
-        if (!likedUsersPartner.includes(climber.id)) likedUsersPartner.push(climber.id);
+        await createLike(user.id, climber.id, 'partner', token);
       }
 
-      // PATCH my liked_users_partner
-      const patchRes = await fetch(`${POCKETBASE_URL}/api/collections/users/records/${user.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ liked_users_partner: likedUsersPartner }),
+      setRequestSentIds((prev) => {
+        if (isRemoving) {
+          return prev.filter((id) => id !== climber.id);
+        }
+        return Array.from(new Set([...prev, climber.id]));
       });
-
-      // Update context
-      const updatedUser = { ...user, liked_users_partner: likedUsersPartner };
-      setUser(updatedUser);
-      
-      // Update acceptedUserIds state for UI consistency
-      setAcceptedUserIds(likedUsersPartner);
-      
-      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
     } catch (e) {
       if (process.env.EXPO_DEV_MODE) console.log('Error in handleSendPartnerRequest', e);
     }
@@ -696,15 +591,11 @@ export default function DiscoverScreen() {
 
     // Check if this creates a mutual match
     try {
-      const allUsers = await getAllAccounts(token);
-      const likedUser = allUsers.find(u => u.id === climber.id);
-      if (likedUser) {
-        const likedUserLikedDating = likedUser.liked_users_dating || [];
-        if (likedUserLikedDating.includes(user.id)) {
-          // It's a dating match! Show animation
-          setMatchedClimber(climber);
-          setMatchAnimationVisible(true);
-        }
+      const isMutual = await hasIncomingLike(user.id, climber.id, 'dating', token);
+      if (isMutual) {
+        // It's a dating match! Show animation
+        setMatchedClimber(climber);
+        setMatchAnimationVisible(true);
       }
     } catch (error) {
       if (process.env.EXPO_DEV_MODE) console.error('Error checking for match:', error);
@@ -733,7 +624,7 @@ export default function DiscoverScreen() {
     // Update filtered climbers to exclude the rejected user (they don't want to see them again)
     setFilteredClimbers(prev => {
       const next = prev.filter(
-        c => c.id !== climber.id && !(Array.isArray(c.blocked_users) && c.blocked_users.includes(user?.id || ""))
+        c => c.id !== climber.id
       );
       setCurrentIndex((current) => {
         if (next.length === 0) return 0;
@@ -751,8 +642,8 @@ export default function DiscoverScreen() {
   const currentClimber = filteredClimbers.length > 0 ? filteredClimbers[currentIndex] : null;
 
   // Check if user has the required intent for the current mode
-  const hasDatingIntent = user && (Array.isArray(user.intent) ? user.intent.includes('date') : user.intent === 'date');
-  const hasPartnerIntent = user && (Array.isArray(user.intent) ? user.intent.includes('partner') : user.intent === 'partner');
+  const hasDatingIntent = user && intentIncludes(user.intent, 'date');
+  const hasPartnerIntent = user && intentIncludes(user.intent, 'partner');
 
   // If only one mode is enabled, force it
   useEffect(() => {

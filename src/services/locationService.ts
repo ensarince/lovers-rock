@@ -59,6 +59,14 @@ class LocationService {
     longitude: number
   ): Promise<boolean> {
     try {
+      const roundCoord = (value: number, decimals = 3) => {
+        const factor = Math.pow(10, decimals);
+        return Math.round(value * factor) / factor;
+      };
+
+      const safeLatitude = roundCoord(latitude);
+      const safeLongitude = roundCoord(longitude);
+
       const response = await fetch(
         `${POCKETBASE_URL}/api/collections/users/records/${userId}`,
         {
@@ -68,8 +76,8 @@ class LocationService {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            latitude,
-            longitude,
+            latitude: safeLatitude,
+            longitude: safeLongitude,
             last_location_update: new Date().toISOString(),
           }),
         }
