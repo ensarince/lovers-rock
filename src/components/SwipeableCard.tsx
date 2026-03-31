@@ -11,11 +11,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
+  Dimensions,
   PanResponder,
   Pressable,
   StyleSheet,
   View,
 } from 'react-native';
+
+const windowHeight = Dimensions.get('window').height;
+const CARD_HEIGHT = Math.min(430, Math.max(360, windowHeight * 0.62));
 
 interface SwipeableCardProps {
   climber: Climber;
@@ -275,14 +279,14 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
 
 const styles = StyleSheet.create({
   outerContainer: {
-    width: '90%',
+    width: '94%',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 8,
   },
   container: {
     width: '100%',
-    height: 450,
-    maxHeight: 500,
+    height: CARD_HEIGHT,
+    maxHeight: CARD_HEIGHT,
     marginHorizontal: 'auto',
   },
   cardShadow: {
@@ -293,7 +297,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   card: {
-    borderRadius: 16,
+    borderRadius: 24,
     overflow: 'hidden',
     height: '100%',
     backgroundColor: theme.colors.surface,
@@ -343,10 +347,12 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 12,
-    backgroundColor: 'rgba(24,24,28,0.45)',
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 16,
+    backgroundColor: 'rgba(24,24,28,0.52)',
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
   name: {
     fontSize: 20,

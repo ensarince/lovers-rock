@@ -151,6 +151,10 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
             Alert.alert('Required', 'Please enter a valid age');
             return;
         }
+        if (Number(age) < 18) {
+            Alert.alert('Age Requirement', 'You must be at least 18 years old to use the app.');
+            return;
+        }
         if (!gender) {
             Alert.alert('Required', 'Please select your gender');
             return;

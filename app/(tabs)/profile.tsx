@@ -2,8 +2,8 @@
 import { Text } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
 import { getBlockedUsersData } from '@/src/services/accountService';
-import { getReportService } from '@/src/services/reportService';
 import { createDefaultGrade, formatGradeDisplay, getExampleGrades } from '@/src/services/gradeService';
+import { getReportService } from '@/src/services/reportService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber, ClimbingGrade, ClimbingStyle, Gender, GeneralLevel, GradeSystem } from '@/src/types/climber';
@@ -11,8 +11,9 @@ import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
-import * as SecureStore from 'expo-secure-store';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import { useEffect, useState } from 'react';
 
 import {
@@ -355,9 +356,18 @@ export default function ProfileScreen() {
     // Validate that we have images if this is edit mode for images
       const slotsForSave = imageSlots.length > 0 ? imageSlots : buildImageSlots(images);
       const { total: totalImages, newLocal: newPhotosForSave } = getSlotData(slotsForSave);
+      const numericAge = Number(age);
 
     if (totalImages < 3) {
       Alert.alert('Required', `Please upload ${3 - totalImages} more image(s). You need 3 images total.`);
+      return;
+    }
+    if (!age.trim() || Number.isNaN(numericAge)) {
+      Alert.alert('Required', 'Please enter a valid age.');
+      return;
+    }
+    if (numericAge < 18) {
+      Alert.alert('Age Requirement', 'You must be at least 18 years old to use the app.');
       return;
     }
 
@@ -646,24 +656,34 @@ export default function ProfileScreen() {
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
       <View style={styles.containerMinimal}>
+        <LinearGradient
+          colors={
+            darkMode
+              ? ['rgba(52,211,207,0.12)', 'rgba(255,46,99,0.10)']
+              : ['rgba(26,166,163,0.10)', 'rgba(255,46,99,0.08)']
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.profileHeroCard}
+        >
         <View style={styles.headerWithSettingsRow}>
           <View style={styles.headerMinimal}>
             <Pressable onPress={() => editMode ? pickImage(0) : setImageExpanded(true)}>
               {getAvatarUrl() ? (
                 <Image
                   source={{ uri: getAvatarUrl() }}
-                  style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: theme.colors.accent }}
+                  style={styles.heroAvatar}
                 />
               ) : (
-                <Ionicons name="person-circle" size={72} color={theme.colors.text} style={{ backgroundColor: theme.colors.accent, borderRadius: 36, padding: 8 }} />
+                <Ionicons name="person-circle" size={72} color={theme.colors.text} style={styles.heroAvatarFallback} />
               )}
               {editMode && (
-                <View style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: theme.colors.text, borderRadius: 12, padding: 2 }}>
+                <View style={styles.heroAvatarCamera}>
                   <Ionicons name="camera" size={18} color={theme.colors.accent} />
                 </View>
               )}
             </Pressable>
-            <Text style={styles.titleMinimal}>Profile</Text>
+            <Text style={styles.titleMinimal}>{name || 'Your Profile'}</Text>
           </View>
 
           <Pressable
@@ -673,6 +693,7 @@ export default function ProfileScreen() {
             <Ionicons name="settings" size={24} color={theme.colors.text} />
           </Pressable>
         </View>
+        </LinearGradient>
 
         {/* Intent Selection Card */}
         <View style={[styles.intentCard, { marginHorizontal: 24, marginBottom: 24 }]}>
@@ -707,8 +728,24 @@ export default function ProfileScreen() {
 
         {/* Images Section in Edit Mode */}
         {editMode && (
-          <View style={{ marginHorizontal: 24, marginBottom: 24, backgroundColor: "transparent" }}>
-            <Text style={[styles.labelMinimal, { marginBottom: 4 }]}>Photos (Required 3)</Text>
+          <View style={styles.photosCard}>
+            <View style={styles.photosHeader}>
+              <View style={{ backgroundColor: 'transparent' }}>
+                <Text style={[styles.labelMinimal, { marginBottom: 4 }]}>Photos</Text>
+                <Text style={styles.photosRequirementText}>3 photos are required for every account</Text>
+              </View>
+              <View style={[
+                styles.photoCountBadge,
+                { backgroundColor: imagesRequirementMet ? theme.colors.success + '15' : theme.colors.error + '12' }
+              ]}>
+                <Text style={[
+                  styles.photoCountBadgeText,
+                  { color: imagesRequirementMet ? theme.colors.success : theme.colors.error }
+                ]}>
+                  {totalImages}/3
+                </Text>
+              </View>
+            </View>
             <Text
               style={[
                 styles.valueMinimal,
@@ -719,7 +756,7 @@ export default function ProfileScreen() {
                 },
               ]}
             >
-              {imagesRequirementMet ? 'Requirement met' : 'Required for your profile'}
+              {imagesRequirementMet ? 'Requirement met' : 'Add the missing photos to keep the profile valid'}
             </Text>
             <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'space-between' }}>
               {[0, 1, 2].map((index) => {
@@ -785,7 +822,7 @@ export default function ProfileScreen() {
                 { marginTop: 8, fontSize: 12, color: imagesRequirementMet ? theme.colors.textSecondary : theme.colors.error },
               ]}
             >
-              {totalImages} / 3 images
+              First photo is used as your main profile image
             </Text>
           </View>
         )}
@@ -1433,8 +1470,17 @@ const createStyles = (theme: typeof themeLight) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 24,
+      marginBottom: 0,
       backgroundColor: 'transparent',
+    },
+    profileHeroCard: {
+      marginHorizontal: 20,
+      marginBottom: 24,
+      padding: 18,
+      borderRadius: 28,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.10)',
+      overflow: 'hidden',
     },
     headerMinimal: {
       alignItems: 'center',
@@ -1447,7 +1493,35 @@ const createStyles = (theme: typeof themeLight) =>
       fontWeight: '700',
       color: theme.colors.text,
       letterSpacing: 1.1,
-      marginTop: 8,
+      marginTop: 10,
+    },
+    profileSubtitle: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      maxWidth: 220,
+      lineHeight: 18,
+    },
+    heroAvatar: {
+      width: 84,
+      height: 84,
+      borderRadius: 28,
+      backgroundColor: theme.colors.accent,
+      borderWidth: 3,
+      borderColor: 'rgba(255,255,255,0.65)',
+    },
+    heroAvatarFallback: {
+      backgroundColor: theme.colors.accent,
+      borderRadius: 28,
+      padding: 8,
+    },
+    heroAvatarCamera: {
+      position: 'absolute',
+      bottom: 0,
+      right: 0,
+      backgroundColor: theme.colors.text,
+      borderRadius: 12,
+      padding: 2,
     },
     userInfoMinimal: {
       gap: 14,
@@ -1514,7 +1588,6 @@ const createStyles = (theme: typeof themeLight) =>
     },
     scrollContent: {
       flexGrow: 1,
-      justifyContent: 'center',
       backgroundColor: theme.colors.background,
       paddingVertical: 24,
     },
@@ -1559,10 +1632,12 @@ const createStyles = (theme: typeof themeLight) =>
       fontWeight: '600',
     },
     settingsButton: {
-      position: 'absolute',
-      top: 16,
-      right: 16,
-      padding: 8,
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(255,255,255,0.55)',
     },
     expandedImageOverlay: {
       flex: 1,
@@ -1577,12 +1652,15 @@ const createStyles = (theme: typeof themeLight) =>
     },
     intentCard: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 12,
+      borderRadius: 18,
       padding: 18,
       shadowColor: '#000',
-      shadowOpacity: 0.04,
-      shadowRadius: 2,
-      elevation: 1,
+      shadowOpacity: 0.05,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 3,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
     intentTitle: {
       fontSize: 16,
@@ -1637,6 +1715,40 @@ const createStyles = (theme: typeof themeLight) =>
     confirmationButtonText: {
       fontSize: 14,
       fontWeight: '600',
+    },
+    photosCard: {
+      marginHorizontal: 24,
+      marginBottom: 24,
+      padding: 16,
+      borderRadius: 18,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      shadowColor: '#000',
+      shadowOpacity: 0.05,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 3,
+    },
+    photosHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8,
+      backgroundColor: 'transparent',
+    },
+    photosRequirementText: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+    },
+    photoCountBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+    },
+    photoCountBadgeText: {
+      fontSize: 12,
+      fontWeight: '700',
     },
     blockedUsersModal: {
       borderTopLeftRadius: 16,

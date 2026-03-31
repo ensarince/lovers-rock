@@ -1,4 +1,3 @@
-import { Text, View } from '@/components/Themed';
 import { BlockReportMenu } from '@/src/components/BlockReportMenu';
 import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import PartnerDetailModal from '@/src/components/PartnerDetailModal';
@@ -20,18 +19,24 @@ import { Match } from '@/src/types/match';
 import { getFirstImageUrl, getPocketBaseUrl, intentIncludes } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Image,
+  Modal,
   Pressable,
   ScrollView,
-  StyleSheet
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 
 type FilterChip = 'all' | 'requests' | 'dating' | 'partner' | 'sessions';
+
+let hasShownMatchesIntro = false;
 
 export default function MatchesScreen() {
   const [matches, setMatches] = useState<Match[]>([]);
@@ -48,6 +53,7 @@ export default function MatchesScreen() {
   const [acceptingRequestIds, setAcceptingRequestIds] = useState<string[]>([]);
   const [decliningRequestIds, setDecliningRequestIds] = useState<string[]>([]);
   const [blockReportMenuOpen, setBlockReportMenuOpen] = useState<string | null>(null);
+  const [introModalVisible, setIntroModalVisible] = useState(!hasShownMatchesIntro);
   const { user, token, darkMode } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
@@ -60,6 +66,13 @@ export default function MatchesScreen() {
   // Split matches by type
   const datingMatches = hasDatingIntent ? matches.filter(m => m.type === 'dating') : [];
   const partnerMatches = hasPartnerIntent ? matches.filter(m => m.type === 'partner') : [];
+  const totalConnections = datingMatches.length + partnerMatches.length + incomingRequests.length;
+
+  useEffect(() => {
+    if (introModalVisible) {
+      hasShownMatchesIntro = true;
+    }
+  }, [introModalVisible]);
 
   const isProfileComplete = user &&
     user.name &&
@@ -533,6 +546,44 @@ export default function MatchesScreen() {
         userLatitude={user?.latitude}
         userLongitude={user?.longitude}
       />
+
+      <Modal
+        visible={introModalVisible}
+        transparent
+        animationType="fade"
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
+        onRequestClose={() => setIntroModalVisible(false)}
+      >
+        <Pressable style={styles.introOverlay} onPress={() => setIntroModalVisible(false)}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <LinearGradient
+              colors={
+                darkMode
+                  ? ['rgba(255,46,99,0.18)', 'rgba(52,211,207,0.16)']
+                  : ['rgba(255,46,99,0.12)', 'rgba(26,166,163,0.10)']
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.introCard}
+            >
+              <View style={styles.introHeader}>
+                <Text style={styles.heroEyebrow}>Connections</Text>
+                <Pressable onPress={() => setIntroModalVisible(false)} style={styles.introCloseButton}>
+                  <Ionicons name="close" size={20} color={theme.colors.text} />
+                </Pressable>
+              </View>
+              <Text style={styles.heroTitle}>Your people, all in one place</Text>
+              <Text style={styles.introBodyText}>
+                Filter between requests, dating, and partner matches any time. This page stays focused on the list once you close this intro.
+              </Text>
+              <Pressable style={styles.introActionButton} onPress={() => setIntroModalVisible(false)}>
+                <Text style={styles.introActionText}>Open matches</Text>
+              </Pressable>
+            </LinearGradient>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -542,6 +593,122 @@ const createStyles = (theme: typeof themeLight) =>
     container: {
       flex: 1,
       backgroundColor: theme.colors.background,
+    },
+    topSection: {
+      paddingHorizontal: 16,
+      paddingTop: 14,
+      paddingBottom: 8,
+      backgroundColor: theme.colors.background,
+    },
+    heroCard: {
+      borderRadius: 24,
+      padding: 18,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.10)',
+      overflow: 'hidden',
+    },
+    heroHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      backgroundColor: 'transparent',
+      gap: 12,
+    },
+    heroCopy: {
+      flex: 1,
+      backgroundColor: 'transparent',
+    },
+    heroEyebrow: {
+      fontSize: 12,
+      fontWeight: '700',
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      color: theme.colors.textSecondary,
+      marginBottom: 6,
+    },
+    heroTitle: {
+      fontSize: 24,
+      lineHeight: 30,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginBottom: 6,
+    },
+    heroSubtitle: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: theme.colors.textSecondary,
+    },
+    heroPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+      borderRadius: 999,
+      backgroundColor: 'rgba(255,255,255,0.70)',
+      borderWidth: 1,
+      borderColor: 'rgba(23,32,45,0.06)',
+    },
+    heroPillText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: theme.colors.text,
+    },
+    introOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(8,12,18,0.84)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingTop: 24,
+      paddingBottom: 40,
+    },
+    introCard: {
+      width: '100%',
+      borderRadius: 28,
+      padding: 22,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.16)',
+      overflow: 'hidden',
+      backgroundColor: theme.colors.surface,
+      shadowColor: '#000',
+      shadowOpacity: 0.3,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 10 },
+      elevation: 10,
+    },
+    introHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 10,
+      backgroundColor: 'transparent',
+    },
+    introCloseButton: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(255,255,255,0.82)',
+    },
+    introBodyText: {
+      fontSize: 14,
+      lineHeight: 21,
+      color: theme.colors.textSecondary,
+      marginBottom: 18,
+    },
+    introActionButton: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 999,
+      backgroundColor: theme.colors.accent,
+    },
+    introActionText: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: '700',
     },
     centerContainerMinimal: {
       flex: 1,
@@ -564,18 +731,17 @@ const createStyles = (theme: typeof themeLight) =>
     },
     chipContainer: {
       backgroundColor: theme.colors.background,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
       maxHeight: 60,
     },
     chipContent: {
-      paddingHorizontal: 12,
-      paddingVertical: 12,
+      paddingHorizontal: 16,
+      paddingTop: 10,
+      paddingBottom: 10,
       gap: 8,
     },
     chip: {
-      paddingHorizontal: 14,
-      paddingVertical: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 9,
       borderRadius: 20,
       backgroundColor: theme.colors.surface,
       borderWidth: 1,
@@ -594,29 +760,33 @@ const createStyles = (theme: typeof themeLight) =>
       color: '#fff',
     },
     listContent: {
-      paddingVertical: 8,
+      paddingTop: 2,
+      paddingBottom: 24,
     },
     matchCardMinimal: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: theme.colors.surface,
-      marginHorizontal: 18,
-      marginVertical: 10,
-      borderRadius: 14,
+      marginHorizontal: 16,
+      marginVertical: 8,
+      borderRadius: 20,
       overflow: 'hidden',
       padding: 14,
       shadowColor: '#000',
-      shadowOpacity: 0.04,
-      shadowRadius: 2,
-      elevation: 1,
+      shadowOpacity: 0.06,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 4,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
     requestCardMinimal: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: theme.colors.accent + '15',
-      marginHorizontal: 18,
-      marginVertical: 10,
-      borderRadius: 14,
+      marginHorizontal: 16,
+      marginVertical: 8,
+      borderRadius: 20,
       overflow: 'hidden',
       padding: 14,
       borderWidth: 1,
@@ -626,25 +796,25 @@ const createStyles = (theme: typeof themeLight) =>
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: '#D4AF3720',
-      marginHorizontal: 18,
-      marginVertical: 10,
-      marginTop: 8,
-      borderRadius: 14,
+      marginHorizontal: 16,
+      marginVertical: 8,
+      marginTop: 4,
+      borderRadius: 20,
       overflow: 'hidden',
       padding: 14,
       borderWidth: 1.5,
       borderColor: '#D4AF3740',
     },
     matchImageMinimal: {
-      width: 70,
-      height: 70,
-      borderRadius: 35,
+      width: 72,
+      height: 72,
+      borderRadius: 22,
       marginRight: 14,
     },
     imageContainer: {
       position: 'relative',
-      width: 70,
-      height: 70,
+      width: 72,
+      height: 72,
       marginRight: 14,
     },
     viewProfileOverlay: {
@@ -685,7 +855,7 @@ const createStyles = (theme: typeof themeLight) =>
       backgroundColor: "transparent"
     },
     matchNameMinimal: {
-      fontSize: 15,
+      fontSize: 16,
       fontWeight: '700',
       color: theme.colors.text,
     },
@@ -698,7 +868,7 @@ const createStyles = (theme: typeof themeLight) =>
       fontSize: 11,
       color: theme.colors.accent,
       fontWeight: '600',
-      marginTop: 4,
+      marginTop: 6,
     },
     requestActions: {
       marginLeft: 8,
@@ -743,6 +913,7 @@ const createStyles = (theme: typeof themeLight) =>
     menuIconContainer: {
       padding: 8,
       marginLeft: 8,
+      borderRadius: 999,
     },
     menuIconContainerSmall: {
       padding: 6,
@@ -774,7 +945,7 @@ const createStyles = (theme: typeof themeLight) =>
     messagePreviewMinimal: {
       fontSize: 13,
       color: theme.colors.textSecondary,
-      marginBottom: 4,
+      marginBottom: 6,
     },
     matchedTimeMinimal: {
       fontSize: 11,

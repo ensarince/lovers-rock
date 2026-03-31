@@ -1,4 +1,3 @@
-import { Text, View } from '@/components/Themed';
 import { DiscoverFilters, FilterModal } from '@/src/components/FilterModal';
 import { MatchAnimation } from '@/src/components/MatchAnimation';
 import PartnerDetailModal from '@/src/components/PartnerDetailModal';
@@ -8,6 +7,7 @@ import { calculateDistance } from '@/src/services/geoService';
 import { locationService } from '@/src/services/locationService';
 import { declineDatingUser } from '@/src/services/matchData';
 import { preferenceService } from '@/src/services/preferenceService';
+import { getReportService } from '@/src/services/reportService';
 import {
   createLike,
   getActiveDeclinedUserIds,
@@ -17,25 +17,27 @@ import {
   hasIncomingLike,
   removeLike,
 } from '@/src/services/socialGraphService';
-import { getReportService } from '@/src/services/reportService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
 import { getPocketBaseUrl, intentIncludes } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Image,
+  ImageBackground,
   Modal,
   Pressable,
-  View as RNView,
   StyleSheet,
-  Switch,
-  TextInput
+  Text,
+  TextInput,
+  View
 } from 'react-native';
 import { getPublicProfiles } from '../../src/services/accountService';
+
+let hasShownDiscoverIntro = false;
 
 export default function DiscoverScreen() {
   // Dating mode state
@@ -67,7 +69,6 @@ export default function DiscoverScreen() {
   // Dating mode interactions (swiped left or right)
   const [datingInteractionIds, setDatingInteractionIds] = useState<string[]>([]);
 
-  // Toggle between dating and partner finding
   const [isDatingMode, setIsDatingMode] = useState(true);
 
   // Track blocked users at component level
@@ -75,10 +76,22 @@ export default function DiscoverScreen() {
 
   // Trigger for manual refresh of blocked users
   const [blockRefreshTrigger, setBlockRefreshTrigger] = useState(0);
+  const [introModalVisible, setIntroModalVisible] = useState(!hasShownDiscoverIntro);
 
   const { token, user, preferencesSynced, darkMode } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
+  const modeColors = isDatingMode
+    ? {
+        accent: theme.colors.accent,
+        accentSoft: darkMode ? 'rgba(255,46,99,0.18)' : 'rgba(255,46,99,0.08)',
+        accentSurface: darkMode ? 'rgba(255,46,99,0.12)' : 'rgba(255,46,99,0.06)',
+      }
+    : {
+        accent: theme.colors.edit,
+        accentSoft: darkMode ? 'rgba(52,211,207,0.18)' : 'rgba(26,166,163,0.10)',
+        accentSurface: darkMode ? 'rgba(52,211,207,0.12)' : 'rgba(26,166,163,0.08)',
+      };
 
   // Helper to check if user profile is complete
   const isProfileComplete =
@@ -640,6 +653,14 @@ export default function DiscoverScreen() {
   };
 
   const currentClimber = filteredClimbers.length > 0 ? filteredClimbers[currentIndex] : null;
+  const currentDatingCount = filteredClimbers.length;
+  const currentPartnerCount = filteredPartners.length;
+
+  useEffect(() => {
+    if (introModalVisible) {
+      hasShownDiscoverIntro = true;
+    }
+  }, [introModalVisible]);
 
   // Check if user has the required intent for the current mode
   const hasDatingIntent = user && intentIncludes(user.intent, 'date');
@@ -696,46 +717,64 @@ export default function DiscoverScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      {/* Search and Filter Bar */}
-      <View style={styles.searchBar}>
-        <Ionicons
-          name="search"
-          size={20}
-          color="#6b7280"
-          style={styles.searchIcon}
-        />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search by name or gym..."
-          placeholderTextColor="#6b7280"
-          value={searchText}
-          onChangeText={handleSearchChange}
-        />
-        <Pressable
-          onPress={() => setFilterModalVisible(true)}
-          style={styles.filterButton}>
-          <Ionicons name="funnel" size={20} color={theme.colors.accent} />
-        </Pressable>
+    <View style={[styles.container, { backgroundColor: isDatingMode ? theme.colors.background : darkMode ? '#15212A' : '#F2F8F8' }]}>
+      <View style={styles.topSection}>
+        <View style={[styles.searchBar, { borderColor: modeColors.accentSoft, backgroundColor: darkMode ? theme.colors.surface : '#ffffff' }]}>
+          <Ionicons
+            name="search"
+            size={18}
+            color={theme.colors.textSecondary}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by name or gym..."
+            placeholderTextColor={theme.colors.textSecondary}
+            value={searchText}
+            onChangeText={handleSearchChange}
+          />
+          <Pressable
+            onPress={() => setFilterModalVisible(true)}
+            style={[styles.filterButton, { backgroundColor: modeColors.accentSurface }]}>
+            <Ionicons name="options" size={18} color={modeColors.accent} />
+          </Pressable>
+        </View>
       </View>
 
       {/* Mode Toggle - Show only if user has both intents */}
       {hasDatingIntent && hasPartnerIntent && (
-        <RNView style={styles.toggleContainer}>
-          <Text style={styles.toggleLabel}>
-            {isDatingMode ? '💕 Dating' : '🧗 Partner Finding'}
-          </Text>
-          <Switch
-            value={isDatingMode}
-            onValueChange={(value) => {
-              setIsDatingMode(value);
-              setCurrentIndex(0);
-              setSearchText('');
-            }}
-            trackColor={{ false: theme.colors.border, true: theme.colors.accent }}
-            thumbColor={isDatingMode ? theme.colors.accent : theme.colors.textSecondary}
-          />
-        </RNView>
+        <View style={[styles.toggleContainer, { borderColor: modeColors.accentSoft }]}>
+          <View style={styles.toggleCopy}>
+            <Text style={styles.toggleLabel}>Browse mode</Text>
+            <Text style={styles.toggleHint}>Dating cards or partner list</Text>
+          </View>
+          <View style={styles.segmentedToggle}>
+            <Pressable
+              style={[styles.segmentButton, isDatingMode && styles.segmentButtonActive, isDatingMode && { backgroundColor: modeColors.accent }]}
+              onPress={() => {
+                setIsDatingMode(true);
+                setCurrentIndex(0);
+                setSearchText('');
+              }}
+            >
+              <Text style={[styles.segmentButtonText, isDatingMode && styles.segmentButtonTextActive]}>
+                Dating
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.segmentButton, !isDatingMode && styles.segmentButtonActive, !isDatingMode && { backgroundColor: modeColors.accent }]}
+              onPress={() => {
+                setIsDatingMode(false);
+                setCurrentIndex(0);
+                setSearchText('');
+              }}
+            >
+              <Text style={[styles.segmentButtonText, !isDatingMode && styles.segmentButtonTextActive]}>
+                Partner
+              </Text>
+            </Pressable>
+          </View>
+        </View>
       )}
 
       {/* Dating Mode - Swiping Cards */}
@@ -752,7 +791,7 @@ export default function DiscoverScreen() {
             />
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="checkmark-circle" size={64} color={theme.colors.accent} />
+              <Ionicons name="checkmark-circle" size={64} color={modeColors.accent} />
               <Text style={styles.emptyTitle}>
                 {filteredClimbers.length === 0
                   ? 'No climbers found'
@@ -768,56 +807,100 @@ export default function DiscoverScreen() {
         </View>
       ) : !isDatingMode && hasPartnerIntent ? (
         /* Partner Mode - List View */
-        <RNView style={styles.partnerListContainer}>
+        <View style={styles.partnerListContainer}>
           <FlatList
             data={filteredPartners}
             keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.partnerListContent}
             renderItem={({ item }) => {
               // Construct avatar URL with priority: images array first, then avatar field
               let avatarUrl = '';
               if (item.id) {
                 if (Array.isArray(item.images) && item.images.length > 0) {
-                  avatarUrl = `${getPocketBaseUrl()}/api/files/users/${item.id}/${item.images[0]}?thumb=100x100`;
+                  avatarUrl = `${getPocketBaseUrl()}/api/files/users/${item.id}/${item.images[0]}?thumb=600x800`;
                 } else if (item.avatar) {
-                  avatarUrl = `${getPocketBaseUrl()}/api/files/users/${item.id}/${item.avatar}?thumb=100x100`;
+                  avatarUrl = `${getPocketBaseUrl()}/api/files/users/${item.id}/${item.avatar}?thumb=600x800`;
                 }
               }
               return (
-              <Pressable onPress={() => openPartnerModal(item)} style={styles.partnerCard}>
-                <View style={styles.partnerCardContent}>
-                  {avatarUrl ? (
-                    <Image
-                      source={{ uri: avatarUrl }}
-                      style={styles.partnerAvatar}
-                    />
-                  ) : (
+              <Pressable onPress={() => openPartnerModal(item)} style={[styles.partnerCard, { borderColor: modeColors.accentSoft }]}>
+                {avatarUrl ? (
+                  <ImageBackground
+                    source={{ uri: avatarUrl }}
+                    style={styles.partnerCardImage}
+                    imageStyle={styles.partnerCardImageStyle}
+                  >
+                    <LinearGradient
+                      colors={['rgba(10,14,20,0.10)', 'rgba(10,14,20,0.78)']}
+                      start={{ x: 0.5, y: 0 }}
+                      end={{ x: 0.5, y: 1 }}
+                      style={styles.partnerCardOverlay}
+                    >
+                      <View style={styles.partnerCardContent}>
+                        <View style={styles.partnerInfo}>
+                          <View style={styles.partnerHeaderRow}>
+                            <Text style={styles.partnerNameOnImage}>{item.name}</Text>
+                            <View style={styles.partnerChipOnImage}>
+                              <Text style={styles.partnerChipTextOnImage}>Partner</Text>
+                            </View>
+                          </View>
+                          <Text style={styles.partnerDetailOnImage}>{item.home_gym}</Text>
+                          <Text style={styles.partnerDetailOnImage}>
+                            {item.grade.value ? `${item.grade.value} (${item.grade.system})` : item.grade.general_level}
+                          </Text>
+                          <Text style={styles.partnerDetailOnImage} numberOfLines={1}>
+                            {Array.isArray(item.climbing_styles) ? item.climbing_styles.join(' | ') : ''}
+                          </Text>
+                          {user?.latitude && user?.longitude && item.latitude && item.longitude && (
+                            <View style={styles.partnerDistance}>
+                              <Ionicons name="location" size={12} color="#ffffff" />
+                              <Text style={styles.partnerDetailOnImage}>
+                                {calculateDistance(user.latitude, user.longitude, item.latitude, item.longitude).toFixed(1)} km away
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <Ionicons name="chevron-forward" size={18} color="#ffffff" />
+                      </View>
+                    </LinearGradient>
+                  </ImageBackground>
+                ) : (
+                  <View style={styles.partnerCardContent}>
                     <View style={styles.partnerAvatarPlaceholder}>
                       <Ionicons name="person" size={24} color="#fff" />
                     </View>
-                  )}
-                  <View style={styles.partnerInfo}>
-                    <Text style={styles.partnerName}>{item.name}</Text>
-                    <Text style={styles.partnerDetail}>Gym: {item.home_gym}</Text>
-                    <Text style={styles.partnerDetail}>Grade: {item.grade.value ? `${item.grade.value} (${item.grade.system})` : item.grade.general_level}</Text>
-                    <Text style={styles.partnerDetail}>
-                      Styles: {Array.isArray(item.climbing_styles) ? item.climbing_styles.join(', ') : ''}
-                    </Text>
-                    {user?.latitude && user?.longitude && item.latitude && item.longitude && (
-                      <View style={styles.partnerDistance}>
-                        <Ionicons name="location" size={12} color="#6b7280" />
-                        <Text style={styles.partnerDetail}>
-                          {calculateDistance(user.latitude, user.longitude, item.latitude, item.longitude).toFixed(1)} km away
-                        </Text>
+                    <View style={styles.partnerInfo}>
+                      <View style={styles.partnerHeaderRow}>
+                        <Text style={styles.partnerName}>{item.name}</Text>
+                        <View style={[styles.partnerChip, { backgroundColor: modeColors.accentSurface }]}>
+                          <Text style={[styles.partnerChipText, { color: modeColors.accent }]}>Partner</Text>
+                        </View>
                       </View>
-                    )}
+                      <Text style={styles.partnerDetail}>{item.home_gym}</Text>
+                      <Text style={styles.partnerDetail}>
+                        {item.grade.value ? `${item.grade.value} (${item.grade.system})` : item.grade.general_level}
+                      </Text>
+                      <Text style={styles.partnerDetail} numberOfLines={1}>
+                        {Array.isArray(item.climbing_styles) ? item.climbing_styles.join(' | ') : ''}
+                      </Text>
+                      {user?.latitude && user?.longitude && item.latitude && item.longitude && (
+                        <View style={styles.partnerDistance}>
+                          <Ionicons name="location" size={12} color="#6b7280" />
+                          <Text style={styles.partnerDetail}>
+                            {calculateDistance(user.latitude, user.longitude, item.latitude, item.longitude).toFixed(1)} km away
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={theme.colors.textSecondary} />
                   </View>
-                </View>
+                )}
               </Pressable>
               );
             }}
             ListEmptyComponent={<Text style={styles.emptyText}>No partners found.</Text>}
           />
-        </RNView>
+        </View>
       ) : null}
 
       {/* Filter Modal */}
@@ -869,6 +952,50 @@ export default function DiscoverScreen() {
         userLatitude={user?.latitude}
         userLongitude={user?.longitude}
       />
+
+      <Modal
+        visible={introModalVisible}
+        transparent
+        animationType="fade"
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
+        onRequestClose={() => setIntroModalVisible(false)}
+      >
+        <Pressable style={styles.introOverlay} onPress={() => setIntroModalVisible(false)}>
+          <Pressable onPress={(e) => e.stopPropagation()}>
+            <LinearGradient
+              colors={
+                isDatingMode
+                  ? darkMode
+                    ? ['rgba(255,46,99,0.20)', 'rgba(255,120,150,0.10)']
+                    : ['rgba(255,46,99,0.14)', 'rgba(255,180,205,0.10)']
+                  : darkMode
+                    ? ['rgba(52,211,207,0.20)', 'rgba(90,140,255,0.10)']
+                    : ['rgba(26,166,163,0.14)', 'rgba(186,241,238,0.12)']
+              }
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.introCard}
+            >
+              <View style={styles.introHeader}>
+                <Text style={styles.heroEyebrow}>Discover</Text>
+                <Pressable onPress={() => setIntroModalVisible(false)} style={styles.introCloseButton}>
+                  <Ionicons name="close" size={20} color={theme.colors.text} />
+                </Pressable>
+              </View>
+              <Text style={styles.heroTitle}>
+                {isDatingMode ? 'Find your next spark' : 'Find your next climbing partner'}
+              </Text>
+              <Text style={styles.introBodyText}>
+                Use the search and filters for quick narrowing, then switch modes any time from the toggle above the feed.
+              </Text>
+              <Pressable style={[styles.introActionButton, { backgroundColor: modeColors.accent }]} onPress={() => setIntroModalVisible(false)}>
+                <Text style={styles.introActionText}>Start browsing</Text>
+              </Pressable>
+            </LinearGradient>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -885,47 +1012,155 @@ const createStyles = (theme: typeof themeLight) =>
       alignItems: 'center',
       backgroundColor: theme.colors.background,
     },
+    topSection: {
+      paddingHorizontal: 16,
+      paddingTop: 10,
+      paddingBottom: 6,
+      backgroundColor: theme.colors.background,
+    },
+    heroCard: {
+      borderRadius: 26,
+      padding: 18,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.10)',
+      overflow: 'hidden',
+    },
+    heroTopRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 14,
+      backgroundColor: 'transparent',
+    },
+    heroTextWrap: {
+      flex: 1,
+      backgroundColor: 'transparent',
+      paddingRight: 12,
+    },
+    heroEyebrow: {
+      fontSize: 12,
+      fontWeight: '700',
+      letterSpacing: 1,
+      textTransform: 'uppercase',
+      color: theme.colors.textSecondary,
+      marginBottom: 6,
+    },
+    heroTitle: {
+      fontSize: 24,
+      lineHeight: 30,
+      fontWeight: '700',
+      color: theme.colors.text,
+      marginBottom: 6,
+    },
+    heroSubtitle: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: theme.colors.textSecondary,
+    },
+    heroBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      paddingHorizontal: 10,
+      paddingVertical: 7,
+      borderRadius: 999,
+      backgroundColor: 'rgba(255,255,255,0.70)',
+      borderWidth: 1,
+      borderColor: 'rgba(23,32,45,0.06)',
+    },
+    heroBadgeText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: theme.colors.text,
+    },
     searchBar: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginHorizontal: 12,
-      marginVertical: 12,
       backgroundColor: theme.colors.surface,
-      borderRadius: 8,
-      paddingHorizontal: 12,
+      borderRadius: 20,
+      paddingHorizontal: 14,
       borderWidth: 1,
       borderColor: theme.colors.border,
+      minHeight: 52,
     },
     searchIcon: {
       marginRight: 8,
     },
     searchInput: {
       flex: 1,
-      paddingVertical: 10,
+      paddingVertical: 12,
       color: theme.colors.text,
-      fontSize: 14,
+      fontSize: 15,
     },
     filterButton: {
-      padding: 8,
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: 'rgba(255,46,99,0.08)',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     toggleContainer: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginHorizontal: 20,
-      paddingHorizontal: 0,
-      paddingVertical: 0,
+      marginHorizontal: 16,
+      marginTop: 2,
+      marginBottom: 2,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderRadius: 20,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    toggleCopy: {
+      flex: 1,
+      backgroundColor: 'transparent',
+      paddingRight: 12,
     },
     toggleLabel: {
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: 15,
+      fontWeight: '700',
       color: theme.colors.text,
+    },
+    toggleHint: {
+      marginTop: 2,
+      fontSize: 11,
+      color: theme.colors.textSecondary,
+    },
+    segmentedToggle: {
+      flexDirection: 'row',
+      backgroundColor: theme.colors.background,
+      borderRadius: 999,
+      padding: 3,
+      gap: 4,
+    },
+    segmentButton: {
+      minWidth: 88,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderRadius: 999,
+      backgroundColor: 'transparent',
+      alignItems: 'center',
+    },
+    segmentButtonActive: {
+      backgroundColor: theme.colors.accent,
+    },
+    segmentButtonText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.colors.textSecondary,
+    },
+    segmentButtonTextActive: {
+      color: '#ffffff',
     },
     cardContainer: {
       flex: 1,
-      justifyContent: 'center',
+      justifyContent: 'flex-start',
       alignItems: 'center',
-      paddingVertical: 20,
+      paddingTop: 8,
+      paddingBottom: 10,
       width: '100%',
       backgroundColor: 'transparent',
     },
@@ -936,15 +1171,17 @@ const createStyles = (theme: typeof themeLight) =>
       backgroundColor: 'transparent',
     },
     emptyTitle: {
-      fontSize: 20,
-      fontWeight: '600',
+      fontSize: 22,
+      fontWeight: '700',
       color: theme.colors.text,
       marginTop: 12,
     },
     emptySubtitle: {
-      fontSize: 14,
+      fontSize: 15,
       textAlign: 'center',
       color: theme.colors.textSecondary,
+      maxWidth: 260,
+      lineHeight: 22,
     },
     counterContainer: {
       alignItems: 'center',
@@ -959,36 +1196,58 @@ const createStyles = (theme: typeof themeLight) =>
       backgroundColor: theme.colors.background,
       padding: 0,
     },
+    partnerListContent: {
+      paddingHorizontal: 16,
+      paddingTop: 8,
+      paddingBottom: 24,
+    },
     partnerCard: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 10,
-      padding: 12,
-      marginBottom: 12,
-      marginHorizontal: 12,
+      borderRadius: 20,
+      minHeight: 152,
+      marginBottom: 10,
       marginVertical: 0,
       shadowColor: '#000',
-      shadowOpacity: 0.04,
-      shadowRadius: 2,
-      elevation: 1,
+      shadowOpacity: 0.06,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 4,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
     partnerCardContent: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-end',
+      justifyContent: 'space-between',
       backgroundColor: 'transparent',
+      padding: 16,
+      minHeight: 152,
+    },
+    partnerCardImage: {
+      minHeight: 152,
+      justifyContent: 'flex-end',
+    },
+    partnerCardImageStyle: {
+      borderRadius: 20,
+    },
+    partnerCardOverlay: {
+      borderRadius: 20,
+      minHeight: 152,
+      justifyContent: 'flex-end',
     },
     partnerAvatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      marginRight: 12,
+      width: 64,
+      height: 64,
+      borderRadius: 20,
+      marginRight: 14,
       backgroundColor: '#eee',
     },
     partnerAvatarPlaceholder: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      marginRight: 12,
-      backgroundColor: '#ccc',
+      width: 64,
+      height: 64,
+      borderRadius: 20,
+      marginRight: 14,
+      backgroundColor: theme.colors.accent,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -996,28 +1255,137 @@ const createStyles = (theme: typeof themeLight) =>
       flex: 1,
       backgroundColor: 'transparent',
     },
+    partnerHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      backgroundColor: 'transparent',
+      marginBottom: 6,
+      gap: 8,
+    },
+    partnerNameOnImage: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: '#ffffff',
+      flex: 1,
+    },
     partnerName: {
       fontSize: 18,
-      fontWeight: '600',
+      fontWeight: '700',
       color: theme.colors.text,
+      flex: 1,
+    },
+    partnerChip: {
+      borderRadius: 999,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      backgroundColor: 'rgba(26,166,163,0.12)',
+    },
+    partnerChipText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.colors.edit,
+    },
+    partnerChipOnImage: {
+      borderRadius: 999,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      backgroundColor: 'rgba(255,255,255,0.22)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.18)',
+    },
+    partnerChipTextOnImage: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: '#ffffff',
     },
     partnerDetail: {
-      fontSize: 14,
+      fontSize: 13,
       color: theme.colors.textSecondary,
-      marginTop: 2,
+      marginTop: 4,
+      lineHeight: 18,
+    },
+    partnerDetailOnImage: {
+      fontSize: 13,
+      color: 'rgba(255,255,255,0.88)',
+      marginTop: 4,
+      lineHeight: 18,
     },
     partnerDistance: {
       flexDirection: 'row',
       backgroundColor: 'transparent',
       alignItems: 'center',
-      marginTop: 6,
+      marginTop: 8,
       gap: 4,
     },
     emptyText: {
-      color: theme.colors.error,
+      color: theme.colors.textSecondary,
       fontSize: 16,
       textAlign: 'center',
-      marginTop: 20,
+      marginTop: 28,
+    },
+    introOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(8,12,18,0.84)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingTop: 24,
+      paddingBottom: 40,
+    },
+    introCard: {
+      width: '100%',
+      borderRadius: 28,
+      padding: 22,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.16)',
+      overflow: 'hidden',
+      backgroundColor: theme.colors.surface,
+      shadowColor: '#000',
+      shadowOpacity: 0.3,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 10 },
+      elevation: 10,
+    },
+    introHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 10,
+      backgroundColor: 'transparent',
+    },
+    introCloseButton: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(255,255,255,0.82)',
+    },
+    introModeRow: {
+      flexDirection: 'row',
+      justifyContent: 'flex-start',
+      marginTop: 14,
+      marginBottom: 14,
+      backgroundColor: 'transparent',
+    },
+    introBodyText: {
+      fontSize: 14,
+      lineHeight: 21,
+      color: theme.colors.textSecondary,
+      marginBottom: 18,
+    },
+    introActionButton: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderRadius: 999,
+      backgroundColor: theme.colors.accent,
+    },
+    introActionText: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: '700',
     },
     bioModalOverlay: {
       flex: 1,
@@ -1057,3 +1425,4 @@ const createStyles = (theme: typeof themeLight) =>
       lineHeight: 24,
     },
   });
+

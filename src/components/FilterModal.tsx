@@ -74,6 +74,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   const { darkMode } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
+  const [isSliderInteracting, setIsSliderInteracting] = useState(false);
 
   const [minDifficulty, setMinDifficulty] = useState<number>(() => {
     if (currentFilters.grade && Array.isArray(currentFilters.grade) && currentFilters.grade.length > 0) {
@@ -158,7 +159,13 @@ export const FilterModal: React.FC<FilterModalProps> = ({
             <View style={{ width: 44 }} />
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.content}
+            showsVerticalScrollIndicator={false}
+            scrollEnabled={!isSliderInteracting}
+            nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
+          >
             {/* Gender Filter - MOVED TO TOP */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Gender</Text>
@@ -224,10 +231,12 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                   }}
                   pressedThumbStyle={{ transform: [{ scale: 1.2 }] }}
                   showThumbLines={false}
+                  onValuesChangeStart={() => setIsSliderInteracting(true)}
                   onValuesChange={(values) => {
                     setMinAge(values[0]);
                     setMaxAge(values[1]);
                   }}
+                  onValuesChangeFinish={() => setIsSliderInteracting(false)}
                   leftThumbAccessibilityLabel="Minimum age"
                   rightThumbAccessibilityLabel="Maximum age"
                 />
@@ -260,9 +269,11 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                   }}
                   pressedThumbStyle={{ transform: [{ scale: 1.2 }] }}
                   showThumbLines={false}
+                  onValuesChangeStart={() => setIsSliderInteracting(true)}
                   onValuesChange={(values) => {
                     setMaxDistance(values[1]);
                   }}
+                  onValuesChangeFinish={() => setIsSliderInteracting(false)}
                   leftThumbAccessibilityLabel="Minimum distance"
                   rightThumbAccessibilityLabel="Maximum distance"
                 />
@@ -303,10 +314,12 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                   }}
                   pressedThumbStyle={{ transform: [{ scale: 1.2 }] }}
                   showThumbLines={false}
+                  onValuesChangeStart={() => setIsSliderInteracting(true)}
                   onValuesChange={(values) => {
                     setMinDifficulty(values[0]);
                     setMaxDifficulty(values[1]);
                   }}
+                  onValuesChangeFinish={() => setIsSliderInteracting(false)}
                   leftThumbAccessibilityLabel="Minimum difficulty"
                   rightThumbAccessibilityLabel="Maximum difficulty"
                 />

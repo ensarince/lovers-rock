@@ -1,4 +1,3 @@
-import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
 import { getMatches } from '@/src/services/matchData';
 import { messageService } from '@/src/services/messageService';
@@ -7,24 +6,38 @@ import { theme as themeLight } from '@/src/themeLight';
 import type { Conversation } from '@/src/types/message';
 import { getPocketBaseUrl, intentIncludes } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
     Image,
+    Modal,
     Pressable,
     RefreshControl,
     StyleSheet,
+    Text,
+    View,
 } from 'react-native';
+
+let hasShownMessagesIntro = false;
 
 export default function MessagesScreen() {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [introModalVisible, setIntroModalVisible] = useState(!hasShownMessagesIntro);
     const { user, token, darkMode } = useAuth();
     const theme = darkMode ? themeDark : themeLight;
     const styles = createStyles(theme);
+    const unreadConversations = conversations.filter((conversation) => conversation.unreadCount > 0).length;
+
+    React.useEffect(() => {
+        if (introModalVisible) {
+            hasShownMessagesIntro = true;
+        }
+    }, [introModalVisible]);
 
     // Check intents
     const hasDatingIntent = user && intentIncludes(user.intent, 'date');
@@ -224,6 +237,44 @@ export default function MessagesScreen() {
                     />
                 }
             />
+
+            <Modal
+                visible={introModalVisible}
+                transparent
+                animationType="fade"
+                presentationStyle="overFullScreen"
+                statusBarTranslucent
+                onRequestClose={() => setIntroModalVisible(false)}
+            >
+                <Pressable style={styles.introOverlay} onPress={() => setIntroModalVisible(false)}>
+                    <Pressable onPress={(e) => e.stopPropagation()}>
+                        <LinearGradient
+                            colors={
+                                darkMode
+                                    ? ['rgba(255,46,99,0.18)', 'rgba(52,211,207,0.16)']
+                                    : ['rgba(255,46,99,0.12)', 'rgba(26,166,163,0.10)']
+                            }
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.introCard}
+                        >
+                            <View style={styles.introHeader}>
+                                <Text style={styles.heroEyebrow}>Messages</Text>
+                                <Pressable onPress={() => setIntroModalVisible(false)} style={styles.introCloseButton}>
+                                    <Ionicons name="close" size={20} color={theme.colors.text} />
+                                </Pressable>
+                            </View>
+                            <Text style={styles.heroTitle}>Stay close to your active chats</Text>
+                            <Text style={styles.introBodyText}>
+                                Open any conversation to continue where you left off. This page stays clean once you close the intro.
+                            </Text>
+                            <Pressable style={styles.introActionButton} onPress={() => setIntroModalVisible(false)}>
+                                <Text style={styles.introActionText}>Open inbox</Text>
+                            </Pressable>
+                        </LinearGradient>
+                    </Pressable>
+                </Pressable>
+            </Modal>
         </View>
     );
 }
@@ -233,6 +284,98 @@ const createStyles = (theme: typeof themeLight) =>
         container: {
             flex: 1,
             backgroundColor: theme.colors.background,
+        },
+        heroEyebrow: {
+            fontSize: 12,
+            fontWeight: '700',
+            letterSpacing: 1,
+            textTransform: 'uppercase',
+            color: theme.colors.textSecondary,
+            marginBottom: 6,
+        },
+        heroTitle: {
+            fontSize: 24,
+            lineHeight: 30,
+            fontWeight: '700',
+            color: theme.colors.text,
+            marginBottom: 6,
+        },
+        heroSubtitle: {
+            fontSize: 14,
+            lineHeight: 20,
+            color: theme.colors.textSecondary,
+        },
+        heroPill: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            paddingHorizontal: 10,
+            paddingVertical: 7,
+            borderRadius: 999,
+            backgroundColor: 'rgba(255,255,255,0.70)',
+            borderWidth: 1,
+            borderColor: 'rgba(23,32,45,0.06)',
+        },
+        heroPillText: {
+            fontSize: 12,
+            fontWeight: '700',
+            color: theme.colors.text,
+        },
+        introOverlay: {
+            flex: 1,
+            backgroundColor: 'rgba(8,12,18,0.84)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingHorizontal: 20,
+            paddingTop: 24,
+            paddingBottom: 40,
+        },
+        introCard: {
+            width: '100%',
+            borderRadius: 28,
+            padding: 22,
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.16)',
+            overflow: 'hidden',
+            backgroundColor: theme.colors.surface,
+            shadowColor: '#000',
+            shadowOpacity: 0.3,
+            shadowRadius: 18,
+            shadowOffset: { width: 0, height: 10 },
+            elevation: 10,
+        },
+        introHeader: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 10,
+            backgroundColor: 'transparent',
+        },
+        introCloseButton: {
+            width: 34,
+            height: 34,
+            borderRadius: 17,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(255,255,255,0.82)',
+        },
+        introBodyText: {
+            fontSize: 14,
+            lineHeight: 21,
+            color: theme.colors.textSecondary,
+            marginBottom: 18,
+        },
+        introActionButton: {
+            alignSelf: 'flex-start',
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderRadius: 999,
+            backgroundColor: theme.colors.accent,
+        },
+        introActionText: {
+            color: '#fff',
+            fontSize: 14,
+            fontWeight: '700',
         },
         centerContainer: {
             flex: 1,
@@ -255,28 +398,29 @@ const createStyles = (theme: typeof themeLight) =>
     },
     listContent: {
         paddingVertical: 8,
+        paddingBottom: 24,
     },
     conversationItem: {
         flexDirection: 'row',
         alignItems: 'center',
         padding: 16,
         marginHorizontal: 16,
-        marginVertical: 4,
+        marginVertical: 8,
         backgroundColor: theme.colors.surface,
-        borderRadius: 12,
+        borderRadius: 20,
         borderWidth: 1,
         borderColor: theme.colors.border,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-        elevation: 3,
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.06,
+        shadowRadius: 12,
+        elevation: 4,
     },
     avatar: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        marginRight: 12,
+        width: 56,
+        height: 56,
+        borderRadius: 18,
+        marginRight: 14,
         backgroundColor: theme.colors.surface,
     },
     conversationContent: {
@@ -298,7 +442,7 @@ const createStyles = (theme: typeof themeLight) =>
     },
     climberName: {
         fontSize: 16,
-        fontWeight: '600',
+        fontWeight: '700',
         color: theme.colors.text,
     },
     matchTypeBadge: {
@@ -330,6 +474,7 @@ const createStyles = (theme: typeof themeLight) =>
     lastMessage: {
         fontSize: 14,
         color: theme.colors.textSecondary,
+        lineHeight: 20,
     },
     unreadBadge: {
         backgroundColor: theme.colors.accent,
