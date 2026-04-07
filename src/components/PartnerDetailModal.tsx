@@ -151,7 +151,7 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                       setIsRequestSent(!isRequestSent);
                     }}
                   >
-                    <Text style={styles.requestButtonText}>{isRequestSent ? 'Request Sent' : 'Send Partner Request'}</Text>
+                    <Text style={styles.requestButtonText}>{isRequestSent ? 'Request Sent' : 'Send Climbing Partner Request'}</Text>
                   </Pressable>
                 </View>
               )}

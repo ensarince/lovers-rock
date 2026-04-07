@@ -19,7 +19,7 @@ import {
 } from 'react-native';
 
 const windowHeight = Dimensions.get('window').height;
-const CARD_HEIGHT = Math.min(430, Math.max(360, windowHeight * 0.62));
+const FALLBACK_CARD_HEIGHT = Math.min(390, Math.max(320, windowHeight * 0.53));
 
 interface SwipeableCardProps {
   climber: Climber;
@@ -28,6 +28,7 @@ interface SwipeableCardProps {
   onPress?: () => void;
   userLatitude?: number;
   userLongitude?: number;
+  availableHeight?: number;
 }
 
 const gradeColors: Record<string, string> = {
@@ -45,6 +46,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
   onPress,
   userLatitude,
   userLongitude,
+  availableHeight,
 }) => {
   const { darkMode } = useAuth();
   const pan = useRef(new Animated.ValueXY()).current;
@@ -139,12 +141,21 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
     outputRange: [1, 0],
   });
 
+  const cardHeight =
+    typeof availableHeight === 'number' && availableHeight > 0
+      ? Math.max(300, Math.min(FALLBACK_CARD_HEIGHT, availableHeight - 10))
+      : FALLBACK_CARD_HEIGHT;
+
   return (
     <View style={styles.outerContainer}>
       <Animated.View
         {...panResponder.panHandlers}
         style={[
           styles.container,
+          {
+            height: cardHeight,
+            maxHeight: cardHeight,
+          },
           {
             transform: [{ rotate: rotateInterpolate }],
           },
@@ -285,8 +296,6 @@ const styles = StyleSheet.create({
   },
   container: {
     width: '100%',
-    height: CARD_HEIGHT,
-    maxHeight: CARD_HEIGHT,
     marginHorizontal: 'auto',
   },
   cardShadow: {

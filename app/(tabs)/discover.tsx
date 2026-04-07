@@ -28,6 +28,7 @@ import {
   ActivityIndicator,
   FlatList,
   ImageBackground,
+  LayoutChangeEvent,
   Modal,
   Pressable,
   StyleSheet,
@@ -77,6 +78,7 @@ export default function DiscoverScreen() {
   // Trigger for manual refresh of blocked users
   const [blockRefreshTrigger, setBlockRefreshTrigger] = useState(0);
   const [introModalVisible, setIntroModalVisible] = useState(!hasShownDiscoverIntro);
+  const [datingCardAreaHeight, setDatingCardAreaHeight] = useState(0);
 
   const { token, user, preferencesSynced, darkMode } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
@@ -656,6 +658,11 @@ export default function DiscoverScreen() {
   const currentDatingCount = filteredClimbers.length;
   const currentPartnerCount = filteredPartners.length;
 
+  const handleDatingCardAreaLayout = (event: LayoutChangeEvent) => {
+    const nextHeight = Math.round(event.nativeEvent.layout.height);
+    setDatingCardAreaHeight((prev) => (Math.abs(prev - nextHeight) > 4 ? nextHeight : prev));
+  };
+
   useEffect(() => {
     if (introModalVisible) {
       hasShownDiscoverIntro = true;
@@ -746,7 +753,7 @@ export default function DiscoverScreen() {
         <View style={[styles.toggleContainer, { borderColor: modeColors.accentSoft }]}>
           <View style={styles.toggleCopy}>
             <Text style={styles.toggleLabel}>Browse mode</Text>
-            <Text style={styles.toggleHint}>Dating cards or partner list</Text>
+            <Text style={styles.toggleHint}>Dating cards or climbing partner list</Text>
           </View>
           <View style={styles.segmentedToggle}>
             <Pressable
@@ -769,8 +776,13 @@ export default function DiscoverScreen() {
                 setSearchText('');
               }}
             >
-              <Text style={[styles.segmentButtonText, !isDatingMode && styles.segmentButtonTextActive]}>
-                Partner
+              <Text
+                style={[styles.segmentButtonText, !isDatingMode && styles.segmentButtonTextActive]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.82}
+              >
+                Climbing Partner
               </Text>
             </Pressable>
           </View>
@@ -779,7 +791,7 @@ export default function DiscoverScreen() {
 
       {/* Dating Mode - Swiping Cards */}
       {isDatingMode && hasDatingIntent ? (
-        <View style={styles.cardContainer}>
+        <View style={styles.cardContainer} onLayout={handleDatingCardAreaLayout}>
           {currentClimber ? (
             <SwipeableCard
               climber={currentClimber}
@@ -788,6 +800,7 @@ export default function DiscoverScreen() {
               onPress={() => showFullBio(currentClimber)}
               userLatitude={user?.latitude}
               userLongitude={user?.longitude}
+              availableHeight={datingCardAreaHeight}
             />
           ) : (
             <View style={styles.emptyState}>
@@ -841,7 +854,7 @@ export default function DiscoverScreen() {
                           <View style={styles.partnerHeaderRow}>
                             <Text style={styles.partnerNameOnImage}>{item.name}</Text>
                             <View style={styles.partnerChipOnImage}>
-                              <Text style={styles.partnerChipTextOnImage}>Partner</Text>
+                              <Text style={styles.partnerChipTextOnImage}>Climbing Partner</Text>
                             </View>
                           </View>
                           <Text style={styles.partnerDetailOnImage}>{item.home_gym}</Text>
@@ -873,7 +886,7 @@ export default function DiscoverScreen() {
                       <View style={styles.partnerHeaderRow}>
                         <Text style={styles.partnerName}>{item.name}</Text>
                         <View style={[styles.partnerChip, { backgroundColor: modeColors.accentSurface }]}>
-                          <Text style={[styles.partnerChipText, { color: modeColors.accent }]}>Partner</Text>
+                          <Text style={[styles.partnerChipText, { color: modeColors.accent }]}>Climbing Partner</Text>
                         </View>
                       </View>
                       <Text style={styles.partnerDetail}>{item.home_gym}</Text>
@@ -898,7 +911,7 @@ export default function DiscoverScreen() {
               </Pressable>
               );
             }}
-            ListEmptyComponent={<Text style={styles.emptyText}>No partners found.</Text>}
+            ListEmptyComponent={<Text style={styles.emptyText}>No climbing partners found.</Text>}
           />
         </View>
       ) : null}
@@ -1101,12 +1114,12 @@ const createStyles = (theme: typeof themeLight) =>
       justifyContent: 'center',
     },
     toggleContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+      flexDirection: 'column',
+      alignItems: 'stretch',
+      justifyContent: 'flex-start',
       marginHorizontal: 16,
       marginTop: 2,
-      marginBottom: 2,
+      marginBottom: 6,
       paddingHorizontal: 14,
       paddingVertical: 10,
       borderRadius: 20,
@@ -1115,9 +1128,9 @@ const createStyles = (theme: typeof themeLight) =>
       borderColor: theme.colors.border,
     },
     toggleCopy: {
-      flex: 1,
       backgroundColor: 'transparent',
-      paddingRight: 12,
+      paddingRight: 0,
+      marginBottom: 10,
     },
     toggleLabel: {
       fontSize: 15,
@@ -1135,14 +1148,16 @@ const createStyles = (theme: typeof themeLight) =>
       borderRadius: 999,
       padding: 3,
       gap: 4,
+      alignSelf: 'stretch',
     },
     segmentButton: {
-      minWidth: 88,
-      paddingHorizontal: 14,
+      flex: 1,
+      paddingHorizontal: 12,
       paddingVertical: 9,
       borderRadius: 999,
       backgroundColor: 'transparent',
       alignItems: 'center',
+      justifyContent: 'center',
     },
     segmentButtonActive: {
       backgroundColor: theme.colors.accent,
@@ -1151,6 +1166,7 @@ const createStyles = (theme: typeof themeLight) =>
       fontSize: 13,
       fontWeight: '700',
       color: theme.colors.textSecondary,
+      textAlign: 'center',
     },
     segmentButtonTextActive: {
       color: '#ffffff',

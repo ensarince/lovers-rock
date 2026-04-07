@@ -438,7 +438,7 @@ export default function MatchesScreen() {
         <Ionicons name="alert-circle" size={44} color={theme.colors.border} style={{ padding: 8 }} />
         <Text style={styles.titleMinimal}>No intents enabled</Text>
         <Text style={styles.subtitleMinimal}>
-          Enable Dating or Partner in your profile to see matches.
+          Enable Dating or Climbing Partner in your profile to see matches.
         </Text>
       </View>
     );
@@ -473,6 +473,14 @@ export default function MatchesScreen() {
             else if (chip === 'requests') count = incomingRequests.length;
             else if (chip === 'dating') count = datingMatches.length;
             else if (chip === 'partner') count = partnerMatches.length;
+            const chipLabel =
+              chip === 'all'
+                ? 'All'
+                : chip === 'requests'
+                  ? 'Requests'
+                  : chip === 'dating'
+                    ? 'Dating'
+                    : 'Climbing Partner';
 
             return (
               <Pressable
@@ -487,7 +495,7 @@ export default function MatchesScreen() {
                   styles.chipText,
                   activeFilter === chip && styles.chipTextActive
                 ]}>
-                  {chip.charAt(0).toUpperCase() + chip.slice(1)} {count > 0 && `(${count})`}
+                  {chipLabel} {count > 0 && `(${count})`}
                 </Text>
               </Pressable>
             );
@@ -504,7 +512,7 @@ export default function MatchesScreen() {
       {filteredContent.length === 0 ? (
         <View style={styles.emptyStateContainer}>
           <Ionicons name="heart-outline" size={44} color={theme.colors.textSecondary} style={{ padding: 8 }} />
-          <Text style={styles.titleMinimal}>No {activeFilter === 'requests' ? 'requests' : activeFilter === 'dating' ? 'dating matches' : activeFilter === 'partner' ? 'partner matches' : 'matches'} yet</Text>
+          <Text style={styles.titleMinimal}>No {activeFilter === 'requests' ? 'requests' : activeFilter === 'dating' ? 'dating matches' : activeFilter === 'partner' ? 'climbing partner matches' : 'matches'} yet</Text>
           <Text style={styles.subtitleMinimal}>
             Go discover climbers you like!
           </Text>
@@ -575,7 +583,7 @@ export default function MatchesScreen() {
               </View>
               <Text style={styles.heroTitle}>Your people, all in one place</Text>
               <Text style={styles.introBodyText}>
-                Filter between requests, dating, and partner matches any time. This page stays focused on the list once you close this intro.
+                Filter between requests, dating, and climbing partner matches any time. This page stays focused on the list once you close this intro.
               </Text>
               <Pressable style={styles.introActionButton} onPress={() => setIntroModalVisible(false)}>
                 <Text style={styles.introActionText}>Open matches</Text>

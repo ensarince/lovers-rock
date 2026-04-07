@@ -203,12 +203,18 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
         {images.length > 1 && (
           <>
             <Pressable
-              onPress={handlePrevImage}
+              onPress={(event) => {
+                event.stopPropagation();
+                handlePrevImage();
+              }}
               style={[styles.navButton, styles.leftButton]}>
               <Ionicons name="chevron-back" size={28} color="#fff" />
             </Pressable>
             <Pressable
-              onPress={handleNextImage}
+              onPress={(event) => {
+                event.stopPropagation();
+                handleNextImage();
+              }}
               style={[styles.navButton, styles.rightButton]}>
               <Ionicons name="chevron-forward" size={28} color="#fff" />
             </Pressable>
@@ -221,7 +227,10 @@ export const ImageCarousel: React.FC<ImageCarouselProps> = ({
             {images.map((_, index) => (
               <Pressable
                 key={index}
-                onPress={() => setCurrentIndex(index)}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  setCurrentIndex(index);
+                }}
                 style={[
                   styles.indicator,
                   index === currentIndex && styles.indicatorActive,
@@ -350,6 +359,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     transform: [{ translateY: -25 }],
+    zIndex: 8,
+    elevation: 8,
   },
   leftButton: {
     left: 12,
@@ -364,6 +375,8 @@ const styles = StyleSheet.create({
     transform: [{ translateX: -40 }],
     flexDirection: 'row',
     gap: 6,
+    zIndex: 8,
+    elevation: 8,
   },
   indicator: {
     padding: 6,
@@ -386,6 +399,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    zIndex: 8,
+    elevation: 8,
   },
   counterText: {
     color: '#fff',
