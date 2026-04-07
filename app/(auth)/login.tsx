@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 
 export default function LoginScreen() {
-  const { login, register, /* loginWithGoogle, */ isLoading, darkMode } = useAuth();
+  const { login, register, loginWithGoogle, isLoading, darkMode } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
   const [email, setEmail] = useState('');
@@ -93,14 +93,14 @@ export default function LoginScreen() {
     }
   };
 
-  /* const handleGoogleAuth = async () => {
+  const handleGoogleAuth = async () => {
     try {
       setError(null);
       await loginWithGoogle();
     } catch (err: any) {
       setError(err.message || 'Google authentication failed');
     }
-  }; */
+  };
 
   return (
     <View style={styles.container}>
@@ -211,8 +211,7 @@ export default function LoginScreen() {
 
       {!verificationStep && (
         <>
-          {/* Divider and Google button commented out */}
-          {/* <View style={styles.dividerMinimal}>
+          <View style={styles.dividerMinimal}>
             <View style={styles.lineMinimal} />
             <Text style={styles.dividerTextMinimal}>or</Text>
             <View style={styles.lineMinimal} />
@@ -226,7 +225,7 @@ export default function LoginScreen() {
             <Text style={styles.googleButtonTextMinimal}>
               {isSignup ? 'Sign Up' : 'Login'} with Google
             </Text>
-          </Pressable> */}
+          </Pressable>
 
           <Pressable onPress={() => {
             setIsSignup(!isSignup);
@@ -289,7 +288,7 @@ const createStyles = (theme: typeof themeLight) =>
     },
     formMinimal: {
       gap: 18,
-      marginBottom: 24,
+      marginBottom: 0,
       backgroundColor: "transparent"
     },
     errorMinimal: {
@@ -335,7 +334,7 @@ const createStyles = (theme: typeof themeLight) =>
       borderRadius: 12,
       paddingVertical: 14,
       alignItems: 'center',
-      marginTop: 8,
+      marginTop: 0,
       shadowColor: theme.colors.accent,
       shadowOpacity: 0.15,
       shadowRadius: 8,
@@ -354,7 +353,8 @@ const createStyles = (theme: typeof themeLight) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
-      marginVertical: 18,
+      marginTop: 18,
+      marginBottom: 18,
       backgroundColor: "transparent"
     },
     lineMinimal: {
@@ -377,7 +377,7 @@ const createStyles = (theme: typeof themeLight) =>
       gap: 8,
       borderWidth: 1,
       borderColor: theme.colors.border,
-      marginBottom: 12,
+      marginBottom: 0,
     },
     googleButtonTextMinimal: {
       color: theme.colors.text,
@@ -389,7 +389,7 @@ const createStyles = (theme: typeof themeLight) =>
       textAlign: 'center',
       color: theme.colors.textSecondary,
       fontSize: 14,
-      marginTop: 18,
+      marginTop: 14,
       fontWeight: '500',
     },
   });

@@ -1,5 +1,6 @@
 import PocketBase from 'pocketbase';
 import { getPocketBaseUrl } from '../utils/helperFunctions';
+import * as WebBrowser from 'expo-web-browser';
 
 const POCKETBASE_URL = getPocketBaseUrl();
 let pb = new PocketBase(POCKETBASE_URL);
@@ -64,17 +65,22 @@ export const authService = {
   },
 
   // Google OAuth login
-  /*   async loginWithGoogle() {
-      try {
-        const authData = await pb
-          .collection('users')
-          .authWithOAuth2({ provider: 'google' });
-        return authData;
-      } catch (error: any) {
-        throw new Error(error.message || 'Google login failed');
-      }
-    },
-   */
+  async loginWithGoogle() {
+    try {
+      const authData = await pb.collection('users').authWithOAuth2({
+        provider: 'google',
+        urlCallback: async (url: string) => {
+          await WebBrowser.openBrowserAsync(url, {
+            presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
+            controlsColor: '#ec4899',
+          });
+        },
+      });
+      return authData;
+    } catch (error: any) {
+      throw new Error(error.message || 'Google login failed');
+    }
+  },
   // Request email verification (sends verification email)
   async requestVerification(email: string) {
     try {

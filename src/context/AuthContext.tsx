@@ -33,7 +33,7 @@ interface AuthContextType {
   setDarkMode: (value: boolean) => void;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
-  //loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => void;
 }
 
@@ -344,7 +344,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } */
   };
 
-  /* const loginWithGoogle = async () => {
+  const loginWithGoogle = async () => {
     setPreferencesSynced(false);
     try {
       const authData = await authService.loginWithGoogle();
@@ -353,16 +353,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setToken(authData.token);
       await AsyncStorage.setItem('user', JSON.stringify(climberUser));
       await SecureStore.setItemAsync('token', authData.token);
+
+      const pb = new PocketBase(getPocketBaseUrl());
+      pb.authStore.save(authData.token, authData.record);
+      await setupNotifications(authData.record.id, pb);
+
       // Reset preferences and sync for the new user
       preferenceService.reset();
       await preferenceService.syncPreferences(authData.token, authData.record.id);
       setPreferencesSynced(true);
-      setIsLoading(true);
-      setIsLoading(false);
+
+      try {
+        const POCKETBASE_URL = getPocketBaseUrl();
+        const updatedUserRes = await fetch(
+          `${POCKETBASE_URL}/api/collections/users/records/${authData.record.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${authData.token}`,
+            },
+          }
+        );
+        if (updatedUserRes.ok) {
+          const updatedUserData = await updatedUserRes.json();
+          const updatedClimber = mapToClimber(updatedUserData);
+          setUser(updatedClimber);
+          await AsyncStorage.setItem('user', JSON.stringify(updatedClimber));
+        }
+      } catch (err) {
+        // Silently fail and keep the OAuth-returned record
+      }
     } catch (error) {
       throw error;
     }
-  }; */
+  };
 
   const logout = async () => {
     // Stop location tracking when logging out
@@ -394,7 +417,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setDarkMode,
         login,
         register,
-        /* loginWithGoogle, */
+        loginWithGoogle,
         logout,
       }}>
       {children}
