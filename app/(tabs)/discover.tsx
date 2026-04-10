@@ -175,10 +175,23 @@ export default function DiscoverScreen() {
       try {
         if (!token || !user?.id) return;
 
-        const declinedDatingRecords = await getOutgoingDeclines(user.id, token, 'dating');
+        const [
+          declinedDatingRecords,
+          outgoingPartnerLikes,
+          incomingPartnerLikes,
+        ] = await Promise.all([
+          getOutgoingDeclines(user.id, token, 'dating'),
+          getOutgoingLikes(user.id, token, 'partner'),
+          getIncomingLikes(user.id, token, 'partner'),
+        ]);
+
         const declinedDatingIds = new Set(
           getActiveDeclinedUserIds(declinedDatingRecords, 'dating', 'outgoing')
         );
+        // Partner matches — mutual partner likes → exclude from dating feed
+        const likedPartnerIds = new Set(outgoingPartnerLikes.map((l) => l.to_user).filter(Boolean));
+        const incomingPartnerIds = new Set(incomingPartnerLikes.map((l) => l.from_user).filter(Boolean));
+        const isPartnerMatch = (id: string) => likedPartnerIds.has(id) && incomingPartnerIds.has(id);
 
         // Fetch climbers
         const data = await getPublicProfiles(token);
@@ -196,6 +209,7 @@ export default function DiscoverScreen() {
             c.id !== user?.id &&
             !blockedUserIds.includes(c.id) &&
             !isActivelyDeclined(c.id) &&
+            !isPartnerMatch(c.id) &&
             c.verified === true &&
             intentIncludes(c.intent, 'date') &&
             c.name !== '' &&
@@ -273,18 +287,23 @@ export default function DiscoverScreen() {
           outgoingPartnerLikes,
           outgoingDatingLikes,
           incomingPartnerLikes,
+          incomingDatingLikes,
           outgoingPartnerDeclines,
         ] = await Promise.all([
           getOutgoingLikes(user.id, token, 'partner'),
           getOutgoingLikes(user.id, token, 'dating'),
           getIncomingLikes(user.id, token, 'partner'),
+          getIncomingLikes(user.id, token, 'dating'),
           getOutgoingDeclines(user.id, token, 'partner'),
         ]);
 
         const likedUsersPartner = outgoingPartnerLikes.map((like) => like.to_user).filter(Boolean);
         const likedUsersDating = outgoingDatingLikes.map((like) => like.to_user).filter(Boolean);
         const incomingPartnerLikeIds = new Set(incomingPartnerLikes.map((like) => like.from_user).filter(Boolean));
+        const incomingDatingLikeIds = new Set(incomingDatingLikes.map((like) => like.from_user).filter(Boolean));
         const declinedUsers = getActiveDeclinedUserIds(outgoingPartnerDeclines, 'partner', 'outgoing');
+        // Dating matches = mutual dating likes → exclude from partner feed
+        const isDatingMatch = (id: string) => likedUsersDating.includes(id) && incomingDatingLikeIds.has(id);
 
         const data = await getPublicProfiles(token);
         // Only show users with 'partner' intent, exclude self and blocked users, only verified users
@@ -304,6 +323,8 @@ export default function DiscoverScreen() {
             console.log('✅ No blocked users in partner feed. Total users after filter:', filtered.length);
           }
         }
+        // Remove users who are already dating matches (mutual dating like)
+        filtered = filtered.filter((c) => !isDatingMatch(c.id));
         // Remove users who are already matched/connected (mutual like in partner mode)
         filtered = filtered.filter((c) => {
           const iLikeThem = likedUsersPartner.includes(c.id);

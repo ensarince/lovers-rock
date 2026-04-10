@@ -467,6 +467,10 @@ export default function ChatScreen() {
             )}
           </View>
         </Pressable>
+        {/* Reaction on own messages — visible to sender when someone hearts it */}
+        {isOwnMessage && heartReactionCount > 0 && (
+          <Text style={styles.receivedReaction}>❤️</Text>
+        )}
         </View>
         {!isOwnMessage && (
           <Pressable
@@ -833,6 +837,11 @@ const createStyles = (theme: typeof themeLight) =>
       justifyContent: 'flex-end',
       marginTop: 4,
       backgroundColor: 'transparent',
+    },
+    receivedReaction: {
+      fontSize: 13,
+      marginRight: 4,
+      alignSelf: 'flex-end',
     },
     likeButton: {
       marginLeft: 8,
