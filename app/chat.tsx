@@ -13,6 +13,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -100,6 +101,9 @@ export default function ChatScreen() {
   const typingUnsubscribeRef = useRef<null | (() => Promise<void>)>(null);
   const typingExpireTimeoutRef = useRef<number | null>(null);
   const lastTypingSentAtRef = useRef(0);
+  const dot1 = useRef(new Animated.Value(0)).current;
+  const dot2 = useRef(new Animated.Value(0)).current;
+  const dot3 = useRef(new Animated.Value(0)).current;
 
   const updateMessages = (nextMessages: Message[]) => {
     const sortedMessages = sortMessages(nextMessages);
@@ -224,6 +228,33 @@ export default function ChatScreen() {
       }
     };
   }, [user?.id, climberId]);
+
+  useEffect(() => {
+    if (!isPartnerTyping) {
+      dot1.setValue(0);
+      dot2.setValue(0);
+      dot3.setValue(0);
+      return;
+    }
+
+    const bounce = (dot: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(dot, { toValue: -6, duration: 250, useNativeDriver: true }),
+          Animated.timing(dot, { toValue: 0, duration: 250, useNativeDriver: true }),
+          Animated.delay(450 - delay),
+        ])
+      );
+
+    const anim = Animated.parallel([
+      bounce(dot1, 0),
+      bounce(dot2, 150),
+      bounce(dot3, 300),
+    ]);
+    anim.start();
+    return () => anim.stop();
+  }, [isPartnerTyping]);
 
   // Fetch full climber data only if needed for details not in route params
   useEffect(() => {
@@ -581,9 +612,9 @@ export default function ChatScreen() {
         ListFooterComponent={
           isPartnerTyping ? (
             <View style={styles.typingIndicator}>
-              <View style={styles.typingDot} />
-              <View style={[styles.typingDot, styles.typingDotMiddle]} />
-              <View style={[styles.typingDot, styles.typingDotLast]} />
+              <Animated.View style={[styles.typingDot, { transform: [{ translateY: dot1 }] }]} />
+              <Animated.View style={[styles.typingDot, { transform: [{ translateY: dot2 }] }]} />
+              <Animated.View style={[styles.typingDot, { transform: [{ translateY: dot3 }] }]} />
               <Text style={styles.typingText}>Typing...</Text>
             </View>
           ) : null
@@ -863,12 +894,6 @@ const createStyles = (theme: typeof themeLight) =>
       height: 8,
       borderRadius: 4,
       backgroundColor: theme.colors.textSecondary,
-    },
-    typingDotMiddle: {
-      opacity: 0.6,
-    },
-    typingDotLast: {
-      opacity: 0.3,
     },
     typingText: {
       marginLeft: 6,
