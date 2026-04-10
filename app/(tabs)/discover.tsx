@@ -627,6 +627,9 @@ export default function DiscoverScreen() {
     // IMPORTANT: Pass 'dating' intent when accepting in dating mode
     await preferenceService.accept(climber, token, user.id, 'dating');
 
+    // Cross-mode dedup: remove from partner feed immediately (mirrors DB-side filter)
+    setPartners(prev => prev.filter(p => p.id !== climber.id));
+
     // Check if this creates a mutual match
     try {
       const isMutual = await hasIncomingLike(user.id, climber.id, 'dating', token);
