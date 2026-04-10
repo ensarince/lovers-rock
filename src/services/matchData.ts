@@ -205,7 +205,7 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
         id: matchId,
         climber: normalizeClimber(user),
         matchedAt: Date.now() - Math.random() * 86400000 * 7,
-        messagePreview: type === 'dating' ? 'You matched! Say hello ðŸ’•' : 'You matched! Find a partner ðŸ§—',
+        messagePreview: type === 'dating' ? 'You matched! Say hello 🤗' : 'Connected! Say hello 🤗',
         unreadCount: Math.floor(Math.random() * 3),
         type,
       };

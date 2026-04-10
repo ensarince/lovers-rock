@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\.claude\\\\skills\")",
+      "Bash(mkdir -p \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\handoff\")",
+      "Bash(npm install:*)",
+      "Bash(npx jest:*)",
+      "Bash(find:*)",
+      "Bash(npx expo:*)",
+      "Bash(npm test:*)"
+    ]
+  }
+}
