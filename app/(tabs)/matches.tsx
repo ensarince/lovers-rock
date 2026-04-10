@@ -57,6 +57,7 @@ export default function MatchesScreen() {
   const [introModalVisible, setIntroModalVisible] = useState(!hasShownMatchesIntro);
   const { user, token, darkMode } = useAuth();
   const prevPartnerRequestIdsRef = useRef<Set<string> | null>(null);
+  const prevPartnerMatchIdsRef = useRef<Set<string> | null>(null);
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
 
@@ -94,6 +95,15 @@ export default function MatchesScreen() {
 
       // Fetch matches
       const allMatches = await getMatches(token, user.id);
+      const currentPartnerMatches = allMatches.filter((m) => m.type === 'partner');
+      if (prevPartnerMatchIdsRef.current !== null) {
+        currentPartnerMatches.forEach((m) => {
+          if (!prevPartnerMatchIdsRef.current!.has(m.id)) {
+            notificationService.notifyRequestAccepted(m.climber.name, m.climber.id, 'partner');
+          }
+        });
+      }
+      prevPartnerMatchIdsRef.current = new Set(currentPartnerMatches.map((m) => m.id));
       setMatches(allMatches);
 
       // Fetch incoming partner requests if partner intent enabled
