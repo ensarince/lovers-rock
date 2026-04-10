@@ -1,12 +1,13 @@
 import { DiscoverFilters, FilterModal } from '@/src/components/FilterModal';
 import { MatchAnimation } from '@/src/components/MatchAnimation';
 import PartnerDetailModal from '@/src/components/PartnerDetailModal';
+import { SkeletonCard } from '@/src/components/SkeletonLoader';
 import { SwipeableCard } from '@/src/components/SwipeableCard';
 import { useAuth } from '@/src/context/AuthContext';
 import { calculateDistance } from '@/src/services/geoService';
-import { notificationService } from '@/src/services/notificationService';
 import { locationService } from '@/src/services/locationService';
 import { declineDatingUser } from '@/src/services/matchData';
+import { notificationService } from '@/src/services/notificationService';
 import { preferenceService } from '@/src/services/preferenceService';
 import { getReportService } from '@/src/services/reportService';
 import {
@@ -712,7 +713,7 @@ export default function DiscoverScreen() {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={theme.colors.accent} />
+        <SkeletonCard />
       </View>
     );
   }
@@ -753,10 +754,6 @@ export default function DiscoverScreen() {
       {/* Mode Toggle - Show only if user has both intents */}
       {hasDatingIntent && hasPartnerIntent && (
         <View style={[styles.toggleContainer, { borderColor: modeColors.accentSoft }]}>
-          <View style={styles.toggleCopy}>
-            <Text style={styles.toggleLabel}>Browse mode</Text>
-            <Text style={styles.toggleHint}>Dating cards or climbing partner list</Text>
-          </View>
           <View style={styles.segmentedToggle}>
             <Pressable
               style={[styles.segmentButton, isDatingMode && styles.segmentButtonActive, isDatingMode && { backgroundColor: modeColors.accent }]}
@@ -1133,11 +1130,6 @@ const createStyles = (theme: typeof themeLight) =>
       backgroundColor: 'transparent',
       paddingRight: 0,
       marginBottom: 10,
-    },
-    toggleLabel: {
-      fontSize: 15,
-      fontWeight: '700',
-      color: theme.colors.text,
     },
     toggleHint: {
       marginTop: 2,

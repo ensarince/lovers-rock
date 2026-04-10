@@ -467,14 +467,6 @@ export default function ChatScreen() {
             )}
           </View>
         </Pressable>
-        {showReactionBadge && (
-          <View style={[styles.reactionBadge, isOwnMessage ? styles.ownReactionBadge : styles.otherReactionBadge]}>
-            <Text style={styles.reactionBadgeText}>
-              {HEART_REACTION}
-              {heartReactionCount > 1 ? ` ${heartReactionCount}` : ''}
-            </Text>
-          </View>
-        )}
         </View>
         {!isOwnMessage && (
           <Pressable

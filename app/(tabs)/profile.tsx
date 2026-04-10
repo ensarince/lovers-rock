@@ -1,6 +1,7 @@
 
 import { Text } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
+import { SkeletonProfile } from '@/src/components/SkeletonLoader';
 import { getBlockedUsersData } from '@/src/services/accountService';
 import { createDefaultGrade, formatGradeDisplay, getExampleGrades } from '@/src/services/gradeService';
 import { getReportService } from '@/src/services/reportService';
@@ -579,7 +580,7 @@ export default function ProfileScreen() {
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={theme.colors.accent} />
+        <SkeletonProfile />
       </View>
     );
   }

@@ -1,6 +1,7 @@
 import { BlockReportMenu } from '@/src/components/BlockReportMenu';
 import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import PartnerDetailModal from '@/src/components/PartnerDetailModal';
+import { SkeletonRow } from '@/src/components/SkeletonLoader';
 import { useAuth } from '@/src/context/AuthContext';
 import { getPublicProfiles } from '@/src/services/accountService';
 import { notificationService } from '@/src/services/notificationService';
@@ -434,7 +435,7 @@ export default function MatchesScreen() {
   if (loading) {
     return (
       <View style={styles.centerContainerMinimal}>
-        <ActivityIndicator size="large" color={theme.colors.accent} />
+        <SkeletonRow count={5} />
       </View>
     );
   }

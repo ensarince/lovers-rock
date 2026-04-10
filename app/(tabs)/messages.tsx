@@ -1,4 +1,5 @@
 import { useAuth } from '@/src/context/AuthContext';
+import { SkeletonRow } from '@/src/components/SkeletonLoader';
 import { activeConversationPartnerId, notificationService } from '@/src/services/notificationService';
 import { getMatches } from '@/src/services/matchData';
 import { messageService } from '@/src/services/messageService';
@@ -237,7 +238,7 @@ export default function MessagesScreen() {
     if (loading) {
         return (
             <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color={theme.colors.accent} />
+                <SkeletonRow count={5} />
             </View>
         );
     }

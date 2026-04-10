@@ -23,6 +23,9 @@ export default function RootLayout() {
   const [loaded, error] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
     ...FontAwesome.font,
+    CormorantGaramond_600SemiBold: require('../node_modules/@expo-google-fonts/cormorant-garamond/600SemiBold/CormorantGaramond_600SemiBold.ttf'),
+    CormorantGaramond_700Bold: require('../node_modules/@expo-google-fonts/cormorant-garamond/700Bold/CormorantGaramond_700Bold.ttf'),
+    JosefinSans_400Regular: require('../node_modules/@expo-google-fonts/josefin-sans/400Regular/JosefinSans_400Regular.ttf'),
   });
 
   // Expo Router uses Error Boundaries to catch errors in the navigation tree.

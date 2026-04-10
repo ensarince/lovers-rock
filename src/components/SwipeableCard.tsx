@@ -8,6 +8,7 @@ import { theme } from '@/src/themeDark';
 import { Climber } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
@@ -19,7 +20,7 @@ import {
 } from 'react-native';
 
 const windowHeight = Dimensions.get('window').height;
-const FALLBACK_CARD_HEIGHT = Math.min(390, Math.max(320, windowHeight * 0.53));
+const FALLBACK_CARD_HEIGHT = Math.round(windowHeight * 0.70);
 
 interface SwipeableCardProps {
   climber: Climber;
@@ -50,6 +51,8 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
 }) => {
   const { darkMode } = useAuth();
   const pan = useRef(new Animated.ValueXY()).current;
+  const acceptScale = useRef(new Animated.Value(1)).current;
+  const rejectScale = useRef(new Animated.Value(1)).current;
   const [isAccepting, setIsAccepting] = React.useState(false);
   const [isRejecting, setIsRejecting] = React.useState(false);
   const [distance, setDistance] = useState<number | null>(null);
@@ -97,6 +100,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
         const threshold = 100;
         if (dx > threshold) {
           // Swipe right = accept
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           Animated.timing(pan, {
             toValue: { x: 500, y: 0 },
             duration: 300,
@@ -107,6 +111,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
           });
         } else if (dx < -threshold) {
           // Swipe left = reject
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           Animated.timing(pan, {
             toValue: { x: -500, y: 0 },
             duration: 300,
@@ -143,7 +148,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
 
   const cardHeight =
     typeof availableHeight === 'number' && availableHeight > 0
-      ? Math.max(300, Math.min(FALLBACK_CARD_HEIGHT, availableHeight - 10))
+      ? Math.max(300, availableHeight - 12)
       : FALLBACK_CARD_HEIGHT;
 
   return (
@@ -189,50 +194,55 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
             style={styles.gradientOverlay}
           />
 
-          {/* Accept overlay */}
+          {/* LIKE stamp overlay */}
           <Animated.View
-            style={[
-              styles.overlayLabel,
-              styles.acceptOverlay,
-              { opacity: opacityAccept },
-            ]}>
-            <Ionicons name="heart" size={60} color="#10b981" />
-            <Text style={styles.overlayText}>LIKE!</Text>
+            style={[styles.stampOverlay, styles.stampRight, { opacity: opacityAccept }]}
+            pointerEvents="none">
+            <Text style={[styles.stampText, styles.stampLike]}>LIKE</Text>
           </Animated.View>
 
-          {/* Reject overlay */}
+          {/* NOPE stamp overlay */}
           <Animated.View
-            style={[
-              styles.overlayLabel,
-              styles.rejectOverlay,
-              { opacity: opacityReject },
-            ]}>
-            <Ionicons name="close" size={60} color="#ef4444" />
-            <Text style={styles.overlayText}>NOPE</Text>
+            style={[styles.stampOverlay, styles.stampLeft, { opacity: opacityReject }]}
+            pointerEvents="none">
+            <Text style={[styles.stampText, styles.stampNope]}>NOPE</Text>
           </Animated.View>
 
-          {/* Content in a more transparent panel */}
+          {/* Info panel — fixed height, never covers carousel dots */}
           <View style={styles.contentPanel}>
-            <Text style={styles.name}>
-              {climber.name}, {climber.age}
-            </Text>
-            <Text style={styles.gym}>{climber.home_gym}</Text>
-            <Text 
-              style={styles.bio} 
-              numberOfLines={3}
-            >
-              {climber.bio}
-            </Text>
-            {climber.bio && climber.bio.length > 150 && <Text style={styles.tapHint}>Tap to see more</Text>}
-            <View style={styles.badgesContainer}>
-              <View
-                style={[
-                  styles.badge,
-                  { backgroundColor: gradeColors[climber.grade?.general_level || 'beginner'] },
-                ]}>
-                <Text style={styles.badgeText}>
-                  {formatGradeDisplay(climber.grade)}
+            {/* Name row */}
+            <View style={styles.nameRow}>
+              <Text style={styles.name} numberOfLines={1}>
+                {climber.name}
+              </Text>
+              <Text style={styles.age}>{climber.age}</Text>
+            </View>
+
+            {/* Gym + distance row */}
+            <View style={styles.metaRow}>
+              {climber.home_gym ? (
+                <Text style={styles.gym} numberOfLines={1}>
+                  <Ionicons name="location-sharp" size={11} color="rgba(255,255,255,0.55)" /> {climber.home_gym}
                 </Text>
+              ) : null}
+              {distance !== null && (
+                <Text style={styles.distanceText}>
+                  {formatDistance(distance)}
+                </Text>
+              )}
+            </View>
+
+            {/* Bio preview — strictly 1 line */}
+            {climber.bio ? (
+              <Text style={styles.bioPreview} numberOfLines={1} ellipsizeMode="tail">
+                {climber.bio}
+              </Text>
+            ) : null}
+
+            {/* Badges row */}
+            <View style={styles.badgesContainer}>
+              <View style={[styles.badge, { backgroundColor: gradeColors[climber.grade?.general_level || 'beginner'] }]}>
+                <Text style={styles.badgeText}>{formatGradeDisplay(climber.grade)}</Text>
               </View>
               {climber.climbing_styles.slice(0, 2).map((style) => (
                 <View key={style} style={[styles.badge, styles.styleBadge]}>
@@ -241,12 +251,6 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
                   </Text>
                 </View>
               ))}
-              {distance !== null && (
-                <View style={[styles.badge, styles.distanceBadge]}>
-                  <Ionicons name="location" size={12} color="#fff" />
-                  <Text style={styles.badgeText}>{formatDistance(distance)}</Text>
-                </View>
-              )}
             </View>
           </View>
         </Pressable>
@@ -254,25 +258,39 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
 
       {/* Action Buttons */}
       <View style={styles.buttonContainer}>
-        <Pressable
-          onPress={() => {
-            setIsRejecting(true);
-            onReject(climber);
-            setTimeout(() => setIsRejecting(false), 300);
-          }}
-          style={[styles.button, styles.rejectButton]}>
-          <Ionicons name="close" size={28} color="#ef4444" />
-        </Pressable>
+        <Animated.View style={{ transform: [{ scale: rejectScale }] }}>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              Animated.sequence([
+                Animated.spring(rejectScale, { toValue: 0.85, useNativeDriver: true, tension: 300, friction: 8 }),
+                Animated.spring(rejectScale, { toValue: 1, useNativeDriver: true, tension: 200, friction: 6 }),
+              ]).start();
+              setIsRejecting(true);
+              onReject(climber);
+              setTimeout(() => setIsRejecting(false), 300);
+            }}
+            style={[styles.button, styles.rejectButton]}>
+            <Ionicons name="close" size={28} color="#ef4444" />
+          </Pressable>
+        </Animated.View>
 
-        <Pressable
-          onPress={() => {
-            setIsAccepting(true);
-            onAccept(climber);
-            setTimeout(() => setIsAccepting(false), 300);
-          }}
-          style={[styles.button, styles.acceptButton]}>
-          <Ionicons name="heart" size={28} color={theme.colors.success} />
-        </Pressable>
+        <Animated.View style={{ transform: [{ scale: acceptScale }] }}>
+          <Pressable
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              Animated.sequence([
+                Animated.spring(acceptScale, { toValue: 0.85, useNativeDriver: true, tension: 300, friction: 8 }),
+                Animated.spring(acceptScale, { toValue: 1, useNativeDriver: true, tension: 200, friction: 6 }),
+              ]).start();
+              setIsAccepting(true);
+              onAccept(climber);
+              setTimeout(() => setIsAccepting(false), 300);
+            }}
+            style={[styles.button, styles.acceptButton]}>
+            <Ionicons name="heart" size={28} color={theme.colors.success} />
+          </Pressable>
+        </Animated.View>
       </View>
 
       {/* Block/Report Menu */}
@@ -296,134 +314,147 @@ const styles = StyleSheet.create({
   },
   container: {
     width: '100%',
-    marginHorizontal: 'auto',
   },
   cardShadow: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.42,
+    shadowRadius: 28,
+    elevation: 18,
   },
   card: {
     borderRadius: 24,
     overflow: 'hidden',
     height: '100%',
     backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(255,46,99,0.18)',
   },
   topGradient: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: 0,
-    height: '18%',
-  },
-  menuButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    zIndex: 10,
-    padding: 8,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    borderRadius: 20,
+    height: '22%',
   },
   gradientOverlay: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    height: '28%',
+    height: '38%',
   },
-  overlayLabel: {
+
+  // ── Stamp overlays ───────────────────────────────────────────────────────────
+  stampOverlay: {
     position: 'absolute',
-    top: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    top: 36,
+    zIndex: 20,
   },
-  acceptOverlay: {
-    right: 20,
+  stampRight: {
+    right: 18,
+    transform: [{ rotate: '12deg' }],
   },
-  rejectOverlay: {
-    left: 20,
+  stampLeft: {
+    left: 18,
+    transform: [{ rotate: '-12deg' }],
   },
-  overlayText: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginTop: 8,
+  stampText: {
+    fontSize: 28,
+    fontWeight: '900',
+    fontFamily: 'JosefinSans_400Regular',
+    letterSpacing: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 3,
+    borderRadius: 6,
+    overflow: 'hidden',
   },
+  stampLike: {
+    color: '#1fde82',
+    borderColor: '#1fde82',
+  },
+  stampNope: {
+    color: '#ff4458',
+    borderColor: '#ff4458',
+  },
+
+  // ── Info panel ───────────────────────────────────────────────────────────────
   contentPanel: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 16,
-    backgroundColor: 'rgba(24,24,28,0.52)',
+    paddingTop: 20,
+    paddingBottom: 18,
+    backgroundColor: 'rgba(6,6,8,0.82)',
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+    gap: 5,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
   },
   name: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
-    color: theme.colors.text,
-    marginBottom: 2,
-    textShadowColor: 'rgba(0,0,0,0.7)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    fontFamily: 'CormorantGaramond_600SemiBold',
+    color: '#ffffff',
+    letterSpacing: 0.2,
+    flexShrink: 1,
+  },
+  age: {
+    fontSize: 20,
+    fontFamily: 'CormorantGaramond_600SemiBold',
+    color: 'rgba(255,255,255,0.75)',
+    letterSpacing: 0.2,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   gym: {
     fontSize: 12,
-    color: theme.colors.textSecondary,
-    marginBottom: 4,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    fontFamily: 'JosefinSans_400Regular',
+    color: 'rgba(255,255,255,0.55)',
+    flex: 1,
   },
-  bio: {
+  distanceText: {
+    fontSize: 11,
+    fontFamily: 'JosefinSans_400Regular',
+    color: 'rgba(100,180,255,0.85)',
+    marginLeft: 8,
+  },
+  bioPreview: {
     fontSize: 12,
-    color: theme.colors.text,
-    lineHeight: 16,
-    marginBottom: 8,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  tapHint: {
-    fontSize: 10,
-    color: theme.colors.textSecondary,
+    color: 'rgba(255,255,255,0.65)',
+    lineHeight: 17,
     fontStyle: 'italic',
-    marginBottom: 8,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   badgesContainer: {
     flexDirection: 'row',
     gap: 6,
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
+    marginTop: 2,
   },
   badge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 20,
   },
   styleBadge: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  distanceBadge: {
-    backgroundColor: 'rgba(59, 130, 246, 0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.5)',
-    flexDirection: 'row',
-    gap: 4,
-    alignItems: 'center',
+    borderColor: 'rgba(255,255,255,0.25)',
   },
   badgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
+    fontFamily: 'JosefinSans_400Regular',
     color: '#ffffff',
   },
   buttonContainer: {

@@ -280,10 +280,11 @@ const createStyles = (theme: typeof themeLight) =>
       backgroundColor: "transparent"
     },
     titleMinimal: {
-      fontSize: 28,
+      fontSize: 34,
       fontWeight: '700',
+      fontFamily: 'CormorantGaramond_700Bold',
       color: theme.colors.text,
-      letterSpacing: 1.2,
+      letterSpacing: 1.5,
       marginTop: 8,
     },
     formMinimal: {

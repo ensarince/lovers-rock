@@ -1,5 +1,6 @@
 import { Text, View } from '@/components/Themed';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import * as Haptics from 'expo-haptics';
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, StyleSheet } from 'react-native';
 import { useAuth } from '../context/AuthContext';
@@ -34,6 +35,9 @@ export const MatchAnimation: React.FC<MatchAnimationProps> = ({
   const sparkle2Rotate = useRef(new Animated.Value(0)).current;
   const sparkle3Rotate = useRef(new Animated.Value(0)).current;
   const modalScale = useRef(new Animated.Value(0)).current;
+  const rippleScale = useRef(new Animated.Value(0)).current;
+  const rippleOpacity = useRef(new Animated.Value(0)).current;
+  const buttonScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (visible) {
@@ -47,7 +51,28 @@ export const MatchAnimation: React.FC<MatchAnimationProps> = ({
       sparkle2Rotate.setValue(0);
       sparkle3Rotate.setValue(0);
       modalScale.setValue(0);
-      
+      rippleScale.setValue(0);
+      rippleOpacity.setValue(0.35);
+      buttonScale.setValue(1);
+
+      // Haptic celebration
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      // Celebratory ripple behind modal
+      Animated.parallel([
+        Animated.timing(rippleScale, {
+          toValue: 2.8,
+          duration: 900,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(rippleOpacity, {
+          toValue: 0,
+          duration: 900,
+          useNativeDriver: true,
+        }),
+      ]).start();
+
       // Start animation sequence
       Animated.sequence([
         // Modal appears
@@ -165,6 +190,9 @@ export const MatchAnimation: React.FC<MatchAnimationProps> = ({
       sparkleOpacity.setValue(0);
       sparkleScale.setValue(0);
       modalScale.setValue(0);
+      rippleScale.setValue(0);
+      rippleOpacity.setValue(0);
+      buttonScale.setValue(1);
     }
   }, [visible]);
 
@@ -204,7 +232,16 @@ export const MatchAnimation: React.FC<MatchAnimationProps> = ({
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
-        <Animated.View 
+        <Animated.View
+          style={[
+            styles.ripple,
+            {
+              transform: [{ scale: rippleScale }],
+              opacity: rippleOpacity,
+            },
+          ]}
+        />
+        <Animated.View
           style={[
             styles.animationContainer,
             {
@@ -279,9 +316,18 @@ export const MatchAnimation: React.FC<MatchAnimationProps> = ({
               <Text style={styles.description}>
                 Start a conversation and plan your next climbing adventure together!
               </Text>
-              <Pressable style={styles.closeButton} onPress={onClose}>
-                <Text style={styles.closeText}>Continue</Text>
-              </Pressable>
+              <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+                <Pressable
+                  style={styles.closeButton}
+                  onPress={() => {
+                    Animated.sequence([
+                      Animated.spring(buttonScale, { toValue: 0.92, useNativeDriver: true, tension: 300, friction: 8 }),
+                      Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true, tension: 200, friction: 6 }),
+                    ]).start(() => onClose());
+                  }}>
+                  <Text style={styles.closeText}>Continue</Text>
+                </Pressable>
+              </Animated.View>
             </Animated.View>
           )}
         </Animated.View>
@@ -296,6 +342,13 @@ const createStyles = (theme: any) => StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.85)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  ripple: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: theme.colors.accent,
   },
   animationContainer: {
     backgroundColor: theme.colors.surface,
@@ -354,19 +407,23 @@ const createStyles = (theme: any) => StyleSheet.create({
     alignItems: 'center',
   },
   matchText: {
-    fontSize: 36,
+    fontSize: 42,
     fontWeight: 'bold',
+    fontFamily: 'CormorantGaramond_700Bold',
     color: theme.colors.text,
     marginBottom: 12,
     textAlign: 'center',
     letterSpacing: 0.5,
   },
   subText: {
-    fontSize: 19,
+    fontSize: 16,
     color: theme.colors.accent,
     marginBottom: 12,
     textAlign: 'center',
     fontWeight: '600',
+    fontFamily: 'JosefinSans_400Regular',
+    fontWeight: '600',
+    letterSpacing: 1,
   },
   description: {
     fontSize: 15,
@@ -389,8 +446,10 @@ const createStyles = (theme: any) => StyleSheet.create({
   },
   closeText: {
     color: '#FFFFFF',
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: 'bold',
-    letterSpacing: 0.5,
+    fontFamily: 'JosefinSans_400Regular',
+    fontWeight: '600',
+    letterSpacing: 1.5,
   },
 });
