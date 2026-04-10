@@ -1,4 +1,5 @@
 import { useAuth } from '@/src/context/AuthContext';
+import { activeConversationPartnerId, notificationService } from '@/src/services/notificationService';
 import { getMatches } from '@/src/services/matchData';
 import { messageService } from '@/src/services/messageService';
 import { theme as themeDark } from '@/src/themeDark';
@@ -8,7 +9,7 @@ import { getPocketBaseUrl, intentIncludes } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -32,6 +33,39 @@ export default function MessagesScreen() {
     const theme = darkMode ? themeDark : themeLight;
     const styles = createStyles(theme);
     const unreadConversations = conversations.filter((conversation) => conversation.unreadCount > 0).length;
+    const conversationsRef = useRef(conversations);
+
+    useEffect(() => {
+        conversationsRef.current = conversations;
+    }, [conversations]);
+
+    useEffect(() => {
+        if (!user?.id || !token) return;
+        let unsubscribeFn: (() => Promise<void>) | null = null;
+
+        let cancelled = false;
+        messageService.subscribeToIncomingMessages(user.id, (message) => {
+            if (activeConversationPartnerId === message.sender_id) return;
+            const senderName =
+                conversationsRef.current.find((c) => c.climber.id === message.sender_id)?.climber.name ??
+                'Someone';
+            notificationService.notifyNewMessage(senderName, message.content, message.sender_id);
+        }).then((unsub) => {
+            if (cancelled) {
+                unsub().catch(() => {});
+            } else {
+                unsubscribeFn = unsub;
+            }
+        }).catch(() => {});
+
+        return () => {
+            cancelled = true;
+            if (unsubscribeFn) {
+                unsubscribeFn().catch(() => {});
+                unsubscribeFn = null;
+            }
+        };
+    }, [user?.id, token]);
 
     React.useEffect(() => {
         if (introModalVisible) {

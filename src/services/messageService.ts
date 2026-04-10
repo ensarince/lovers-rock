@@ -94,6 +94,22 @@ export class MessageService {
     };
   }
 
+  async subscribeToIncomingMessages(
+    userId: string,
+    callback: (message: Message) => void
+  ): Promise<() => Promise<void>> {
+    const unsubscribe = await this.pb.collection('messages').subscribe(
+      '*',
+      (event: any) => {
+        if (event.action === 'create' && event.record.receiver_id === userId) {
+          callback(mapMessageRecord(event.record));
+        }
+      },
+      { filter: `receiver_id = "${userId}"` }
+    );
+    return async () => { await unsubscribe(); };
+  }
+
   async getUnreadCount(userId: string): Promise<number> {
     const records = await this.pb.collection('messages').getList(1, 1, {
       filter: `receiver_id = "${userId}" && read = false`

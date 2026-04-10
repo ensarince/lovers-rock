@@ -3,6 +3,7 @@ import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import { useAuth } from '@/src/context/AuthContext';
 import { messageService } from '@/src/services/messageService';
 import { getReportService } from '@/src/services/reportService';
+import { setActiveConversationPartnerId } from '@/src/services/notificationService';
 import { typingService } from '@/src/services/typingService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
@@ -228,6 +229,15 @@ export default function ChatScreen() {
       }
     };
   }, [user?.id, climberId]);
+
+  useEffect(() => {
+    if (climberId) {
+      setActiveConversationPartnerId(climberId as string);
+    }
+    return () => {
+      setActiveConversationPartnerId(null);
+    };
+  }, [climberId]);
 
   useEffect(() => {
     if (!isPartnerTyping) {

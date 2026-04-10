@@ -4,6 +4,7 @@ import PartnerDetailModal from '@/src/components/PartnerDetailModal';
 import { SwipeableCard } from '@/src/components/SwipeableCard';
 import { useAuth } from '@/src/context/AuthContext';
 import { calculateDistance } from '@/src/services/geoService';
+import { notificationService } from '@/src/services/notificationService';
 import { locationService } from '@/src/services/locationService';
 import { declineDatingUser } from '@/src/services/matchData';
 import { preferenceService } from '@/src/services/preferenceService';
@@ -611,6 +612,7 @@ export default function DiscoverScreen() {
         // It's a dating match! Show animation
         setMatchedClimber(climber);
         setMatchAnimationVisible(true);
+        notificationService.notifyNewDatingMatch(climber.name, climber.id);
       }
     } catch (error) {
       if (process.env.EXPO_DEV_MODE) console.error('Error checking for match:', error);

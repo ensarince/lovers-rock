@@ -30,6 +30,11 @@ if (Notifications) {
   });
 }
 
+export let activeConversationPartnerId: string | null = null;
+export function setActiveConversationPartnerId(id: string | null): void {
+  activeConversationPartnerId = id;
+}
+
 export class NotificationService {
   private pb: PocketBase;
   private currentUserId: string;

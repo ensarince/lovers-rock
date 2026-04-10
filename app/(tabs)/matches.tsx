@@ -3,6 +3,7 @@ import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import PartnerDetailModal from '@/src/components/PartnerDetailModal';
 import { useAuth } from '@/src/context/AuthContext';
 import { getPublicProfiles } from '@/src/services/accountService';
+import { notificationService } from '@/src/services/notificationService';
 import { acceptPartnerRequest, declinePartnerRequest, getIncomingPartnerRequests, getMatches, unmatchUser } from '@/src/services/matchData';
 import {
   getActiveDeclinedUserIds,
@@ -21,7 +22,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -55,6 +56,7 @@ export default function MatchesScreen() {
   const [blockReportMenuOpen, setBlockReportMenuOpen] = useState<string | null>(null);
   const [introModalVisible, setIntroModalVisible] = useState(!hasShownMatchesIntro);
   const { user, token, darkMode } = useAuth();
+  const prevPartnerRequestIdsRef = useRef<Set<string> | null>(null);
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
 
@@ -97,6 +99,14 @@ export default function MatchesScreen() {
       // Fetch incoming partner requests if partner intent enabled
       if (hasPartnerIntent) {
         const requests = await getIncomingPartnerRequests(user.id, token);
+        if (prevPartnerRequestIdsRef.current !== null) {
+          requests.forEach((r) => {
+            if (!prevPartnerRequestIdsRef.current!.has(r.id)) {
+              notificationService.notifyNewPartnerRequest(r.name, r.id);
+            }
+          });
+        }
+        prevPartnerRequestIdsRef.current = new Set(requests.map((r) => r.id));
         setIncomingRequests(requests);
       }
 
