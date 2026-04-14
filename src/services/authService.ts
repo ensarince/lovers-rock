@@ -67,17 +67,21 @@ export const authService = {
   // Google OAuth login
   async loginWithGoogle() {
     try {
+      console.log('🔵 [Google] Starting OAuth, PocketBase URL:', POCKETBASE_URL);
       const authData = await pb.collection('users').authWithOAuth2({
         provider: 'google',
         urlCallback: async (url: string) => {
+          console.log('🔵 [Google] Opening browser...');
           await WebBrowser.openBrowserAsync(url, {
             presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
             controlsColor: '#ec4899',
           });
         },
       });
+      console.log('✅ [Google] Auth success, user id:', authData.record?.id);
       return authData;
     } catch (error: any) {
+      console.error('❌ [Google] Error:', error.message, '| cause:', error.originalError?.message);
       throw new Error(error.message || 'Google login failed');
     }
   },

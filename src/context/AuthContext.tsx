@@ -63,8 +63,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Cleanup listener on unmount
     return () => {
-      if (responseListener) {
-        Notifications.removeNotificationSubscription(responseListener);
+      if (responseListener?.remove) {
+        responseListener.remove();
       }
     };
   }, []);
@@ -347,8 +347,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const loginWithGoogle = async () => {
     setPreferencesSynced(false);
     try {
+      console.log('🔵 [AuthContext] loginWithGoogle called');
       const authData = await authService.loginWithGoogle();
+      console.log('✅ [AuthContext] Got authData, mapping user...');
       const climberUser = mapToClimber(authData.record);
+      console.log('✅ [AuthContext] Mapped climber:', JSON.stringify(climberUser, null, 2));
       setUser(climberUser);
       setToken(authData.token);
       await AsyncStorage.setItem('user', JSON.stringify(climberUser));
@@ -365,6 +368,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       try {
         const POCKETBASE_URL = getPocketBaseUrl();
+        console.log('🔵 [AuthContext] Fetching full user record from:', POCKETBASE_URL);
         const updatedUserRes = await fetch(
           `${POCKETBASE_URL}/api/collections/users/records/${authData.record.id}`,
           {
@@ -373,16 +377,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             },
           }
         );
+        console.log('🔵 [AuthContext] User fetch status:', updatedUserRes.status);
         if (updatedUserRes.ok) {
           const updatedUserData = await updatedUserRes.json();
+          console.log('✅ [AuthContext] Updated user data:', JSON.stringify(updatedUserData, null, 2));
           const updatedClimber = mapToClimber(updatedUserData);
           setUser(updatedClimber);
           await AsyncStorage.setItem('user', JSON.stringify(updatedClimber));
+        } else {
+          const errText = await updatedUserRes.text();
+          console.error('❌ [AuthContext] User fetch failed:', errText);
         }
       } catch (err) {
-        // Silently fail and keep the OAuth-returned record
+        console.error('❌ [AuthContext] User fetch exception:', err);
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ [AuthContext] loginWithGoogle failed:', error.message);
       throw error;
     }
   };

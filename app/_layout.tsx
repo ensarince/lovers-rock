@@ -3,7 +3,7 @@ import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StatusBar, View } from 'react-native';
@@ -54,12 +54,23 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme();
   const { isAuthenticated, isLoading, user, setUser, darkMode } = useAuth();
   const [showProfileCompletion, setShowProfileCompletion] = useState(false);
+  const segments = useSegments();
+  const router = useRouter();
+
+  // Redirect based on auth state once loading is done
+  useEffect(() => {
+    if (isLoading) return;
+    const inAuthGroup = segments[0] === '(auth)';
+    if (!isAuthenticated && !inAuthGroup) {
+      router.replace('/(auth)/login');
+    } else if (isAuthenticated && inAuthGroup) {
+      router.replace('/(tabs)/discover');
+    }
+  }, [isAuthenticated, isLoading, segments]);
 
   // Check if user needs to complete profile after login
   useEffect(() => {
     if (isAuthenticated && user) {
-      // Show modal only if profile_completed is false (or missing/falsy)
-      // This is the primary indicator from the database
       const shouldShowModal = !user.profile_completed;
       setShowProfileCompletion(shouldShowModal);
     } else {
@@ -93,11 +104,7 @@ function RootLayoutNav() {
           onComplete={handleProfileComplete}
           darkMode={darkMode}
         />
-        <Stack
-          screenOptions={{ headerShown: false }}
-          initialRouteName={isAuthenticated ? '(tabs)' : '(auth)'}
-          key={isAuthenticated ? 'authenticated' : 'unauthenticated'}
-        >
+        <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="chat" />
           <Stack.Screen name="(auth)" />
