@@ -204,6 +204,11 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
             formData.append('grade', JSON.stringify(grade));
             formData.append('profile_completed', 'true');
 
+            // Google OAuth users are created without intent — default to both modes
+            if (!user?.intent || user.intent.length === 0) {
+                formData.append('intent', JSON.stringify(['date', 'partner']));
+            }
+
             // Add new image files - only upload files, not JSON
             newPhotos.forEach((photoUri, index) => {
                 if (photoUri) {
@@ -303,6 +308,9 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                 images: updatedImages,
                 avatar: avatarToUse,
                 profile_completed: true,
+                intent: Array.isArray(updatedRecord.intent) && updatedRecord.intent.length > 0
+                    ? updatedRecord.intent
+                    : ['date', 'partner'],
             };
 
             onComplete(updatedClimber);
