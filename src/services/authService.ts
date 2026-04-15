@@ -75,18 +75,20 @@ export const authService = {
       const provider = (authMethods as any).oauth2?.providers?.find((p: any) => p.name === 'google');
       if (!provider) throw new Error('Google OAuth not configured in PocketBase');
 
-      // Deep link redirect: app.json has scheme "loversrock", so this = "loversrock://oauth"
-      // Chrome Custom Tabs auto-close when they detect a non-https scheme.
-      const redirectUri = Linking.createURL('oauth');
-      console.log('🔵 [Google] redirectUri:', redirectUri);
+      // Google rejects custom URL schemes (loversrock://) for Web application clients.
+      // We relay through an HTTPS URL on Railway that immediately 302s to the deep link.
+      // Flow: Google → https://.../api/mobile-oauth-callback → loversrock://oauth?code=xxx
+      // Chrome Custom Tabs auto-close when they detect the loversrock:// scheme.
+      const relayUri = `${POCKETBASE_URL}/api/mobile-oauth-callback`;
+      const deepLinkUri = Linking.createURL('oauth'); // 'loversrock://oauth'
+      console.log('🔵 [Google] relayUri:', relayUri, '| deepLinkUri:', deepLinkUri);
 
-      // provider.authUrl ends with "&redirect_uri=" (empty) — append our URI.
-      // If it already has a redirect_uri param (e.g. from a different SDK version), replace it.
+      // provider.authUrl ends with "&redirect_uri=" — append the relay (HTTPS) URI.
       let authUrl: string;
       if (provider.authUrl.includes('redirect_uri=')) {
-        authUrl = provider.authUrl.replace(/redirect_uri=[^&]*/, `redirect_uri=${encodeURIComponent(redirectUri)}`);
+        authUrl = provider.authUrl.replace(/redirect_uri=[^&]*/, `redirect_uri=${encodeURIComponent(relayUri)}`);
       } else {
-        authUrl = provider.authUrl + encodeURIComponent(redirectUri);
+        authUrl = provider.authUrl + encodeURIComponent(relayUri);
       }
 
       // Add CSRF state
@@ -94,10 +96,9 @@ export const authService = {
       authUrl += `&state=${encodeURIComponent(state)}`;
 
       console.log('🔵 [Google] Opening Custom Tab...');
-      // openAuthSessionAsync opens Chrome Custom Tabs.
-      // It auto-closes when the browser detects the "loversrock://" scheme.
-      // result.url contains the full callback URL with code + state.
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
+      // Redirect chain: Google → relayUri (HTTPS, Railway) → loversrock://oauth
+      // openAuthSessionAsync detects loversrock:// and auto-closes the Custom Tab.
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, deepLinkUri);
       console.log('🔵 [Google] Auth session result type:', result.type);
 
       if (result.type === 'cancel' || result.type === 'dismiss') {
@@ -118,12 +119,12 @@ export const authService = {
       }
 
       console.log('🔵 [Google] Got code, exchanging with PocketBase...');
-      // Exchange code directly — no SSE involved, no Railway proxy timeout
+      // authWithOAuth2Code: redirect_uri must match the one used in the auth request (relayUri)
       const authData = await pb.collection('users').authWithOAuth2Code(
         'google',
         code,
         provider.codeVerifier,
-        redirectUri,
+        relayUri,  // must match the redirect_uri sent to Google
       );
 
       console.log('✅ [Google] Auth success, user id:', authData.record?.id);
