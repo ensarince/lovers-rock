@@ -8,7 +8,15 @@
       "Bash(npx jest:*)",
       "Bash(find:*)",
       "Bash(npx expo:*)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(dir \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\" /b)",
+      "Bash(grep -l \"_pb_users_auth_\" *.js)",
+      "Bash(node -e \"const p = require\\('./node_modules/pocketbase/package.json'\\); console.log\\(p.version\\)\")",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(node:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

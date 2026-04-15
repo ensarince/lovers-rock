@@ -682,7 +682,6 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                         />
                     </View>
 
-                    <View style={styles.spacer} />
                 </ScrollView>
 
                 {/* Save Button */}
@@ -1060,7 +1059,8 @@ const createStyles = (theme: any) =>
         },
         buttonContainer: {
             paddingHorizontal: 20,
-            paddingBottom: 20,
+            paddingTop: 12,
+            paddingBottom: 75,
             backgroundColor: "transparent"
         },
         saveButton: {
