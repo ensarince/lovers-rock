@@ -71,11 +71,15 @@ export const authService = {
       const authData = await pb.collection('users').authWithOAuth2({
         provider: 'google',
         urlCallback: async (url: string) => {
-          console.log('🔵 [Google] Opening browser...');
-          await WebBrowser.openBrowserAsync(url, {
-            presentationStyle: WebBrowser.WebBrowserPresentationStyle.FULL_SCREEN,
-            controlsColor: '#ec4899',
-          });
+          console.log('🔵 [Google] Opening browser (Custom Tab)...');
+          // openAuthSessionAsync uses Chrome Custom Tabs on Android (not an external browser).
+          // Custom Tabs run inside the app's process, so the JS thread and SSE connection
+          // stay alive while the user is on Google's auth screen.
+          // openBrowserAsync opens a separate Chrome app → app goes to background → SSE drops.
+          await WebBrowser.openAuthSessionAsync(
+            url,
+            `${POCKETBASE_URL}/api/oauth2-redirect`,
+          );
         },
       });
       console.log('✅ [Google] Auth success, user id:', authData.record?.id);
