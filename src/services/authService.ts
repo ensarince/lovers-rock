@@ -68,8 +68,6 @@ export const authService = {
   // Google OAuth login — deep link approach (no SSE, no proxy timeout issues)
   async loginWithGoogle() {
     try {
-      console.log('🔵 [Google] Starting OAuth (deep link), PocketBase URL:', POCKETBASE_URL);
-
       // Get auth methods — includes PocketBase-generated PKCE code verifier + challenge
       const authMethods = await pb.collection('users').listAuthMethods();
       const provider = (authMethods as any).oauth2?.providers?.find((p: any) => p.name === 'google');
@@ -81,14 +79,12 @@ export const authService = {
       // Chrome Custom Tabs auto-close when they detect the loversrock:// scheme.
       const relayUri = `${POCKETBASE_URL}/api/mobile-oauth-callback`;
       const deepLinkUri = Linking.createURL('oauth'); // 'loversrock://oauth'
-      console.log('🔵 [Google] relayUri:', relayUri, '| deepLinkUri:', deepLinkUri);
 
       // provider.authUrl already contains state, code_challenge, scope, etc.
       // It does NOT contain redirect_uri — we append it.
       // Do NOT add state again — provider.authUrl already has it (duplicate causes Google 400).
       let authUrl: string;
       if (provider.authUrl.includes('redirect_uri=')) {
-        // Replace existing redirect_uri (e.g. different SDK versions may include it)
         authUrl = provider.authUrl.replace(/redirect_uri=[^&]*/, `redirect_uri=${encodeURIComponent(relayUri)}`);
       } else {
         const sep = provider.authUrl.includes('?') ? '&' : '?';
@@ -98,11 +94,9 @@ export const authService = {
       // Use provider.state for CSRF verification — it's already embedded in authUrl
       const state = provider.state as string;
 
-      console.log('🔵 [Google] Opening Custom Tab...');
       // Redirect chain: Google → relayUri (HTTPS, Railway) → loversrock://oauth
       // openAuthSessionAsync detects loversrock:// and auto-closes the Custom Tab.
       const result = await WebBrowser.openAuthSessionAsync(authUrl, deepLinkUri);
-      console.log('🔵 [Google] Auth session result type:', result.type);
 
       if (result.type === 'cancel' || result.type === 'dismiss') {
         throw new Error('Google sign-in was cancelled');
@@ -121,19 +115,16 @@ export const authService = {
         throw new Error('OAuth error: ' + (error || 'no code in callback'));
       }
 
-      console.log('🔵 [Google] Got code, exchanging with PocketBase...');
       // authWithOAuth2Code: redirect_uri must match the one used in the auth request (relayUri)
       const authData = await pb.collection('users').authWithOAuth2Code(
         'google',
         code,
         provider.codeVerifier,
-        relayUri,  // must match the redirect_uri sent to Google
+        relayUri,
       );
 
-      console.log('✅ [Google] Auth success, user id:', authData.record?.id);
       return authData;
     } catch (error: any) {
-      console.error('❌ [Google] Error:', error.message, '| cause:', error.originalError?.message);
       throw new Error(error.message || 'Google login failed');
     }
   },
