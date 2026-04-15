@@ -83,17 +83,20 @@ export const authService = {
       const deepLinkUri = Linking.createURL('oauth'); // 'loversrock://oauth'
       console.log('🔵 [Google] relayUri:', relayUri, '| deepLinkUri:', deepLinkUri);
 
-      // provider.authUrl ends with "&redirect_uri=" — append the relay (HTTPS) URI.
+      // provider.authUrl already contains state, code_challenge, scope, etc.
+      // It does NOT contain redirect_uri — we append it.
+      // Do NOT add state again — provider.authUrl already has it (duplicate causes Google 400).
       let authUrl: string;
       if (provider.authUrl.includes('redirect_uri=')) {
+        // Replace existing redirect_uri (e.g. different SDK versions may include it)
         authUrl = provider.authUrl.replace(/redirect_uri=[^&]*/, `redirect_uri=${encodeURIComponent(relayUri)}`);
       } else {
-        authUrl = provider.authUrl + encodeURIComponent(relayUri);
+        const sep = provider.authUrl.includes('?') ? '&' : '?';
+        authUrl = provider.authUrl + sep + 'redirect_uri=' + encodeURIComponent(relayUri);
       }
 
-      // Add CSRF state
-      const state = Math.random().toString(36).substring(2, 15);
-      authUrl += `&state=${encodeURIComponent(state)}`;
+      // Use provider.state for CSRF verification — it's already embedded in authUrl
+      const state = provider.state as string;
 
       console.log('🔵 [Google] Opening Custom Tab...');
       // Redirect chain: Google → relayUri (HTTPS, Railway) → loversrock://oauth
