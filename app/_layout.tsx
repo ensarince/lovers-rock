@@ -2,6 +2,7 @@ import { ProfileCompletionModal } from '@/src/components/ProfileCompletionModal'
 import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -81,6 +82,7 @@ function RootLayoutNav() {
   const handleProfileComplete = (updatedUser: any) => {
     setUser(updatedUser);
     setShowProfileCompletion(false);
+    AsyncStorage.setItem('user', JSON.stringify(updatedUser));
   };
 
   if (isLoading) {
