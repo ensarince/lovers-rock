@@ -65,24 +65,21 @@ export const authService = {
     }
   },
 
-  // Google OAuth login — deep link approach (no SSE, no proxy timeout issues)
+  // Google OAuth login — openBrowserAsync + Linking listener approach.
+  // openAuthSessionAsync uses Chrome Custom Tabs "auth session" mode which closes
+  // prematurely when Google triggers security challenges (number matching, cross-device
+  // verification). openBrowserAsync lets the user complete any challenge; we catch
+  // the loversrock:// deep link independently via Linking.addEventListener.
   async loginWithGoogle() {
     try {
-      // Get auth methods — includes PocketBase-generated PKCE code verifier + challenge
       const authMethods = await pb.collection('users').listAuthMethods();
       const provider = (authMethods as any).oauth2?.providers?.find((p: any) => p.name === 'google');
       if (!provider) throw new Error('Google OAuth not configured in PocketBase');
 
-      // Google rejects custom URL schemes (loversrock://) for Web application clients.
-      // We relay through an HTTPS URL on Railway that immediately 302s to the deep link.
-      // Flow: Google → https://.../api/mobile-oauth-callback → loversrock://oauth?code=xxx
-      // Chrome Custom Tabs auto-close when they detect the loversrock:// scheme.
       const relayUri = `${POCKETBASE_URL}/api/mobile-oauth-callback`;
-      const deepLinkUri = Linking.createURL('oauth'); // 'loversrock://oauth'
+      const deepLinkBase = Linking.createURL('oauth'); // 'loversrock://oauth'
+      const state = provider.state as string;
 
-      // provider.authUrl already contains state, code_challenge, scope, etc.
-      // It does NOT contain redirect_uri — we append it.
-      // Do NOT add state again — provider.authUrl already has it (duplicate causes Google 400).
       let authUrl: string;
       if (provider.authUrl.includes('redirect_uri=')) {
         authUrl = provider.authUrl.replace(/redirect_uri=[^&]*/, `redirect_uri=${encodeURIComponent(relayUri)}`);
@@ -91,37 +88,51 @@ export const authService = {
         authUrl = provider.authUrl + sep + 'redirect_uri=' + encodeURIComponent(relayUri);
       }
 
-      // Use provider.state for CSRF verification — it's already embedded in authUrl
-      const state = provider.state as string;
+      const authData = await new Promise<any>((resolve, reject) => {
+        let settled = false;
+        let linkSub: ReturnType<typeof Linking.addEventListener> | null = null;
 
-      // Redirect chain: Google → relayUri (HTTPS, Railway) → loversrock://oauth
-      // openAuthSessionAsync detects loversrock:// and auto-closes the Custom Tab.
-      const result = await WebBrowser.openAuthSessionAsync(authUrl, deepLinkUri);
+        const done = () => {
+          settled = true;
+          linkSub?.remove();
+          linkSub = null;
+        };
 
-      if (result.type === 'cancel' || result.type === 'dismiss') {
-        throw new Error('Google sign-in was cancelled');
-      }
-      if (result.type !== 'success') {
-        throw new Error('OAuth did not complete: ' + result.type);
-      }
+        // Listen for the loversrock://oauth deep link from our relay
+        linkSub = Linking.addEventListener('url', async ({ url }) => {
+          if (!url.startsWith(deepLinkBase) || settled) return;
+          done();
+          WebBrowser.dismissBrowser();
+          try {
+            const parsed = new URL(url);
+            const code = parsed.searchParams.get('code');
+            const returnedState = parsed.searchParams.get('state');
+            const oauthError = parsed.searchParams.get('error');
 
-      const callbackUrl = new URL(result.url);
-      const code = callbackUrl.searchParams.get('code');
-      const returnedState = callbackUrl.searchParams.get('state');
+            if (oauthError) { reject(new Error('OAuth error: ' + oauthError)); return; }
+            if (returnedState !== state) { reject(new Error('OAuth state mismatch — possible CSRF')); return; }
+            if (!code) { reject(new Error('No authorization code received')); return; }
 
-      if (returnedState !== state) throw new Error('OAuth state mismatch — possible CSRF');
-      if (!code) {
-        const error = callbackUrl.searchParams.get('error');
-        throw new Error('OAuth error: ' + (error || 'no code in callback'));
-      }
+            const result = await pb.collection('users').authWithOAuth2Code(
+              'google', code, provider.codeVerifier, relayUri,
+            );
+            resolve(result);
+          } catch (err: any) {
+            reject(new Error(err.message || 'Authentication failed'));
+          }
+        });
 
-      // authWithOAuth2Code: redirect_uri must match the one used in the auth request (relayUri)
-      const authData = await pb.collection('users').authWithOAuth2Code(
-        'google',
-        code,
-        provider.codeVerifier,
-        relayUri,
-      );
+        // Open browser — resolves when tab is closed (user cancelled or deep link navigated away)
+        WebBrowser.openBrowserAsync(authUrl).then(() => {
+          if (settled) return;
+          done();
+          reject(new Error('Google sign-in was cancelled'));
+        }).catch((err: any) => {
+          if (settled) return;
+          done();
+          reject(new Error(err.message || 'Failed to open sign-in browser'));
+        });
+      });
 
       return authData;
     } catch (error: any) {

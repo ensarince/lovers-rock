@@ -348,7 +348,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                         contentContainerStyle={styles.intentScrollContent}
                         showsVerticalScrollIndicator={false}
                     >
-                        <Text style={styles.intentWelcome}>Welcome to Lovers Rock 🧗</Text>
+                        <Text style={styles.intentWelcome}>Welcome to Lovers Rock</Text>
                         <Text style={styles.intentQuestion}>What brings you here?</Text>
                         <Text style={styles.intentSubtitle}>Choose what you're looking for to get started</Text>
 
@@ -385,7 +385,8 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                             >
                                 <View style={styles.intentBothIcons}>
                                     <Ionicons name="heart" size={26} color={isBoth ? '#fff' : theme.colors.accent} />
-                                    <Ionicons name="people" size={26} color={isBoth ? '#fff' : theme.colors.accent} style={{ marginLeft: 8 }} />
+                                    <View style={{ width: 10 }} />
+                                    <Ionicons name="people" size={26} color={isBoth ? '#fff' : theme.colors.accent} />
                                 </View>
                                 <Text style={[styles.intentCardTitle, isBoth && styles.intentCardTextActive]}>
                                     Both
@@ -397,7 +398,9 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                         </View>
 
                         <View style={styles.intentHintBox}>
-                            <Ionicons name="information-circle-outline" size={16} color={theme.colors.textSecondary} style={{ marginRight: 6, marginTop: 1 }} />
+                            <View style={{ marginRight: 6 }}>
+                                <Ionicons name="information-circle-outline" size={16} color={theme.colors.textSecondary} />
+                            </View>
                             <Text style={styles.intentHintText}>
                                 You can switch between Dating and Partner mode anytime using the toggle on the Discover screen
                             </Text>
