@@ -201,6 +201,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               const freshClimber = mapToClimber(freshUserData);
               setUser(freshClimber);
               await AsyncStorage.setItem('user', JSON.stringify(freshClimber));
+            } else if (freshUserRes.status === 401 || freshUserRes.status === 403) {
+              // Token invalid/expired — clear session and force re-login
+              await AsyncStorage.removeItem('user');
+              await SecureStore.deleteItemAsync('token');
+              setUser(null);
+              setToken(null);
+              setIsLoading(false);
+              return;
             }
           } catch (err) {
             // Silently fail if refresh doesn't work, use stored data

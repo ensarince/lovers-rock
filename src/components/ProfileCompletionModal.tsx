@@ -79,6 +79,8 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
     const [newPhotos, setNewPhotos] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
     const [showGradeSystemModal, setShowGradeSystemModal] = useState(false);
+    const [step, setStep] = useState<0 | 1>(0);
+    const [selectedIntent, setSelectedIntent] = useState<Array<'date' | 'partner'>>([]);
 
     useEffect(() => {
         if (user) {
@@ -91,6 +93,10 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
             setHomeGym(user.home_gym || '');
             setImages(user.images || []);
             setNewPhotos([]);
+        }
+        if (visible) {
+            setStep(0);
+            setSelectedIntent([]);
         }
     }, [user, visible]);
 
@@ -203,11 +209,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
             formData.append('climbing_styles', JSON.stringify(climbingStyles));
             formData.append('grade', JSON.stringify(grade));
             formData.append('profile_completed', 'true');
-
-            // Google OAuth users are created without intent — default to both modes
-            if (!user?.intent || user.intent.length === 0) {
-                formData.append('intent', JSON.stringify(['date', 'partner']));
-            }
+            formData.append('intent', JSON.stringify(selectedIntent.length > 0 ? selectedIntent : ['date', 'partner']));
 
             // Add new image files - only upload files, not JSON
             newPhotos.forEach((photoUri, index) => {
@@ -310,7 +312,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                 profile_completed: true,
                 intent: Array.isArray(updatedRecord.intent) && updatedRecord.intent.length > 0
                     ? updatedRecord.intent
-                    : ['date', 'partner'],
+                    : selectedIntent.length > 0 ? selectedIntent : ['date', 'partner'],
             };
 
             onComplete(updatedClimber);
@@ -332,6 +334,89 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
         bio.trim() &&
         climbingStyles.length > 0 &&
         totalImages >= 3;
+
+    if (step === 0) {
+        const isDateOnly = selectedIntent.length === 1 && selectedIntent[0] === 'date';
+        const isPartnerOnly = selectedIntent.length === 1 && selectedIntent[0] === 'partner';
+        const isBoth = selectedIntent.length === 2;
+
+        return (
+            <Modal visible={visible} animationType="fade" transparent={false} hardwareAccelerated>
+                <View style={styles.container}>
+                    <ScrollView
+                        style={{ flex: 1 }}
+                        contentContainerStyle={styles.intentScrollContent}
+                        showsVerticalScrollIndicator={false}
+                    >
+                        <Text style={styles.intentWelcome}>Welcome to Lovers Rock 🧗</Text>
+                        <Text style={styles.intentQuestion}>What brings you here?</Text>
+                        <Text style={styles.intentSubtitle}>Choose what you're looking for to get started</Text>
+
+                        <View style={styles.intentCards}>
+                            <Pressable
+                                style={[styles.intentCard, isDateOnly && styles.intentCardActive]}
+                                onPress={() => setSelectedIntent(['date'])}
+                            >
+                                <Ionicons name="heart" size={32} color={isDateOnly ? '#fff' : theme.colors.accent} />
+                                <Text style={[styles.intentCardTitle, isDateOnly && styles.intentCardTextActive]}>
+                                    Find a Date
+                                </Text>
+                                <Text style={[styles.intentCardDesc, isDateOnly && styles.intentCardDescActive]}>
+                                    Meet climbers you can connect with romantically
+                                </Text>
+                            </Pressable>
+
+                            <Pressable
+                                style={[styles.intentCard, isPartnerOnly && styles.intentCardActive]}
+                                onPress={() => setSelectedIntent(['partner'])}
+                            >
+                                <Ionicons name="people" size={32} color={isPartnerOnly ? '#fff' : theme.colors.accent} />
+                                <Text style={[styles.intentCardTitle, isPartnerOnly && styles.intentCardTextActive]}>
+                                    Find a Climbing Partner
+                                </Text>
+                                <Text style={[styles.intentCardDesc, isPartnerOnly && styles.intentCardDescActive]}>
+                                    Find someone to climb with, no strings attached
+                                </Text>
+                            </Pressable>
+
+                            <Pressable
+                                style={[styles.intentCard, isBoth && styles.intentCardActive]}
+                                onPress={() => setSelectedIntent(['date', 'partner'])}
+                            >
+                                <View style={styles.intentBothIcons}>
+                                    <Ionicons name="heart" size={26} color={isBoth ? '#fff' : theme.colors.accent} />
+                                    <Ionicons name="people" size={26} color={isBoth ? '#fff' : theme.colors.accent} style={{ marginLeft: 8 }} />
+                                </View>
+                                <Text style={[styles.intentCardTitle, isBoth && styles.intentCardTextActive]}>
+                                    Both
+                                </Text>
+                                <Text style={[styles.intentCardDesc, isBoth && styles.intentCardDescActive]}>
+                                    I'm open to dating and finding climbing partners
+                                </Text>
+                            </Pressable>
+                        </View>
+
+                        <View style={styles.intentHintBox}>
+                            <Ionicons name="information-circle-outline" size={16} color={theme.colors.textSecondary} style={{ marginRight: 6, marginTop: 1 }} />
+                            <Text style={styles.intentHintText}>
+                                You can switch between Dating and Partner mode anytime using the toggle on the Discover screen
+                            </Text>
+                        </View>
+                    </ScrollView>
+
+                    <View style={styles.intentButtonContainer}>
+                        <Pressable
+                            style={[styles.saveButton, selectedIntent.length === 0 && styles.saveButtonDisabled]}
+                            onPress={() => setStep(1)}
+                            disabled={selectedIntent.length === 0}
+                        >
+                            <Text style={styles.saveButtonText}>Continue</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </Modal>
+        );
+    }
 
     return (
         <Modal
@@ -1105,5 +1190,90 @@ const createStyles = (theme: any) =>
         genderButtonTextActive: {
             color: '#fff',
             fontWeight: '600',
+        },
+        intentScrollContent: {
+            paddingTop: 56,
+            paddingHorizontal: 24,
+            paddingBottom: 16,
+        },
+        intentWelcome: {
+            fontSize: 26,
+            fontWeight: '800',
+            color: theme.colors.text,
+            textAlign: 'center',
+            marginBottom: 6,
+        },
+        intentQuestion: {
+            fontSize: 18,
+            fontWeight: '700',
+            color: theme.colors.text,
+            textAlign: 'center',
+            marginBottom: 4,
+        },
+        intentSubtitle: {
+            fontSize: 13,
+            color: theme.colors.textSecondary,
+            textAlign: 'center',
+            marginBottom: 20,
+        },
+        intentCards: {
+            gap: 10,
+            backgroundColor: 'transparent',
+        },
+        intentCard: {
+            backgroundColor: theme.colors.surface,
+            borderWidth: 2,
+            borderColor: theme.colors.border,
+            borderRadius: 14,
+            paddingVertical: 16,
+            paddingHorizontal: 16,
+            alignItems: 'center',
+        },
+        intentCardActive: {
+            backgroundColor: theme.colors.accent,
+            borderColor: theme.colors.accent,
+        },
+        intentCardTitle: {
+            fontSize: 17,
+            fontWeight: '700',
+            color: theme.colors.text,
+            marginTop: 8,
+            marginBottom: 3,
+        },
+        intentCardTextActive: {
+            color: '#fff',
+        },
+        intentCardDesc: {
+            fontSize: 13,
+            color: theme.colors.textSecondary,
+            textAlign: 'center',
+        },
+        intentCardDescActive: {
+            color: 'rgba(255,255,255,0.85)',
+        },
+        intentBothIcons: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: 'transparent',
+        },
+        intentHintBox: {
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            backgroundColor: theme.colors.surface,
+            borderRadius: 10,
+            padding: 12,
+            marginTop: 16,
+        },
+        intentHintText: {
+            flex: 1,
+            fontSize: 12,
+            color: theme.colors.textSecondary,
+            lineHeight: 18,
+        },
+        intentButtonContainer: {
+            paddingHorizontal: 24,
+            paddingTop: 8,
+            paddingBottom: 70,
+            backgroundColor: 'transparent',
         },
     });

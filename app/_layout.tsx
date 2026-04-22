@@ -62,9 +62,10 @@ function RootLayoutNav() {
   useEffect(() => {
     if (isLoading) return;
     const inAuthGroup = segments[0] === '(auth)';
+    const inMainApp = segments[0] === '(tabs)' || segments[0] === 'chat';
     if (!isAuthenticated && !inAuthGroup) {
       router.replace('/(auth)/login');
-    } else if (isAuthenticated && inAuthGroup) {
+    } else if (isAuthenticated && !inMainApp) {
       router.replace('/(tabs)/discover');
     }
   }, [isAuthenticated, isLoading, segments]);
