@@ -77,16 +77,15 @@ export const authService = {
     }
   },
 
-  // Google OAuth login — openBrowserAsync (no auth-session mode) + Linking listener.
+  // Google OAuth login — server-side code store + polling, with Linking fast path.
   //
-  // openAuthSessionAsync uses Chrome Custom Tabs "auth session" mode which kills
-  // the tab when Google's security challenge (number matching) causes any navigation
-  // away — the relay redirect never reaches the device.
+  // Android 10+ blocks Chrome Custom Tab (backgrounded) from launching a new-activity
+  // Intent, so loversrock://oauth never arrives via Linking when the user leaves Chrome
+  // to approve a number-matching challenge in Google app.
   //
-  // openBrowserAsync keeps Chrome alive through the full challenge flow. When Google
-  // finally redirects to loversrock://oauth, Android delivers it as an Intent and
-  // Linking fires. We give a 500 ms grace window after the browser closes before
-  // declaring cancellation, to handle the race where Linking fires just after close.
+  // Fix: the Railway relay now stores the code server-side. The app polls every 1.5 s.
+  // The Linking listener is kept as a fast path for fingerprint / instant-redirect flows.
+  // After the browser closes, we poll for 3 more seconds before declaring cancellation.
   async loginWithGoogle() {
     try {
       const authMethods = await pb.collection('users').listAuthMethods();
@@ -105,57 +104,81 @@ export const authService = {
         authUrl = provider.authUrl + sep + 'redirect_uri=' + encodeURIComponent(relayUri);
       }
 
-      const callbackUrl = await new Promise<string>((resolve, reject) => {
+      const code = await new Promise<string>((resolve, reject) => {
         let settled = false;
+        let browserClosedAt: number | null = null;
         let linkSub: ReturnType<typeof Linking.addEventListener> | null = null;
 
-        const handleUrl = async (url: string) => {
-          if (settled || !url.startsWith(deepLinkBase)) return;
+        const deliver = (c: string) => {
+          if (settled) return;
           settled = true;
           linkSub?.remove();
           linkSub = null;
           pendingOAuthDeepLink = null;
           WebBrowser.dismissBrowser();
-          resolve(url);
+          resolve(c);
         };
 
-        // Store resolver so global _layout.tsx handler can also deliver the URL
-        pendingOAuthDeepLink = (url: string) => handleUrl(url);
+        const cancel = (msg: string) => {
+          if (settled) return;
+          settled = true;
+          linkSub?.remove();
+          linkSub = null;
+          pendingOAuthDeepLink = null;
+          reject(new Error(msg));
+        };
 
-        linkSub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+        // Fast path: Linking (works when Chrome can deliver the Intent directly)
+        linkSub = Linking.addEventListener('url', ({ url }) => {
+          if (!url.startsWith(deepLinkBase)) return;
+          const p = new URL(url);
+          const err = p.searchParams.get('error');
+          if (err) { cancel('OAuth error: ' + err); return; }
+          const c = p.searchParams.get('code');
+          const s = p.searchParams.get('state');
+          if (s !== state) { cancel('OAuth state mismatch — possible CSRF'); return; }
+          if (c) deliver(c);
+        });
 
-        WebBrowser.openBrowserAsync(authUrl)
-          .then(() => {
-            // Browser closed — give Linking 500 ms to fire before declaring cancel
-            if (settled) return;
-            setTimeout(() => {
-              if (!settled) {
-                settled = true;
-                linkSub?.remove();
-                linkSub = null;
-                pendingOAuthDeepLink = null;
-                reject(new Error('Google sign-in was cancelled'));
+        pendingOAuthDeepLink = (url: string) => {
+          if (url.startsWith(deepLinkBase)) {
+            const p = new URL(url);
+            const c = p.searchParams.get('code');
+            if (c) deliver(c);
+          }
+        };
+
+        // Open browser — non-auth-session so Chrome stays alive through challenges
+        WebBrowser.openBrowserAsync(authUrl).then(() => {
+          browserClosedAt = Date.now();
+        }).catch((err: any) => {
+          cancel(err.message || 'Failed to open sign-in browser');
+        });
+
+        // Reliable path: poll the server-side code store every 1.5 s
+        (async () => {
+          while (!settled) {
+            await new Promise(r => setTimeout(r, 1500));
+            if (settled) break;
+
+            // Browser closed — give 3 s grace for the poll to find the code
+            if (browserClosedAt !== null && Date.now() - browserClosedAt > 3000) {
+              cancel('Google sign-in was cancelled');
+              break;
+            }
+
+            try {
+              const resp = await fetch(
+                `${POCKETBASE_URL}/api/oauth-code-poll?state=${encodeURIComponent(state)}`
+              );
+              if (resp.ok) {
+                const data = await resp.json();
+                if (data.found && data.code) { deliver(data.code); break; }
               }
-            }, 500);
-          })
-          .catch((err: any) => {
-            if (settled) return;
-            settled = true;
-            linkSub?.remove();
-            linkSub = null;
-            pendingOAuthDeepLink = null;
-            reject(new Error(err.message || 'Failed to open sign-in browser'));
-          });
+            } catch { /* network blip — retry next tick */ }
+          }
+        })();
       });
-
-      const parsed = new URL(callbackUrl);
-      const code = parsed.searchParams.get('code');
-      const returnedState = parsed.searchParams.get('state');
-      const oauthError = parsed.searchParams.get('error');
-
-      if (oauthError) throw new Error('OAuth error: ' + oauthError);
-      if (returnedState !== state) throw new Error('OAuth state mismatch — possible CSRF');
-      if (!code) throw new Error('No authorization code received');
 
       const authData = await pb.collection('users').authWithOAuth2Code(
         'google', code, provider.codeVerifier, relayUri,
