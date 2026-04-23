@@ -6,14 +6,13 @@ import * as Linking from 'expo-linking';
 const POCKETBASE_URL = getPocketBaseUrl();
 let pb = new PocketBase(POCKETBASE_URL);
 
-// Module-level resolver kept alive across auth session dismissal so the
-// global Linking listener in _layout.tsx can deliver late-arriving OAuth URLs.
+// Module-level handler so the global Linking listener in _layout.tsx can
+// deliver deep link URLs to whichever loginWithGoogle() call is in flight.
 let pendingOAuthDeepLink: ((url: string) => void) | null = null;
 
 export function deliverOAuthDeepLink(url: string): boolean {
   if (pendingOAuthDeepLink) {
     pendingOAuthDeepLink(url);
-    pendingOAuthDeepLink = null;
     return true;
   }
   return false;
@@ -78,16 +77,16 @@ export const authService = {
     }
   },
 
-  // Google OAuth login — openAuthSessionAsync + persistent deep link fallback.
+  // Google OAuth login — openBrowserAsync (no auth-session mode) + Linking listener.
   //
-  // Normal flow (fingerprint / instant redirect):
-  //   openAuthSessionAsync returns {type:'success', url} → done.
+  // openAuthSessionAsync uses Chrome Custom Tabs "auth session" mode which kills
+  // the tab when Google's security challenge (number matching) causes any navigation
+  // away — the relay redirect never reaches the device.
   //
-  // Security challenge flow (number matching, cross-device verification):
-  //   Tapping the challenge number causes the auth session to return 'dismiss'
-  //   BEFORE the relay redirect arrives. We keep a module-level resolver alive
-  //   so the global Linking listener in _layout.tsx can deliver the URL even
-  //   after the auth session has already closed. We wait up to 10 seconds.
+  // openBrowserAsync keeps Chrome alive through the full challenge flow. When Google
+  // finally redirects to loversrock://oauth, Android delivers it as an Intent and
+  // Linking fires. We give a 500 ms grace window after the browser closes before
+  // declaring cancellation, to handle the race where Linking fires just after close.
   async loginWithGoogle() {
     try {
       const authMethods = await pb.collection('users').listAuthMethods();
@@ -106,49 +105,48 @@ export const authService = {
         authUrl = provider.authUrl + sep + 'redirect_uri=' + encodeURIComponent(relayUri);
       }
 
-      // Shared resolver — set before opening browser so both the inline Linking
-      // listener AND the global _layout.tsx listener can resolve it.
-      let sharedResolve: ((url: string) => void) | null = null;
-      const deepLinkPromise = new Promise<string>((resolve) => {
-        sharedResolve = resolve;
-        pendingOAuthDeepLink = resolve; // expose to global listener
+      const callbackUrl = await new Promise<string>((resolve, reject) => {
+        let settled = false;
+        let linkSub: ReturnType<typeof Linking.addEventListener> | null = null;
+
+        const handleUrl = async (url: string) => {
+          if (settled || !url.startsWith(deepLinkBase)) return;
+          settled = true;
+          linkSub?.remove();
+          linkSub = null;
+          pendingOAuthDeepLink = null;
+          WebBrowser.dismissBrowser();
+          resolve(url);
+        };
+
+        // Store resolver so global _layout.tsx handler can also deliver the URL
+        pendingOAuthDeepLink = (url: string) => handleUrl(url);
+
+        linkSub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
+
+        WebBrowser.openBrowserAsync(authUrl)
+          .then(() => {
+            // Browser closed — give Linking 500 ms to fire before declaring cancel
+            if (settled) return;
+            setTimeout(() => {
+              if (!settled) {
+                settled = true;
+                linkSub?.remove();
+                linkSub = null;
+                pendingOAuthDeepLink = null;
+                reject(new Error('Google sign-in was cancelled'));
+              }
+            }, 500);
+          })
+          .catch((err: any) => {
+            if (settled) return;
+            settled = true;
+            linkSub?.remove();
+            linkSub = null;
+            pendingOAuthDeepLink = null;
+            reject(new Error(err.message || 'Failed to open sign-in browser'));
+          });
       });
-
-      const linkSub = Linking.addEventListener('url', ({ url }) => {
-        if (url.startsWith(deepLinkBase) && sharedResolve) {
-          sharedResolve(url);
-          sharedResolve = null;
-          pendingOAuthDeepLink = null;
-        }
-      });
-
-      let callbackUrl: string;
-      try {
-        const result = await WebBrowser.openAuthSessionAsync(authUrl, deepLinkBase);
-
-        if (result.type === 'success' && result.url?.startsWith(deepLinkBase)) {
-          // Normal path — auth session captured the redirect URL directly
-          callbackUrl = result.url;
-          sharedResolve = null;
-          pendingOAuthDeepLink = null;
-        } else if (result.type === 'dismiss' || result.type === 'cancel') {
-          // Challenge path — the auth session closed before the redirect arrived.
-          // Wait up to 10 s; the global _layout.tsx listener will deliver the URL
-          // if it comes in after the inline listener is removed below.
-          const raceResult = await Promise.race([
-            deepLinkPromise,
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000)),
-          ]);
-          pendingOAuthDeepLink = null;
-          if (!raceResult) throw new Error('Google sign-in was cancelled');
-          callbackUrl = raceResult;
-        } else {
-          pendingOAuthDeepLink = null;
-          throw new Error('OAuth did not complete: ' + result.type);
-        }
-      } finally {
-        linkSub.remove();
-      }
 
       const parsed = new URL(callbackUrl);
       const code = parsed.searchParams.get('code');
