@@ -65,11 +65,11 @@ export const authService = {
     }
   },
 
-  // Google OAuth login — openBrowserAsync + Linking listener approach.
-  // openAuthSessionAsync uses Chrome Custom Tabs "auth session" mode which closes
-  // prematurely when Google triggers security challenges (number matching, cross-device
-  // verification). openBrowserAsync lets the user complete any challenge; we catch
-  // the loversrock:// deep link independently via Linking.addEventListener.
+  // Google OAuth login — openAuthSessionAsync with Linking fallback.
+  // Normal flow: openAuthSessionAsync captures the redirect URL directly (works for
+  // fingerprint/standard sign-in). Security challenge flow (number matching etc.):
+  // the auth session may return 'dismiss' before the URL arrives — we wait up to
+  // 1.5s for Linking to deliver the deep link that Android sends separately.
   async loginWithGoogle() {
     try {
       const authMethods = await pb.collection('users').listAuthMethods();
@@ -88,51 +88,48 @@ export const authService = {
         authUrl = provider.authUrl + sep + 'redirect_uri=' + encodeURIComponent(relayUri);
       }
 
-      const authData = await new Promise<any>((resolve, reject) => {
-        let settled = false;
-        let linkSub: ReturnType<typeof Linking.addEventListener> | null = null;
-
-        const done = () => {
-          settled = true;
-          linkSub?.remove();
-          linkSub = null;
-        };
-
-        // Listen for the loversrock://oauth deep link from our relay
-        linkSub = Linking.addEventListener('url', async ({ url }) => {
-          if (!url.startsWith(deepLinkBase) || settled) return;
-          done();
-          WebBrowser.dismissBrowser();
-          try {
-            const parsed = new URL(url);
-            const code = parsed.searchParams.get('code');
-            const returnedState = parsed.searchParams.get('state');
-            const oauthError = parsed.searchParams.get('error');
-
-            if (oauthError) { reject(new Error('OAuth error: ' + oauthError)); return; }
-            if (returnedState !== state) { reject(new Error('OAuth state mismatch — possible CSRF')); return; }
-            if (!code) { reject(new Error('No authorization code received')); return; }
-
-            const result = await pb.collection('users').authWithOAuth2Code(
-              'google', code, provider.codeVerifier, relayUri,
-            );
-            resolve(result);
-          } catch (err: any) {
-            reject(new Error(err.message || 'Authentication failed'));
-          }
-        });
-
-        // Open browser — resolves when tab is closed (user cancelled or deep link navigated away)
-        WebBrowser.openBrowserAsync(authUrl).then(() => {
-          if (settled) return;
-          done();
-          reject(new Error('Google sign-in was cancelled'));
-        }).catch((err: any) => {
-          if (settled) return;
-          done();
-          reject(new Error(err.message || 'Failed to open sign-in browser'));
-        });
+      // Set up Linking listener before opening browser — catches the deep link if
+      // a Google security challenge causes the auth session to dismiss early.
+      let linkingResolve: ((url: string) => void) | null = null;
+      const linkingPromise = new Promise<string>((resolve) => { linkingResolve = resolve; });
+      const linkSub = Linking.addEventListener('url', ({ url }) => {
+        if (url.startsWith(deepLinkBase)) linkingResolve?.(url);
       });
+
+      let callbackUrl: string;
+      try {
+        const result = await WebBrowser.openAuthSessionAsync(authUrl, deepLinkBase);
+
+        if (result.type === 'success') {
+          // Normal path — auth session captured the redirect URL directly
+          callbackUrl = result.url;
+        } else if (result.type === 'dismiss' || result.type === 'cancel') {
+          // Security challenge path — wait briefly for the Linking event to arrive
+          const raceResult = await Promise.race([
+            linkingPromise,
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+          ]);
+          if (!raceResult) throw new Error('Google sign-in was cancelled');
+          callbackUrl = raceResult;
+        } else {
+          throw new Error('OAuth did not complete: ' + result.type);
+        }
+      } finally {
+        linkSub.remove();
+      }
+
+      const parsed = new URL(callbackUrl);
+      const code = parsed.searchParams.get('code');
+      const returnedState = parsed.searchParams.get('state');
+      const oauthError = parsed.searchParams.get('error');
+
+      if (oauthError) throw new Error('OAuth error: ' + oauthError);
+      if (returnedState !== state) throw new Error('OAuth state mismatch — possible CSRF');
+      if (!code) throw new Error('No authorization code received');
+
+      const authData = await pb.collection('users').authWithOAuth2Code(
+        'google', code, provider.codeVerifier, relayUri,
+      );
 
       return authData;
     } catch (error: any) {
