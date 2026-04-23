@@ -77,15 +77,18 @@ export const authService = {
     }
   },
 
-  // Google OAuth login — server-side code store + polling, with Linking fast path.
+  // Google OAuth login — openBrowserAsync + dual delivery: Linking fast path + server poll.
   //
-  // Android 10+ blocks Chrome Custom Tab (backgrounded) from launching a new-activity
-  // Intent, so loversrock://oauth never arrives via Linking when the user leaves Chrome
-  // to approve a number-matching challenge in Google app.
+  // openBrowserAsync keeps Chrome alive through number-matching challenges (unlike
+  // openAuthSessionAsync which kills the tab on any navigation away).
   //
-  // Fix: the Railway relay now stores the code server-side. The app polls every 1.5 s.
-  // The Linking listener is kept as a fast path for fingerprint / instant-redirect flows.
-  // After the browser closes, we poll for 3 more seconds before declaring cancellation.
+  // Fast path (fingerprint / instant redirect): Android delivers loversrock://oauth
+  // as an Intent and Linking fires immediately.
+  //
+  // Slow path (number-matching challenge): the user leaves Chrome to the Google app,
+  // Android 10+ blocks Chrome (backgrounded) from launching the loversrock:// Intent.
+  // The Railway relay has already stored the code server-side, so we poll every 1.5 s.
+  // Both paths share a settled flag — whichever fires first wins.
   async loginWithGoogle() {
     try {
       const authMethods = await pb.collection('users').listAuthMethods();
@@ -106,15 +109,22 @@ export const authService = {
 
       const code = await new Promise<string>((resolve, reject) => {
         let settled = false;
-        let browserClosedAt: number | null = null;
         let linkSub: ReturnType<typeof Linking.addEventListener> | null = null;
+        let pollTimer: ReturnType<typeof setInterval> | null = null;
+        let cancelTimer: ReturnType<typeof setTimeout> | null = null;
+
+        const cleanup = () => {
+          linkSub?.remove();
+          linkSub = null;
+          pendingOAuthDeepLink = null;
+          if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+          if (cancelTimer) { clearTimeout(cancelTimer); cancelTimer = null; }
+        };
 
         const deliver = (c: string) => {
           if (settled) return;
           settled = true;
-          linkSub?.remove();
-          linkSub = null;
-          pendingOAuthDeepLink = null;
+          cleanup();
           WebBrowser.dismissBrowser();
           resolve(c);
         };
@@ -122,62 +132,43 @@ export const authService = {
         const cancel = (msg: string) => {
           if (settled) return;
           settled = true;
-          linkSub?.remove();
-          linkSub = null;
-          pendingOAuthDeepLink = null;
+          cleanup();
           reject(new Error(msg));
         };
 
-        // Fast path: Linking (works when Chrome can deliver the Intent directly)
-        linkSub = Linking.addEventListener('url', ({ url }) => {
+        // Fast path: Linking fires when Android delivers the deep link directly
+        const handleUrl = (url: string) => {
           if (!url.startsWith(deepLinkBase)) return;
-          const p = new URL(url);
-          const err = p.searchParams.get('error');
+          const parsed = new URL(url);
+          const err = parsed.searchParams.get('error');
+          const returnedState = parsed.searchParams.get('state');
+          const c = parsed.searchParams.get('code');
           if (err) { cancel('OAuth error: ' + err); return; }
-          const c = p.searchParams.get('code');
-          const s = p.searchParams.get('state');
-          if (s !== state) { cancel('OAuth state mismatch — possible CSRF'); return; }
+          if (returnedState !== state) { cancel('OAuth state mismatch — possible CSRF'); return; }
           if (c) deliver(c);
-        });
-
-        pendingOAuthDeepLink = (url: string) => {
-          if (url.startsWith(deepLinkBase)) {
-            const p = new URL(url);
-            const c = p.searchParams.get('code');
-            if (c) deliver(c);
-          }
         };
 
-        // Open browser — non-auth-session so Chrome stays alive through challenges
-        WebBrowser.openBrowserAsync(authUrl).then(() => {
-          browserClosedAt = Date.now();
-        }).catch((err: any) => {
-          cancel(err.message || 'Failed to open sign-in browser');
-        });
+        pendingOAuthDeepLink = handleUrl;
+        linkSub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
 
-        // Reliable path: poll the server-side code store every 1.5 s
-        (async () => {
-          while (!settled) {
-            await new Promise(r => setTimeout(r, 1500));
-            if (settled) break;
+        // Slow path: poll the relay every 1.5 s for the server-stored code
+        pollTimer = setInterval(async () => {
+          try {
+            const res = await fetch(`${POCKETBASE_URL}/api/oauth-code-poll?state=${encodeURIComponent(state)}`);
+            const json = await res.json();
+            if (json.found && json.code) deliver(json.code);
+          } catch { /* network glitch — keep polling */ }
+        }, 1500);
 
-            // Browser closed — give 3 s grace for the poll to find the code
-            if (browserClosedAt !== null && Date.now() - browserClosedAt > 3000) {
-              cancel('Google sign-in was cancelled');
-              break;
-            }
-
-            try {
-              const resp = await fetch(
-                `${POCKETBASE_URL}/api/oauth-code-poll?state=${encodeURIComponent(state)}`
-              );
-              if (resp.ok) {
-                const data = await resp.json();
-                if (data.found && data.code) { deliver(data.code); break; }
-              }
-            } catch { /* network blip — retry next tick */ }
-          }
-        })();
+        WebBrowser.openBrowserAsync(authUrl)
+          .then(() => {
+            // Browser closed — keep polling 3 s more to catch delayed server writes
+            if (settled) return;
+            cancelTimer = setTimeout(() => cancel('Google sign-in was cancelled'), 3000);
+          })
+          .catch((err: any) => {
+            cancel(err.message || 'Failed to open sign-in browser');
+          });
       });
 
       const authData = await pb.collection('users').authWithOAuth2Code(
