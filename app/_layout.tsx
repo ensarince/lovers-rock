@@ -1,10 +1,12 @@
 import { ProfileCompletionModal } from '@/src/components/ProfileCompletionModal';
 import { AuthProvider, useAuth } from '@/src/context/AuthContext';
+import { deliverOAuthDeepLink } from '@/src/services/authService';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
+import * as Linking from 'expo-linking';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StatusBar, View } from 'react-native';
@@ -57,6 +59,17 @@ function RootLayoutNav() {
   const [showProfileCompletion, setShowProfileCompletion] = useState(false);
   const segments = useSegments();
   const router = useRouter();
+
+  // Global deep link listener — delivers late-arriving OAuth URLs (e.g. after
+  // a Google number-matching challenge closes the auth session early).
+  useEffect(() => {
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      if (url.startsWith('loversrock://oauth')) {
+        deliverOAuthDeepLink(url);
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   // Redirect based on auth state once loading is done
   useEffect(() => {
