@@ -16,13 +16,15 @@ RUN wget https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSIO
     && unzip pocketbase_${PB_VERSION}_linux_amd64.zip -d /pb/
 
 # 5. Copy your local migrations and hooks into the container
-# This ensures your tables are created automatically on Railway
+# Hooks are copied to /pb/pb_hooks (separate from the data volume).
+# start.sh copies them into pb_data/pb_hooks at runtime so PocketBase finds them.
 COPY ./pb_migrations /pb/pb_migrations
 COPY ./pb_hooks /pb/pb_hooks
+COPY ./start.sh /pb/start.sh
+RUN chmod +x /pb/start.sh
 
 # 6. Expose the port Railway uses
 EXPOSE 8080
 
-# 7. Start PocketBase
-# We point the data to /pb/pb_data, which matches your Railway Volume
-CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8080", "--dir=/pb/pb_data"]
+# 7. Start via script that syncs hooks then launches PocketBase
+CMD ["/pb/start.sh"]
