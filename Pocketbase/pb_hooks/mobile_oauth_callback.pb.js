@@ -3,15 +3,15 @@
 // Mobile OAuth callback relay + server-side code store.
 //
 // Flow:
-//   Google → POST /api/mobile-oauth-callback → stored + 302 to loversrock://oauth
+//   Google → GET /api/mobile-oauth-callback → code stored + HTML page that JS-redirects to loversrock://oauth
 //   App polls GET /api/oauth-code-poll?state=xxx every 1.5 s
 //
-// The deep-link 302 still works when Chrome delivers it (fast path / fingerprint).
-// The poll is the reliable path when Android 10+ blocks Chrome from launching
-// the app Intent while Chrome is backgrounded (number-matching challenge).
+// We use an HTML page instead of a 302 redirect because PocketBase rejects
+// e.redirect() to non-HTTP schemes (loversrock://). The HTML approach works
+// in Chrome: window.location.href fires the Android Intent for the app.
+// The poll is the reliable fallback when Android 10+ blocks Chrome (backgrounded
+// during number-matching challenge) from launching the Intent.
 
-// In-memory store: state → { code, expires }
-// PocketBase hooks run in a persistent JS runtime so this survives across requests.
 const pendingOAuth = {};
 
 function cleanup() {
@@ -21,27 +21,32 @@ function cleanup() {
     }
 }
 
-// Relay: Google redirects here after auth (or security challenge completion)
 routerAdd('GET', '/api/mobile-oauth-callback', (e) => {
     cleanup();
     const code  = e.request.url.query().get('code');
     const state = e.request.url.query().get('state');
     const error = e.request.url.query().get('error');
 
+    let deepLink;
     if (error) {
-        return e.redirect(302, 'loversrock://oauth?error=' + encodeURIComponent(error));
-    }
-    if (!code || !state) {
-        return e.redirect(302, 'loversrock://oauth?error=missing_params');
+        deepLink = 'loversrock://oauth?error=' + encodeURIComponent(error);
+    } else if (!code || !state) {
+        deepLink = 'loversrock://oauth?error=missing_params';
+    } else {
+        // Store for polling (5-minute TTL)
+        pendingOAuth[state] = { code, expires: Date.now() + 5 * 60 * 1000 };
+        deepLink = 'loversrock://oauth?code=' + encodeURIComponent(code) + '&state=' + encodeURIComponent(state);
     }
 
-    // Store for polling (5-minute TTL)
-    pendingOAuth[state] = { code, expires: Date.now() + 5 * 60 * 1000 };
-
-    // Also 302 to deep link — works for fast flows where Chrome can launch the Intent
-    return e.redirect(302,
-        'loversrock://oauth?code=' + encodeURIComponent(code) + '&state=' + encodeURIComponent(state)
-    );
+    // Return an HTML page that navigates to the deep link via JS.
+    // This triggers the Android Intent for loversrock:// without PocketBase
+    // needing to issue a 302 to a non-HTTP scheme.
+    return e.html(200, '<!DOCTYPE html><html><head>' +
+        '<script>window.location.replace("' + deepLink + '")</script>' +
+        '<meta http-equiv="refresh" content="0;url=' + deepLink + '">' +
+        '</head><body>' +
+        '<p>Redirecting back to Lovers Rock…</p>' +
+        '</body></html>');
 });
 
 // Poll endpoint: app calls this every ~1.5 s while waiting for the code
@@ -52,6 +57,6 @@ routerAdd('GET', '/api/oauth-code-poll', (e) => {
         return e.json(200, { found: false });
     }
     const code = pendingOAuth[state].code;
-    delete pendingOAuth[state]; // one-time retrieval
+    delete pendingOAuth[state];
     return e.json(200, { found: true, code });
 });
