@@ -2,26 +2,25 @@
 
 // Mobile OAuth callback relay + server-side code store.
 //
-// Google redirects here → code stored in memory → app retrieves via poll.
-// The browser shows a plain JSON response; the app receives the code via
-// /api/oauth-code-poll polling and completes auth independently.
+// Google redirects here → code stored → app retrieves via /api/oauth-code-poll.
 //
-// Uses var (not const/let) — goja does not always close over module-level
-// const declarations in routerAdd callbacks.
+// globalThis is used for shared state: goja runs each routerAdd callback in an
+// isolated context, so module-level var/const are not captured by closures.
+// globalThis is the one object that persists across all handler invocations.
 
-var _oauthPending = {};
+globalThis._lrOauth = globalThis._lrOauth || {};
 
 routerAdd('GET', '/api/mobile-oauth-callback', function(e) {
     try {
+        var codes = globalThis._lrOauth;
+
         // Cleanup expired entries
         var now = Date.now();
-        for (var k in _oauthPending) {
-            if (_oauthPending[k] && _oauthPending[k].expires < now) {
-                delete _oauthPending[k];
-            }
+        for (var k in codes) {
+            if (codes[k] && codes[k].expires < now) delete codes[k];
         }
 
-        // Parse query params from raw URL string (avoids Go method calls)
+        // Parse query params from raw URL string
         var code = '', state = '', errParam = '';
         var raw = '';
         try { raw = String(e.request.url.RawQuery || ''); } catch(e1) {
@@ -43,13 +42,10 @@ routerAdd('GET', '/api/mobile-oauth-callback', function(e) {
             return e.json(200, { ok: false, error: errParam });
         }
         if (!code || !state) {
-            return e.json(200, { ok: false, error: 'missing_params' });
+            return e.json(200, { ok: false, error: 'missing_params', raw: raw });
         }
 
-        // Store code for polling (5-minute TTL)
-        _oauthPending[state] = { code: code, expires: Date.now() + 5 * 60 * 1000 };
-
-        // Return success — app will pick up the code via /api/oauth-code-poll
+        codes[state] = { code: code, expires: Date.now() + 5 * 60 * 1000 };
         return e.json(200, { ok: true });
 
     } catch(err) {
@@ -59,12 +55,12 @@ routerAdd('GET', '/api/mobile-oauth-callback', function(e) {
 
 routerAdd('GET', '/api/oauth-code-poll', function(e) {
     try {
+        var codes = globalThis._lrOauth;
+
         // Cleanup expired entries
         var now = Date.now();
-        for (var k in _oauthPending) {
-            if (_oauthPending[k] && _oauthPending[k].expires < now) {
-                delete _oauthPending[k];
-            }
+        for (var k in codes) {
+            if (codes[k] && codes[k].expires < now) delete codes[k];
         }
 
         // Parse state param
@@ -82,11 +78,11 @@ routerAdd('GET', '/api/oauth-code-poll', function(e) {
             }
         }
 
-        if (!state || !_oauthPending[state]) {
+        if (!state || !codes[state]) {
             return e.json(200, { found: false });
         }
-        var code = _oauthPending[state].code;
-        delete _oauthPending[state];
+        var code = codes[state].code;
+        delete codes[state];
         return e.json(200, { found: true, code: code });
 
     } catch(err) {
