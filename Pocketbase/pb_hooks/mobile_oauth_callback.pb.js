@@ -1,9 +1,8 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-globalThis._lrOauth = globalThis._lrOauth || {};
-
 routerAdd('GET', '/api/mobile-oauth-callback', function(e) {
     try {
+        if (!globalThis._lrOauth) globalThis._lrOauth = {};
         var codes = globalThis._lrOauth;
         var now = Date.now();
         for (var k in codes) { if (codes[k] && codes[k].expires < now) delete codes[k]; }
@@ -38,6 +37,7 @@ routerAdd('GET', '/api/mobile-oauth-callback', function(e) {
 
 routerAdd('GET', '/api/oauth-code-poll', function(e) {
     try {
+        if (!globalThis._lrOauth) globalThis._lrOauth = {};
         var codes = globalThis._lrOauth;
         var now = Date.now();
         for (var k in codes) { if (codes[k] && codes[k].expires < now) delete codes[k]; }
