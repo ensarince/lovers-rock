@@ -3,23 +3,23 @@
 // Mobile OAuth callback relay + server-side code store.
 //
 // Flow:
-//   Google → GET /api/mobile-oauth-callback → code stored + HTML page JS-redirects to loversrock://oauth
+//   Google → GET /api/mobile-oauth-callback → code stored + HTML JS-redirect to loversrock://oauth
 //   App polls GET /api/oauth-code-poll?state=xxx every 1.5 s
 //
-// Query params are parsed from RawQuery manually — e.request.url.query().get()
-// throws in PocketBase v0.26.5 JSVM because Go method names are PascalCase.
+// Use const expressions (not function declarations) — goja doesn't close over
+// function declarations the same way as V8, causing ReferenceError in callbacks.
+// Query params parsed from RawQuery manually — .query().get() throws in v0.26 JSVM.
 
 const pendingOAuth = {};
 
-function cleanup() {
+const cleanup = function() {
     const now = Date.now();
     for (const k in pendingOAuth) {
         if (pendingOAuth[k].expires < now) delete pendingOAuth[k];
     }
-}
+};
 
-// Parse a single query param from the raw query string
-function qp(e, key) {
+const qp = function(e, key) {
     try {
         const raw = e.request.url.RawQuery || e.request.url.rawQuery || '';
         const parts = raw.split('&');
@@ -34,7 +34,7 @@ function qp(e, key) {
         }
     } catch (err) {}
     return '';
-}
+};
 
 routerAdd('GET', '/api/mobile-oauth-callback', (e) => {
     try {
@@ -57,7 +57,7 @@ routerAdd('GET', '/api/mobile-oauth-callback', (e) => {
             '<!DOCTYPE html><html><head>' +
             '<script>window.location.replace("' + deepLink + '")</script>' +
             '<meta http-equiv="refresh" content="0;url=' + deepLink + '">' +
-            '</head><body><p>Redirecting back to Lovers Rock…</p></body></html>'
+            '</head><body><p>Redirecting back to Lovers Rock...</p></body></html>'
         );
     } catch (err) {
         return e.json(500, { error: String(err) });
