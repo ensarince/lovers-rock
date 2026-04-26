@@ -2,79 +2,94 @@
 
 // Mobile OAuth callback relay + server-side code store.
 //
-// Flow:
-//   Google → GET /api/mobile-oauth-callback → code stored + HTML JS-redirect to loversrock://oauth
-//   App polls GET /api/oauth-code-poll?state=xxx every 1.5 s
+// Google redirects here → code stored in memory → app retrieves via poll.
+// The browser shows a plain JSON response; the app receives the code via
+// /api/oauth-code-poll polling and completes auth independently.
 //
-// Use const expressions (not function declarations) — goja doesn't close over
-// function declarations the same way as V8, causing ReferenceError in callbacks.
-// Query params parsed from RawQuery manually — .query().get() throws in v0.26 JSVM.
+// Uses var (not const/let) — goja does not always close over module-level
+// const declarations in routerAdd callbacks.
 
-const pendingOAuth = {};
+var _oauthPending = {};
 
-const cleanup = function() {
-    const now = Date.now();
-    for (const k in pendingOAuth) {
-        if (pendingOAuth[k].expires < now) delete pendingOAuth[k];
-    }
-};
-
-const qp = function(e, key) {
+routerAdd('GET', '/api/mobile-oauth-callback', function(e) {
     try {
-        const raw = e.request.url.RawQuery || e.request.url.rawQuery || '';
-        const parts = raw.split('&');
-        for (let i = 0; i < parts.length; i++) {
-            const idx = parts[i].indexOf('=');
-            if (idx > 0) {
-                const k = decodeURIComponent(parts[i].substring(0, idx));
-                if (k === key) {
-                    return decodeURIComponent(parts[i].substring(idx + 1).replace(/\+/g, ' '));
-                }
+        // Cleanup expired entries
+        var now = Date.now();
+        for (var k in _oauthPending) {
+            if (_oauthPending[k] && _oauthPending[k].expires < now) {
+                delete _oauthPending[k];
             }
         }
-    } catch (err) {}
-    return '';
-};
 
-routerAdd('GET', '/api/mobile-oauth-callback', (e) => {
-    try {
-        cleanup();
-        const code  = qp(e, 'code');
-        const state = qp(e, 'state');
-        const error = qp(e, 'error');
-
-        let deepLink;
-        if (error) {
-            deepLink = 'loversrock://oauth?error=' + encodeURIComponent(error);
-        } else if (!code || !state) {
-            deepLink = 'loversrock://oauth?error=missing_params';
-        } else {
-            pendingOAuth[state] = { code: code, expires: Date.now() + 5 * 60 * 1000 };
-            deepLink = 'loversrock://oauth?code=' + encodeURIComponent(code) + '&state=' + encodeURIComponent(state);
+        // Parse query params from raw URL string (avoids Go method calls)
+        var code = '', state = '', errParam = '';
+        var raw = '';
+        try { raw = String(e.request.url.RawQuery || ''); } catch(e1) {
+            try { raw = String(e.request.url.rawQuery || ''); } catch(e2) {}
+        }
+        var parts = raw.split('&');
+        for (var i = 0; i < parts.length; i++) {
+            var idx = parts[i].indexOf('=');
+            if (idx > 0) {
+                var pk = decodeURIComponent(parts[i].substring(0, idx));
+                var pv = decodeURIComponent(parts[i].substring(idx + 1).replace(/\+/g, ' '));
+                if (pk === 'code') { code = pv; }
+                else if (pk === 'state') { state = pv; }
+                else if (pk === 'error') { errParam = pv; }
+            }
         }
 
-        return e.html(200,
-            '<!DOCTYPE html><html><head>' +
-            '<script>window.location.replace("' + deepLink + '")</script>' +
-            '<meta http-equiv="refresh" content="0;url=' + deepLink + '">' +
-            '</head><body><p>Redirecting back to Lovers Rock...</p></body></html>'
-        );
-    } catch (err) {
+        if (errParam) {
+            return e.json(200, { ok: false, error: errParam });
+        }
+        if (!code || !state) {
+            return e.json(200, { ok: false, error: 'missing_params' });
+        }
+
+        // Store code for polling (5-minute TTL)
+        _oauthPending[state] = { code: code, expires: Date.now() + 5 * 60 * 1000 };
+
+        // Return success — app will pick up the code via /api/oauth-code-poll
+        return e.json(200, { ok: true });
+
+    } catch(err) {
         return e.json(500, { error: String(err) });
     }
 });
 
-routerAdd('GET', '/api/oauth-code-poll', (e) => {
+routerAdd('GET', '/api/oauth-code-poll', function(e) {
     try {
-        cleanup();
-        const state = qp(e, 'state');
-        if (!state || !pendingOAuth[state]) {
+        // Cleanup expired entries
+        var now = Date.now();
+        for (var k in _oauthPending) {
+            if (_oauthPending[k] && _oauthPending[k].expires < now) {
+                delete _oauthPending[k];
+            }
+        }
+
+        // Parse state param
+        var state = '';
+        var raw = '';
+        try { raw = String(e.request.url.RawQuery || ''); } catch(e1) {
+            try { raw = String(e.request.url.rawQuery || ''); } catch(e2) {}
+        }
+        var parts = raw.split('&');
+        for (var i = 0; i < parts.length; i++) {
+            var idx = parts[i].indexOf('=');
+            if (idx > 0 && decodeURIComponent(parts[i].substring(0, idx)) === 'state') {
+                state = decodeURIComponent(parts[i].substring(idx + 1));
+                break;
+            }
+        }
+
+        if (!state || !_oauthPending[state]) {
             return e.json(200, { found: false });
         }
-        const code = pendingOAuth[state].code;
-        delete pendingOAuth[state];
+        var code = _oauthPending[state].code;
+        delete _oauthPending[state];
         return e.json(200, { found: true, code: code });
-    } catch (err) {
+
+    } catch(err) {
         return e.json(500, { error: String(err) });
     }
 });
