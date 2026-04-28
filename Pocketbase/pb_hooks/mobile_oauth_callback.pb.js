@@ -2,11 +2,7 @@
 
 routerAdd('GET', '/api/mobile-oauth-callback', function(e) {
     try {
-        if (!globalThis._lrOauth) globalThis._lrOauth = {};
-        var codes = globalThis._lrOauth;
         var now = Date.now();
-        for (var k in codes) { if (codes[k] && codes[k].expires < now) delete codes[k]; }
-
         var code = '', state = '', errParam = '';
         try {
             var uri = String(e.request.RequestURI || e.request.requestURI || '');
@@ -25,11 +21,26 @@ routerAdd('GET', '/api/mobile-oauth-callback', function(e) {
             }
         } catch(pe) {}
 
-        if (errParam) return e.json(200, { ok: false, error: errParam });
+        if (errParam) {
+            var errLink = 'loversrock://oauth?error=' + encodeURIComponent(errParam);
+            return e.html(200,
+                '<!DOCTYPE html><html><head><title>Auth error</title>' +
+                '<script>window.location=' + JSON.stringify(errLink) + ';<\/script>' +
+                '</head><body>Auth error — redirecting to app...</body></html>'
+            );
+        }
         if (!code || !state) return e.json(200, { ok: false, error: 'missing_params' });
 
-        codes[state] = { code: code, expires: Date.now() + 5 * 60 * 1000 };
-        return e.json(200, { ok: true });
+        // Backup: store for poll path (best-effort — ignore if $app.store() unavailable)
+        try { $app.store().set('_lr_' + state, JSON.stringify({ code: code, exp: now + 300000 })); } catch(se) {}
+
+        // Primary: HTML page that redirects Chrome back into the app via deep link
+        var deepLink = 'loversrock://oauth?code=' + encodeURIComponent(code) + '&state=' + encodeURIComponent(state);
+        return e.html(200,
+            '<!DOCTYPE html><html><head><title>Signing in...</title>' +
+            '<script>window.location=' + JSON.stringify(deepLink) + ';<\/script>' +
+            '</head><body>Redirecting to Lovers Rock...</body></html>'
+        );
     } catch(err) {
         return e.json(500, { error: String(err) });
     }
@@ -37,11 +48,6 @@ routerAdd('GET', '/api/mobile-oauth-callback', function(e) {
 
 routerAdd('GET', '/api/oauth-code-poll', function(e) {
     try {
-        if (!globalThis._lrOauth) globalThis._lrOauth = {};
-        var codes = globalThis._lrOauth;
-        var now = Date.now();
-        for (var k in codes) { if (codes[k] && codes[k].expires < now) delete codes[k]; }
-
         var state = '';
         try {
             var uri = String(e.request.RequestURI || e.request.requestURI || '');
@@ -57,10 +63,20 @@ routerAdd('GET', '/api/oauth-code-poll', function(e) {
             }
         } catch(pe) {}
 
-        if (!state || !codes[state]) return e.json(200, { found: false });
-        var code = codes[state].code;
-        delete codes[state];
-        return e.json(200, { found: true, code: code });
+        if (!state) return e.json(200, { found: false });
+
+        var stored = null;
+        try { stored = $app.store().get('_lr_' + state); } catch(se) {}
+        if (!stored) return e.json(200, { found: false });
+
+        var entry = JSON.parse(String(stored));
+        if (entry.exp < Date.now()) {
+            try { $app.store().remove('_lr_' + state); } catch(se) {}
+            return e.json(200, { found: false });
+        }
+
+        try { $app.store().remove('_lr_' + state); } catch(se) {}
+        return e.json(200, { found: true, code: entry.code });
     } catch(err) {
         return e.json(500, { error: String(err) });
     }
