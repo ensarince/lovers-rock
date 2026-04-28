@@ -29,6 +29,7 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   ImageBackground,
   LayoutChangeEvent,
   Modal,
@@ -39,6 +40,7 @@ import {
   View
 } from 'react-native';
 import { getPublicProfiles } from '../../src/services/accountService';
+
 
 let hasShownDiscoverIntro = false;
 
@@ -934,7 +936,11 @@ export default function DiscoverScreen() {
               </Pressable>
               );
             }}
-            ListEmptyComponent={<Text style={styles.emptyText}>No climbing partners found.</Text>}
+            ListEmptyComponent={
+              <View style={styles.partnerEmptyState}>
+                <Text style={styles.emptyText}>No climbing partners found.</Text>
+              </View>
+            }
           />
         </View>
       ) : null}
@@ -1357,6 +1363,22 @@ const createStyles = (theme: typeof themeLight) =>
       fontSize: 16,
       textAlign: 'center',
       marginTop: 28,
+    },
+    emptyStateDecoration: {
+      width: 80,
+      height: 80,
+      marginTop: 24,
+      opacity: 0.5,
+    },
+    partnerEmptyState: {
+      alignItems: 'center',
+      paddingTop: 32,
+    },
+    partnerEmptyDecoration: {
+      width: 72,
+      height: 72,
+      marginBottom: 4,
+      opacity: 0.45,
     },
     introOverlay: {
       flex: 1,

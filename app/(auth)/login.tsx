@@ -4,14 +4,74 @@ import { authService } from '@/src/services/authService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
   Pressable,
   StyleSheet,
   TextInput,
 } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
+
+const { width: SW, height: SH } = Dimensions.get('window');
+
+function Orb({ color, size, left, top, dx, dy, dur }: {
+  color: string; size: number; left: number; top: number;
+  dx: number; dy: number; dur: number;
+}) {
+  const x = useSharedValue(0);
+  const y = useSharedValue(0);
+  const ease = Easing.inOut(Easing.sin);
+
+  useEffect(() => {
+    x.value = withRepeat(withSequence(
+      withTiming(dx, { duration: dur, easing: ease }),
+      withTiming(0,  { duration: dur, easing: ease }),
+    ), -1);
+    y.value = withRepeat(withSequence(
+      withTiming(dy, { duration: Math.round(dur * 1.3), easing: ease }),
+      withTiming(0,  { duration: Math.round(dur * 1.3), easing: ease }),
+    ), -1);
+  }, []);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateX: x.value }, { translateY: y.value }],
+  }));
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[{
+        position: 'absolute',
+        width: size, height: size,
+        borderRadius: size / 2,
+        backgroundColor: color,
+        opacity: 0.09,
+        left, top,
+      }, style]}
+    />
+  );
+}
+
+function FloatingOrbs({ accent, teal }: { accent: string; teal: string }) {
+  return (
+    <>
+      <Orb color={accent} size={320} left={-120} top={-100}    dx={50}  dy={70}  dur={9000} />
+      <Orb color={teal}   size={260} left={SW-140} top={60}    dx={-60} dy={90}  dur={11000} />
+      <Orb color={accent} size={200} left={20}   top={SH-280}  dx={70}  dy={-50} dur={10000} />
+      <Orb color={teal}   size={240} left={SW-100} top={SH-220} dx={-50} dy={-70} dur={12000} />
+    </>
+  );
+}
 
 export default function LoginScreen() {
   const { login, register, loginWithGoogle, isLoading, darkMode } = useAuth();
@@ -104,13 +164,14 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
+      <FloatingOrbs accent={theme.colors.accent} teal={theme.colors.edit} />
       <View style={styles.headerMinimal}>
         <Image
-          source={require('../../assets/images/logo.png')}
+          source={require('../../assets/images/logo.jpg')}
           style={{ width: 128, height: 128 }}
           resizeMode="cover"
         />
-        <Text style={styles.titleMinimal}>ClimbMate</Text>
+        <Text style={styles.titleMinimal}>Take!</Text>
       </View>
 
       {verificationStep ? (
@@ -272,6 +333,7 @@ const createStyles = (theme: typeof themeLight) =>
       paddingHorizontal: 24,
       paddingVertical: 0,
       backgroundColor: theme.colors.background,
+      overflow: 'hidden',
     },
     headerMinimal: {
       alignItems: 'center',

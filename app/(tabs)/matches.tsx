@@ -36,6 +36,7 @@ import {
   View,
 } from 'react-native';
 
+
 type FilterChip = 'all' | 'requests' | 'dating' | 'partner' | 'sessions';
 
 let hasShownMatchesIntro = false;
@@ -537,6 +538,13 @@ export default function MatchesScreen() {
           <Text style={styles.subtitleMinimal}>
             Go discover climbers you like!
           </Text>
+          {!darkMode && (
+            <Image
+              source={decoration2}
+              style={styles.emptyDecoration}
+              resizeMode="contain"
+            />
+          )}
         </View>
       ) : (
         <FlatList
@@ -1004,5 +1012,11 @@ const createStyles = (theme: typeof themeLight) =>
       color: theme.colors.textSecondary,
       textAlign: 'center',
       marginTop: 4,
+    },
+    emptyDecoration: {
+      width: 80,
+      height: 80,
+      marginTop: 28,
+      opacity: 0.45,
     },
   });
