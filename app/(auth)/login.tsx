@@ -126,6 +126,32 @@ function AnimatedInput({
   );
 }
 
+function ErrorText({ message, color }: { message: string; color: string }) {
+  const shake = useSharedValue(0);
+
+  useEffect(() => {
+    shake.value = withSequence(
+      withTiming(-9, { duration: 45 }),
+      withTiming(9,  { duration: 45 }),
+      withTiming(-5, { duration: 45 }),
+      withTiming(5,  { duration: 45 }),
+      withTiming(0,  { duration: 45 }),
+    );
+  }, [message]);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateX: shake.value }],
+  }));
+
+  return (
+    <Animated.View style={[{ alignItems: 'center' }, style]}>
+      <Text style={{ color, fontSize: 13, textAlign: 'center', fontStyle: 'italic', letterSpacing: 0.3, opacity: 0.9 }}>
+        {message}
+      </Text>
+    </Animated.View>
+  );
+}
+
 // Press-scale animated button
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -279,12 +305,7 @@ export default function LoginScreen() {
             We sent a link to{'\n'}<Text style={styles.verificationEmail}>{email}</Text>
           </Text>
 
-          {error && (
-            <View style={styles.errorPill}>
-              <Ionicons name="alert-circle-outline" size={14} color={theme.colors.error} style={{ marginRight: 6 }} />
-              <Text style={styles.errorMinimal}>{error}</Text>
-            </View>
-          )}
+          {error && <ErrorText message={error} color={theme.colors.error} />}
 
           <ScaleButton
             style={styles.buttonMinimal}
@@ -306,12 +327,7 @@ export default function LoginScreen() {
       ) : (
         // Login/Signup Screen
         <View style={styles.formMinimal}>
-          {error && (
-            <View style={styles.errorPill}>
-              <Ionicons name="alert-circle-outline" size={14} color={theme.colors.error} style={{ marginRight: 6 }} />
-              <Text style={styles.errorMinimal}>{error}</Text>
-            </View>
-          )}
+          {error && <ErrorText message={error} color={theme.colors.error} />}
 
           <AnimatedInput
             accentColor={theme.colors.accent}
@@ -532,17 +548,6 @@ const createStyles = (theme: typeof themeLight) =>
       paddingVertical: 4,
     },
 
-    // ─── Error pill ──────────────────────────────────────────────────────────
-    errorPill: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: 'rgba(255,46,99,0.10)',
-      borderLeftWidth: 3,
-      borderLeftColor: theme.colors.error,
-      borderRadius: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-    },
     errorMinimal: {
       color: theme.colors.error,
       fontSize: 13,
