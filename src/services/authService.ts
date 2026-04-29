@@ -77,18 +77,13 @@ export const authService = {
     }
   },
 
-  // Google OAuth login — openBrowserAsync + dual delivery: Linking fast path + server poll.
+  // Google OAuth login — openBrowserAsync + Linking deep-link delivery.
   //
   // openBrowserAsync keeps Chrome alive through number-matching challenges (unlike
   // openAuthSessionAsync which kills the tab on any navigation away).
   //
-  // Fast path (fingerprint / instant redirect): Android delivers loversrock://oauth
-  // as an Intent and Linking fires immediately.
-  //
-  // Slow path (number-matching challenge): the user leaves Chrome to the Google app,
-  // Android 10+ blocks Chrome (backgrounded) from launching the loversrock:// Intent.
-  // The Railway relay has already stored the code server-side, so we poll every 1.5 s.
-  // Both paths share a settled flag — whichever fires first wins.
+  // Fast path: Android delivers loversrock://oauth as an Intent and Linking fires
+  // immediately. Cancel fires 3 s after the browser closes if no deep link arrived.
   async loginWithGoogle() {
     try {
       const authMethods = await pb.collection('users').listAuthMethods();
@@ -110,14 +105,12 @@ export const authService = {
       const code = await new Promise<string>((resolve, reject) => {
         let settled = false;
         let linkSub: ReturnType<typeof Linking.addEventListener> | null = null;
-        let pollTimer: ReturnType<typeof setInterval> | null = null;
         let cancelTimer: ReturnType<typeof setTimeout> | null = null;
 
         const cleanup = () => {
           linkSub?.remove();
           linkSub = null;
           pendingOAuthDeepLink = null;
-          if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
           if (cancelTimer) { clearTimeout(cancelTimer); cancelTimer = null; }
         };
 
@@ -151,18 +144,9 @@ export const authService = {
         pendingOAuthDeepLink = handleUrl;
         linkSub = Linking.addEventListener('url', ({ url }) => handleUrl(url));
 
-        // Slow path: poll the relay every 1.5 s for the server-stored code
-        pollTimer = setInterval(async () => {
-          try {
-            const res = await fetch(`${POCKETBASE_URL}/api/oauth-code-poll?state=${encodeURIComponent(state)}`);
-            const json = await res.json();
-            if (json.found && json.code) deliver(json.code);
-          } catch { /* network glitch — keep polling */ }
-        }, 1500);
-
         WebBrowser.openBrowserAsync(authUrl)
           .then(() => {
-            // Browser closed — keep polling 3 s more to catch delayed server writes
+            // Browser closed — wait 3 s for a delayed deep link before cancelling
             if (settled) return;
             cancelTimer = setTimeout(() => cancel('Google sign-in was cancelled'), 3000);
           })

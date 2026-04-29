@@ -27,7 +27,6 @@ import {
   View,
 } from 'react-native';
 
-const POCKETBASE_URL = getPocketBaseUrl();
 const HEART_REACTION = '\u2764\uFE0F';
 const LEGACY_HEART_REACTION = '\u00e2\u009d\u00a4\u00ef\u00b8\u008f';
 
@@ -141,17 +140,22 @@ export default function ChatScreen() {
     );
   };
 
-  // Parse climber data from route params
+  // Fetch authoritative climber data from PocketBase; fall back to route params if network fails
   useEffect(() => {
-    if (climberDataStr) {
-      try {
-        const parsed = JSON.parse(climberDataStr as string);
-        setClimberData(parsed);
-      } catch (error) {
-        console.error('Failed to parse climber data:', error);
-      }
-    }
-  }, [climberDataStr]);
+    if (!climberId || !token) return;
+    const POCKETBASE_URL = getPocketBaseUrl();
+    fetch(`${POCKETBASE_URL}/api/collections/users/records/${climberId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setClimberData(data); })
+      .catch(() => {
+        // fallback: use route param data if fetch fails
+        if (climberDataStr) {
+          try { setClimberData(JSON.parse(climberDataStr as string)); } catch {}
+        }
+      });
+  }, [climberId, token]);
 
   // Check blocked status and load messages on mount
   useEffect(() => {
@@ -265,32 +269,6 @@ export default function ChatScreen() {
     anim.start();
     return () => anim.stop();
   }, [isPartnerTyping]);
-
-  // Fetch full climber data only if needed for details not in route params
-  useEffect(() => {
-    const fetchFullClimberData = async () => {
-      if (!climberId || !token || climberData?.bio) return; // Already have data
-      try {
-        const res = await fetch(`${POCKETBASE_URL}/api/collections/users/records/${climberId}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setClimberData(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch climber data:', error);
-      }
-    };
-
-    if (detailModalVisible && climberData && !climberData.bio) {
-      fetchFullClimberData();
-    }
-  }, [detailModalVisible, climberData, climberId, token]);
 
   // Realtime conversation updates, with slower polling as a fallback.
   useEffect(() => {

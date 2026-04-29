@@ -41,6 +41,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 let notificationService: NotificationService | null = null;
 
+const safeUserForStorage = (user: Climber) => {
+  const { latitude, longitude, blocked_users, ...safe } = user;
+  return safe;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -200,7 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               const freshUserData = await freshUserRes.json();
               const freshClimber = mapToClimber(freshUserData);
               setUser(freshClimber);
-              await AsyncStorage.setItem('user', JSON.stringify(freshClimber));
+              await AsyncStorage.setItem('user', JSON.stringify(safeUserForStorage(freshClimber)));
             } else if (freshUserRes.status === 401 || freshUserRes.status === 403) {
               // Token invalid/expired — clear session and force re-login
               await AsyncStorage.removeItem('user');
@@ -261,7 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const climberUser = mapToClimber(authData.record);
       setUser(climberUser);
       setToken(authData.token);
-      await AsyncStorage.setItem('user', JSON.stringify(climberUser));
+      await AsyncStorage.setItem('user', JSON.stringify(safeUserForStorage(climberUser)));
           await SecureStore.setItemAsync('token', authData.token);
       
       // Setup notifications for logged-in user
@@ -322,7 +327,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             }
             
             setUser(updatedClimber);
-            await AsyncStorage.setItem('user', JSON.stringify(updatedClimber));
+            await AsyncStorage.setItem('user', JSON.stringify(safeUserForStorage(updatedClimber)));
           }
         } catch (err) {
           // Silently fail
@@ -359,7 +364,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const climberUser = mapToClimber(authData.record);
       setUser(climberUser);
       setToken(authData.token);
-      await AsyncStorage.setItem('user', JSON.stringify(climberUser));
+      await AsyncStorage.setItem('user', JSON.stringify(safeUserForStorage(climberUser)));
       await SecureStore.setItemAsync('token', authData.token);
 
       const pb = new PocketBase(getPocketBaseUrl());
@@ -385,7 +390,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           const updatedUserData = await updatedUserRes.json();
           const updatedClimber = mapToClimber(updatedUserData);
           setUser(updatedClimber);
-          await AsyncStorage.setItem('user', JSON.stringify(updatedClimber));
+          await AsyncStorage.setItem('user', JSON.stringify(safeUserForStorage(updatedClimber)));
         }
       } catch (err) {
         // non-fatal — user is already logged in with initial auth data

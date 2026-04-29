@@ -204,9 +204,9 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
       matchesMap[matchId] = {
         id: matchId,
         climber: normalizeClimber(user),
-        matchedAt: Date.now() - Math.random() * 86400000 * 7,
+        matchedAt: Date.now(),
         messagePreview: type === 'dating' ? 'You matched! Say hello 🤗' : 'Connected! Say hello 🤗',
-        unreadCount: Math.floor(Math.random() * 3),
+        unreadCount: 0,
         type,
       };
     };

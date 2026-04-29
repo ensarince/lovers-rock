@@ -2,6 +2,9 @@ import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 
 const POCKETBASE_URL = getPocketBaseUrl();
 
+// Strip non-alphanumeric chars to prevent filter injection — PocketBase IDs are alphanumeric only
+const safeId = (id: string): string => String(id).replace(/[^a-zA-Z0-9]/g, '');
+
 type IntentType = 'dating' | 'partner';
 
 export interface LikeRecord {
@@ -79,7 +82,7 @@ export const getOutgoingLikes = async (
   intent?: IntentType
 ): Promise<LikeRecord[]> => {
   const filter = buildFilter([
-    `from_user = "${userId}"`,
+    `from_user = "${safeId(userId)}"`,
     intent ? `intent = "${intent}"` : null,
   ]);
   return fetchAllRecords<LikeRecord>('likes', token, filter);
@@ -91,7 +94,7 @@ export const getIncomingLikes = async (
   intent?: IntentType
 ): Promise<LikeRecord[]> => {
   const filter = buildFilter([
-    `to_user = "${userId}"`,
+    `to_user = "${safeId(userId)}"`,
     intent ? `intent = "${intent}"` : null,
   ]);
   return fetchAllRecords<LikeRecord>('likes', token, filter);
@@ -104,8 +107,8 @@ export const createLike = async (
   token: string
 ): Promise<void> => {
   const filter = buildFilter([
-    `from_user = "${fromUserId}"`,
-    `to_user = "${toUserId}"`,
+    `from_user = "${safeId(fromUserId)}"`,
+    `to_user = "${safeId(toUserId)}"`,
     `intent = "${intent}"`,
   ]);
 
@@ -138,8 +141,8 @@ export const removeLike = async (
   token: string
 ): Promise<void> => {
   const filter = buildFilter([
-    `from_user = "${fromUserId}"`,
-    `to_user = "${toUserId}"`,
+    `from_user = "${safeId(fromUserId)}"`,
+    `to_user = "${safeId(toUserId)}"`,
     `intent = "${intent}"`,
   ]);
 
@@ -164,7 +167,7 @@ export const getOutgoingDeclines = async (
   intent?: IntentType
 ): Promise<DeclineRecord[]> => {
   const filter = buildFilter([
-    `from_user = "${userId}"`,
+    `from_user = "${safeId(userId)}"`,
     intent ? `intent = "${intent}"` : null,
   ]);
   return fetchAllRecords<DeclineRecord>('declines', token, filter);
@@ -176,7 +179,7 @@ export const getIncomingDeclines = async (
   intent?: IntentType
 ): Promise<DeclineRecord[]> => {
   const filter = buildFilter([
-    `to_user = "${userId}"`,
+    `to_user = "${safeId(userId)}"`,
     intent ? `intent = "${intent}"` : null,
   ]);
   return fetchAllRecords<DeclineRecord>('declines', token, filter);
@@ -189,8 +192,8 @@ export const createDecline = async (
   token: string
 ): Promise<void> => {
   const filter = buildFilter([
-    `from_user = "${fromUserId}"`,
-    `to_user = "${toUserId}"`,
+    `from_user = "${safeId(fromUserId)}"`,
+    `to_user = "${safeId(toUserId)}"`,
     `intent = "${intent}"`,
   ]);
 
@@ -224,8 +227,8 @@ export const removeDecline = async (
   token: string
 ): Promise<void> => {
   const filter = buildFilter([
-    `from_user = "${fromUserId}"`,
-    `to_user = "${toUserId}"`,
+    `from_user = "${safeId(fromUserId)}"`,
+    `to_user = "${safeId(toUserId)}"`,
     `intent = "${intent}"`,
   ]);
 
@@ -245,12 +248,12 @@ export const removeDecline = async (
 };
 
 export const getBlockedByUser = async (userId: string, token: string): Promise<BlockRecord[]> => {
-  const filter = `from_user = "${userId}"`;
+  const filter = `from_user = "${safeId(userId)}"`;
   return fetchAllRecords<BlockRecord>('blocks', token, filter);
 };
 
 export const getBlockedAgainstUser = async (userId: string, token: string): Promise<BlockRecord[]> => {
-  const filter = `to_user = "${userId}"`;
+  const filter = `to_user = "${safeId(userId)}"`;
   return fetchAllRecords<BlockRecord>('blocks', token, filter);
 };
 
@@ -259,7 +262,7 @@ export const createBlock = async (
   toUserId: string,
   token: string
 ): Promise<void> => {
-  const filter = buildFilter([`from_user = "${fromUserId}"`, `to_user = "${toUserId}"`]);
+  const filter = buildFilter([`from_user = "${safeId(fromUserId)}"`, `to_user = "${safeId(toUserId)}"`]);
   const existing = await fetchAllRecords<BlockRecord>('blocks', token, filter);
   if (existing.length > 0) return;
 
@@ -286,7 +289,7 @@ export const removeBlock = async (
   toUserId: string,
   token: string
 ): Promise<void> => {
-  const filter = buildFilter([`from_user = "${fromUserId}"`, `to_user = "${toUserId}"`]);
+  const filter = buildFilter([`from_user = "${safeId(fromUserId)}"`, `to_user = "${safeId(toUserId)}"`]);
   const records = await fetchAllRecords<BlockRecord>('blocks', token, filter);
   if (records.length === 0) return;
 
@@ -342,8 +345,8 @@ export const hasIncomingLike = async (
   token: string
 ): Promise<boolean> => {
   const filter = buildFilter([
-    `from_user = "${fromUserId}"`,
-    `to_user = "${currentUserId}"`,
+    `from_user = "${safeId(fromUserId)}"`,
+    `to_user = "${safeId(currentUserId)}"`,
     `intent = "${intent}"`,
   ]);
 

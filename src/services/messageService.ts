@@ -5,6 +5,9 @@ import { Message } from '../types/message';
 
 const POCKETBASE_URL = getPocketBaseUrl();
 
+// Strip non-alphanumeric chars to prevent filter injection — PocketBase IDs are alphanumeric only
+const safeId = (id: string): string => String(id).replace(/[^a-zA-Z0-9]/g, '');
+
 const globalWithEventSource = globalThis as typeof globalThis & { EventSource?: any };
 
 if (!globalWithEventSource.EventSource) {
@@ -50,7 +53,7 @@ export class MessageService {
 
   async getMessagesBetweenUsers(userId1: string, userId2: string, page = 1, perPage = 50): Promise<Message[]> {
     const records = await this.pb.collection('messages').getList(page, perPage, {
-      filter: `((sender_id = "${userId1}" && receiver_id = "${userId2}") || (sender_id = "${userId2}" && receiver_id = "${userId1}"))`,
+      filter: `((sender_id = "${safeId(userId1)}" && receiver_id = "${safeId(userId2)}") || (sender_id = "${safeId(userId2)}" && receiver_id = "${safeId(userId1)}"))`,
       sort: 'created'
     });
 
@@ -60,7 +63,7 @@ export class MessageService {
   async markMessagesAsRead(senderId: string, receiverId: string): Promise<void> {
     // Get all unread messages from sender to receiver
     const records = await this.pb.collection('messages').getFullList({
-      filter: `sender_id = "${senderId}" && receiver_id = "${receiverId}" && read = false`
+      filter: `sender_id = "${safeId(senderId)}" && receiver_id = "${safeId(receiverId)}" && read = false`
     });
 
     if (!records.length) {
@@ -80,7 +83,7 @@ export class MessageService {
     userId2: string,
     callback: (event: { action: string; message: Message }) => void
   ): Promise<() => Promise<void>> {
-    const filter = `((sender_id = "${userId1}" && receiver_id = "${userId2}") || (sender_id = "${userId2}" && receiver_id = "${userId1}"))`;
+    const filter = `((sender_id = "${safeId(userId1)}" && receiver_id = "${safeId(userId2)}") || (sender_id = "${safeId(userId2)}" && receiver_id = "${safeId(userId1)}"))`;
 
     const unsubscribe = await this.pb.collection('messages').subscribe('*', (event: any) => {
       callback({
@@ -105,14 +108,14 @@ export class MessageService {
           callback(mapMessageRecord(event.record));
         }
       },
-      { filter: `receiver_id = "${userId}"` }
+      { filter: `receiver_id = "${safeId(userId)}"` }
     );
     return async () => { await unsubscribe(); };
   }
 
   async getUnreadCount(userId: string): Promise<number> {
     const records = await this.pb.collection('messages').getList(1, 1, {
-      filter: `receiver_id = "${userId}" && read = false`
+      filter: `receiver_id = "${safeId(userId)}" && read = false`
     });
 
     return records.totalItems;
@@ -121,7 +124,7 @@ export class MessageService {
   async deleteChat(userId1: string, userId2: string): Promise<void> {
     // Get all messages between the two users
     const records = await this.pb.collection('messages').getFullList({
-      filter: `((sender_id = "${userId1}" && receiver_id = "${userId2}") || (sender_id = "${userId2}" && receiver_id = "${userId1}"))`
+      filter: `((sender_id = "${safeId(userId1)}" && receiver_id = "${safeId(userId2)}") || (sender_id = "${safeId(userId2)}" && receiver_id = "${safeId(userId1)}"))`
     });
 
     // Delete each message

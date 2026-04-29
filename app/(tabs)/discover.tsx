@@ -133,7 +133,7 @@ export default function DiscoverScreen() {
         const blocked = await reportService.getBlockedUsers(user.id, token);
         setBlockedUserIds(blocked);
       } catch (err) {
-        console.error('❌ Failed to fetch blocked users:', err);
+        if (__DEV__) { console.error('❌ Failed to fetch blocked users:', err); }
         // Fallback to user's blocked_users if API fails
         if (Array.isArray(user?.blocked_users)) {
           const blocked = user.blocked_users.map((item: any) => {
@@ -142,7 +142,7 @@ export default function DiscoverScreen() {
             }
             return String(item);
           });
-          console.log('Using fallback blocked users:', blocked);
+          if (__DEV__) { console.log('Using fallback blocked users:', blocked); }
           setBlockedUserIds(blocked);
         }
       }
@@ -265,7 +265,7 @@ export default function DiscoverScreen() {
         setFilteredClimbers(normalized);
         setError(null);
       } catch (err) {
-        console.error('Dating loading error:', err);
+        if (__DEV__) { console.error('Dating loading error:', err); }
         setError('Failed to load climbers');
         setClimbers([]);
         setFilteredClimbers([]);
@@ -357,7 +357,7 @@ export default function DiscoverScreen() {
         setPartners(filtered);
         setError(null);
       } catch (e) {
-        console.error('Partner loading error:', e);
+        if (__DEV__) { console.error('Partner loading error:', e); }
         setError('Failed to load partners');
         setPartners([]);
       } finally {
@@ -660,9 +660,9 @@ export default function DiscoverScreen() {
     if (isDatingMode && user?.id && token) {
       try {
         await declineDatingUser(user.id, climber.id, token);
-        console.log('✅ Added to declined dating users:', climber.name);
+        if (__DEV__) { console.log('✅ Added to declined dating users:', climber.name); }
       } catch (error) {
-        console.error('❌ Failed to decline dating user:', error);
+        if (__DEV__) { console.error('❌ Failed to decline dating user:', error); }
       }
     }
 
