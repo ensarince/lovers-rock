@@ -29,12 +29,14 @@ interface MatchAnimationProps {
   visible: boolean;
   climber: Climber;
   onClose: () => void;
+  onMessage?: () => void;
 }
 
 export const MatchAnimation: React.FC<MatchAnimationProps> = ({
   visible,
   climber,
   onClose,
+  onMessage,
 }) => {
   const [showContent, setShowContent] = useState(false);
 
@@ -286,13 +288,13 @@ export const MatchAnimation: React.FC<MatchAnimationProps> = ({
                   Animated.sequence([
                     Animated.spring(buttonScale, { toValue: 0.93, useNativeDriver: true, tension: 300, friction: 8 }),
                     Animated.spring(buttonScale, { toValue: 1, useNativeDriver: true, tension: 200, friction: 6 }),
-                  ]).start(() => onClose());
+                  ]).start(() => { onClose(); onMessage?.(); });
                 }}
               >
-                <Text style={styles.ctaText}>KEEP CLIMBING</Text>
+                <Text style={styles.ctaText}>SEND A MESSAGE</Text>
               </Pressable>
               <Pressable onPress={onClose} hitSlop={12}>
-                <Text style={styles.skipText}>skip</Text>
+                <Text style={styles.skipText}>Keep Swiping</Text>
               </Pressable>
             </Animated.View>
           </>

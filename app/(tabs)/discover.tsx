@@ -25,6 +25,7 @@ import { Climber } from '@/src/types/climber';
 import { getPocketBaseUrl, intentIncludes } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -980,6 +981,21 @@ export default function DiscoverScreen() {
           onClose={() => {
             setMatchAnimationVisible(false);
             setMatchedClimber(null);
+          }}
+          onMessage={() => {
+            if (!matchedClimber) return;
+            const avatarUrl = matchedClimber.images?.length
+              ? `${getPocketBaseUrl()}/api/files/users/${matchedClimber.id}/${matchedClimber.images[0]}?thumb=40x40`
+              : '';
+            router.push({
+              pathname: '/chat',
+              params: {
+                climberId: matchedClimber.id,
+                climberName: matchedClimber.name,
+                climberAvatar: avatarUrl,
+                climberData: JSON.stringify(matchedClimber),
+              },
+            });
           }}
         />
       )}
