@@ -194,15 +194,22 @@ export default function MessagesScreen() {
 
         return (
             <Pressable style={styles.conversationItem} onPress={() => openChat(item)}>
-                <Image
-                    source={{ uri: imageUrl }}
-                    style={styles.avatar}
-                />
+                {/* Avatar with unread ring + dot */}
+                <View style={styles.avatarWrapper}>
+                    {showUnread && <View style={styles.avatarUnreadRing} />}
+                    <Image
+                        source={{ uri: imageUrl }}
+                        style={styles.avatar}
+                    />
+                    {showUnread && <View style={styles.unreadDot} />}
+                </View>
 
                 <View style={styles.conversationContent}>
                     <View style={styles.headerRow}>
                         <View style={styles.nameAndBadgeRow}>
-                            <Text style={styles.climberName}>{item.climber.name}</Text>
+                            <Text style={[styles.climberName, showUnread && styles.climberNameUnread]}>
+                                {item.climber.name}
+                            </Text>
                             <View style={[
                                 styles.matchTypeBadge,
                                 item.matchType === 'dating' ? styles.datingBadge : styles.partnerBadge
@@ -213,13 +220,13 @@ export default function MessagesScreen() {
                             </View>
                         </View>
                         {item.lastMessage && (
-                            <Text style={styles.timestamp}>
+                            <Text style={[styles.timestamp, showUnread && styles.timestampUnread]}>
                                 {new Date(item.lastMessage.created).toLocaleDateString()}
                             </Text>
                         )}
                     </View>
 
-                    <Text style={styles.lastMessage} numberOfLines={1}>
+                    <Text style={[styles.lastMessage, showUnread && styles.lastMessageUnread]} numberOfLines={1}>
                         {item.lastMessage?.content || 'No messages yet'}
                     </Text>
                 </View>
@@ -230,7 +237,7 @@ export default function MessagesScreen() {
                     </View>
                 )}
 
-                <Ionicons name="chevron-forward" size={16} color={theme.colors.textSecondary} />
+                <Ionicons name="chevron-forward" size={14} color={theme.colors.textSecondary + '66'} style={{ marginLeft: 4 }} />
             </Pressable>
         );
     };
@@ -246,10 +253,21 @@ export default function MessagesScreen() {
     if (conversations.length === 0) {
         return (
             <View style={styles.centerContainer}>
-                <Ionicons name="chatbubble-outline" size={64} color={theme.colors.textSecondary} />
+                <View style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 40,
+                    backgroundColor: 'rgba(255,255,255,0.04)',
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                }}>
+                    <Ionicons name="chatbubble-outline" size={34} color={theme.colors.textSecondary} />
+                </View>
                 <Text style={styles.title}>No conversations yet</Text>
                 <Text style={styles.subtitle}>
-                    Start chatting with your matches!
+                    Match with someone and send the first message.
                 </Text>
             </View>
         );
@@ -320,20 +338,21 @@ const createStyles = (theme: typeof themeLight) =>
             flex: 1,
             backgroundColor: theme.colors.background,
         },
+        // ─── Intro modal ──────────────────────────────────────────────
         heroEyebrow: {
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: '700',
-            letterSpacing: 1,
+            letterSpacing: 1.5,
             textTransform: 'uppercase',
             color: theme.colors.textSecondary,
             marginBottom: 6,
         },
         heroTitle: {
-            fontSize: 24,
-            lineHeight: 30,
+            fontSize: 22,
+            lineHeight: 29,
             fontWeight: '700',
             color: theme.colors.text,
-            marginBottom: 6,
+            marginBottom: 8,
         },
         heroSubtitle: {
             fontSize: 14,
@@ -358,7 +377,7 @@ const createStyles = (theme: typeof themeLight) =>
         },
         introOverlay: {
             flex: 1,
-            backgroundColor: 'rgba(8,12,18,0.84)',
+            backgroundColor: 'rgba(8,12,18,0.88)',
             justifyContent: 'center',
             alignItems: 'center',
             paddingHorizontal: 20,
@@ -368,162 +387,226 @@ const createStyles = (theme: typeof themeLight) =>
         introCard: {
             width: '100%',
             borderRadius: 28,
-            padding: 22,
+            padding: 24,
             borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.16)',
+            borderColor: 'rgba(255,255,255,0.10)',
             overflow: 'hidden',
             backgroundColor: theme.colors.surface,
             shadowColor: '#000',
-            shadowOpacity: 0.3,
-            shadowRadius: 18,
-            shadowOffset: { width: 0, height: 10 },
-            elevation: 10,
+            shadowOpacity: 0.5,
+            shadowRadius: 28,
+            shadowOffset: { width: 0, height: 14 },
+            elevation: 16,
         },
         introHeader: {
             flexDirection: 'row',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: 10,
+            marginBottom: 12,
             backgroundColor: 'transparent',
         },
         introCloseButton: {
-            width: 34,
-            height: 34,
-            borderRadius: 17,
+            width: 32,
+            height: 32,
+            borderRadius: 16,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: 'rgba(255,255,255,0.82)',
+            backgroundColor: 'rgba(255,255,255,0.10)',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.14)',
         },
         introBodyText: {
             fontSize: 14,
-            lineHeight: 21,
+            lineHeight: 22,
             color: theme.colors.textSecondary,
-            marginBottom: 18,
+            marginBottom: 20,
         },
         introActionButton: {
             alignSelf: 'flex-start',
-            paddingHorizontal: 16,
+            paddingHorizontal: 20,
             paddingVertical: 12,
             borderRadius: 999,
             backgroundColor: theme.colors.accent,
+            shadowColor: theme.colors.accent,
+            shadowOpacity: 0.35,
+            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 4 },
         },
         introActionText: {
             color: '#fff',
             fontSize: 14,
             fontWeight: '700',
+            letterSpacing: 0.3,
         },
+        // ─── Empty / loading states ───────────────────────────────────
         centerContainer: {
             flex: 1,
             justifyContent: 'center',
             alignItems: 'center',
-            padding: 24,
+            paddingHorizontal: 36,
+            paddingBottom: 24,
             backgroundColor: theme.colors.background,
         },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: theme.colors.text,
-        marginTop: 16,
-        marginBottom: 8,
-    },
-    subtitle: {
-        fontSize: 16,
-        color: theme.colors.textSecondary,
-        textAlign: 'center',
-    },
-    listContent: {
-        paddingVertical: 8,
-        paddingBottom: 24,
-    },
-    conversationItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 16,
-        marginHorizontal: 16,
-        marginVertical: 8,
-        backgroundColor: theme.colors.surface,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: theme.colors.border,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-        elevation: 4,
-    },
-    avatar: {
-        width: 56,
-        height: 56,
-        borderRadius: 18,
-        marginRight: 14,
-        backgroundColor: theme.colors.surface,
-    },
-    conversationContent: {
-        flex: 1,
-        backgroundColor: 'transparent',
-    },
-    headerRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        backgroundColor: 'transparent',
-        alignItems: 'center',
-        marginBottom: 4,
-    },
-    nameAndBadgeRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        backgroundColor: 'transparent',
-    },
-    climberName: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: theme.colors.text,
-    },
-    matchTypeBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    datingBadge: {
-        backgroundColor: '#FF69B4' + '20',
-        borderWidth: 1,
-        borderColor: '#FF69B4' + '40',
-    },
-    partnerBadge: {
-        backgroundColor: '#4169E1' + '20',
-        borderWidth: 1,
-        borderColor: '#4169E1' + '40',
-    },
-    matchTypeBadgeText: {
-        fontSize: 12,
-        fontWeight: '600',
-        backgroundColor: 'transparent',
-    },
-    timestamp: {
-        fontSize: 12,
-        color: theme.colors.textSecondary,
-    },
-    lastMessage: {
-        fontSize: 14,
-        color: theme.colors.textSecondary,
-        lineHeight: 20,
-    },
-    unreadBadge: {
-        backgroundColor: theme.colors.accent,
-        borderRadius: 10,
-        minWidth: 20,
-        height: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 8,
-        paddingHorizontal: 6,
-    },
-    unreadText: {
-        color: theme.colors.background,
-        fontSize: 12,
-        fontWeight: '600',
-    },
-});
+        title: {
+            fontSize: 18,
+            fontWeight: '700',
+            color: theme.colors.text,
+            marginTop: 18,
+            marginBottom: 8,
+            letterSpacing: 0.2,
+            textAlign: 'center',
+        },
+        subtitle: {
+            fontSize: 14,
+            color: theme.colors.textSecondary,
+            textAlign: 'center',
+            lineHeight: 21,
+        },
+        // ─── List ─────────────────────────────────────────────────────
+        listContent: {
+            paddingTop: 10,
+            paddingBottom: 28,
+        },
+        // ─── Conversation row ─────────────────────────────────────────
+        conversationItem: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 14,
+            paddingVertical: 12,
+            marginHorizontal: 14,
+            marginVertical: 4,
+            backgroundColor: theme.colors.surface,
+            borderRadius: 18,
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.06)',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 6 },
+            shadowOpacity: 0.20,
+            shadowRadius: 14,
+            elevation: 6,
+        },
+        // ─── Avatar ───────────────────────────────────────────────────
+        avatarWrapper: {
+            position: 'relative',
+            width: 54,
+            height: 54,
+            marginRight: 13,
+        },
+        avatar: {
+            width: 54,
+            height: 54,
+            borderRadius: 17,
+            backgroundColor: theme.colors.background,
+            borderWidth: 1.5,
+            borderColor: 'rgba(255,255,255,0.08)',
+        },
+        avatarUnreadRing: {
+            position: 'absolute',
+            top: -2,
+            left: -2,
+            right: -2,
+            bottom: -2,
+            borderRadius: 19,
+            borderWidth: 2,
+            borderColor: theme.colors.accent,
+        },
+        unreadDot: {
+            position: 'absolute',
+            bottom: 0,
+            right: 0,
+            width: 13,
+            height: 13,
+            borderRadius: 6.5,
+            backgroundColor: theme.colors.accent,
+            borderWidth: 2,
+            borderColor: theme.colors.surface,
+        },
+        // ─── Text content ─────────────────────────────────────────────
+        conversationContent: {
+            flex: 1,
+            backgroundColor: 'transparent',
+        },
+        headerRow: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            backgroundColor: 'transparent',
+            alignItems: 'center',
+            marginBottom: 3,
+        },
+        nameAndBadgeRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 7,
+            backgroundColor: 'transparent',
+            flex: 1,
+            marginRight: 8,
+        },
+        climberName: {
+            fontSize: 15,
+            fontWeight: '700',
+            color: theme.colors.text,
+            letterSpacing: 0.1,
+        },
+        climberNameUnread: {
+            color: '#fff',
+        },
+        matchTypeBadge: {
+            paddingHorizontal: 6,
+            paddingVertical: 2,
+            borderRadius: 8,
+            justifyContent: 'center',
+            alignItems: 'center',
+        },
+        datingBadge: {
+            backgroundColor: 'rgba(255,46,99,0.15)',
+            borderWidth: 1,
+            borderColor: 'rgba(255,46,99,0.25)',
+        },
+        partnerBadge: {
+            backgroundColor: 'rgba(52,211,207,0.12)',
+            borderWidth: 1,
+            borderColor: 'rgba(52,211,207,0.22)',
+        },
+        matchTypeBadgeText: {
+            fontSize: 11,
+            backgroundColor: 'transparent',
+        },
+        timestamp: {
+            fontSize: 11,
+            color: theme.colors.textSecondary + 'AA',
+            letterSpacing: 0.1,
+        },
+        timestampUnread: {
+            color: theme.colors.accent,
+            fontWeight: '600',
+        },
+        lastMessage: {
+            fontSize: 13,
+            color: theme.colors.textSecondary,
+            lineHeight: 19,
+        },
+        lastMessageUnread: {
+            color: theme.colors.text,
+            fontWeight: '500',
+        },
+        // ─── Unread badge ─────────────────────────────────────────────
+        unreadBadge: {
+            backgroundColor: theme.colors.accent,
+            borderRadius: 10,
+            minWidth: 20,
+            height: 20,
+            justifyContent: 'center',
+            alignItems: 'center',
+            marginLeft: 8,
+            paddingHorizontal: 5,
+            shadowColor: theme.colors.accent,
+            shadowOpacity: 0.4,
+            shadowRadius: 6,
+            shadowOffset: { width: 0, height: 2 },
+        },
+        unreadText: {
+            color: '#fff',
+            fontSize: 11,
+            fontWeight: '700',
+        },
+    });

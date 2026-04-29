@@ -184,13 +184,15 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
 
           {/* Top gradient overlay */}
           <LinearGradient
-            colors={['rgba(0,0,0,0.35)', 'transparent']}
+            colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0.10)', 'transparent']}
+            locations={[0, 0.4, 1]}
             style={styles.topGradient}
           />
-          
+
           {/* Bottom gradient overlay */}
           <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.55)']}
+            colors={['transparent', 'rgba(0,0,0,0.30)', 'rgba(0,0,0,0.88)']}
+            locations={[0, 0.4, 1]}
             style={styles.gradientOverlay}
           />
 
@@ -263,7 +265,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               Animated.sequence([
-                Animated.spring(rejectScale, { toValue: 0.85, useNativeDriver: true, tension: 300, friction: 8 }),
+                Animated.spring(rejectScale, { toValue: 0.82, useNativeDriver: true, tension: 400, friction: 7 }),
                 Animated.spring(rejectScale, { toValue: 1, useNativeDriver: true, tension: 200, friction: 6 }),
               ]).start();
               setIsRejecting(true);
@@ -271,7 +273,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
               setTimeout(() => setIsRejecting(false), 300);
             }}
             style={[styles.button, styles.rejectButton]}>
-            <Ionicons name="close" size={28} color="#ef4444" />
+            <Ionicons name="close" size={30} color="#ef4444" />
           </Pressable>
         </Animated.View>
 
@@ -280,7 +282,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               Animated.sequence([
-                Animated.spring(acceptScale, { toValue: 0.85, useNativeDriver: true, tension: 300, friction: 8 }),
+                Animated.spring(acceptScale, { toValue: 0.82, useNativeDriver: true, tension: 400, friction: 7 }),
                 Animated.spring(acceptScale, { toValue: 1, useNativeDriver: true, tension: 200, friction: 6 }),
               ]).start();
               setIsAccepting(true);
@@ -288,7 +290,7 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
               setTimeout(() => setIsAccepting(false), 300);
             }}
             style={[styles.button, styles.acceptButton]}>
-            <Ionicons name="heart" size={28} color={theme.colors.success} />
+            <Ionicons name="heart" size={28} color="#ffffff" />
           </Pressable>
         </Animated.View>
       </View>
@@ -316,33 +318,33 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   cardShadow: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.42,
-    shadowRadius: 28,
-    elevation: 18,
+    shadowColor: '#FF2E63',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.22,
+    shadowRadius: 32,
+    elevation: 20,
   },
   card: {
-    borderRadius: 24,
+    borderRadius: 28,
     overflow: 'hidden',
     height: '100%',
     backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: 'rgba(255,46,99,0.18)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,46,99,0.22)',
   },
   topGradient: {
     position: 'absolute',
     left: 0,
     right: 0,
     top: 0,
-    height: '22%',
+    height: '28%',
   },
   gradientOverlay: {
     position: 'absolute',
     left: 0,
     right: 0,
     bottom: 0,
-    height: '38%',
+    height: '52%',
   },
 
   // ── Stamp overlays ───────────────────────────────────────────────────────────
@@ -360,23 +362,29 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '-12deg' }],
   },
   stampText: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '900',
     fontFamily: 'JosefinSans_400Regular',
-    letterSpacing: 3,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderWidth: 3,
-    borderRadius: 6,
+    letterSpacing: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderWidth: 3.5,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   stampLike: {
     color: '#1fde82',
     borderColor: '#1fde82',
+    textShadowColor: 'rgba(31,222,130,0.4)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
   },
   stampNope: {
     color: '#ff4458',
     borderColor: '#ff4458',
+    textShadowColor: 'rgba(255,68,88,0.4)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
   },
 
   // ── Info panel ───────────────────────────────────────────────────────────────
@@ -385,31 +393,33 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 18,
-    backgroundColor: 'rgba(6,6,8,0.82)',
+    paddingHorizontal: 18,
+    paddingTop: 24,
+    paddingBottom: 20,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    gap: 5,
+    gap: 6,
   },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: 8,
+    gap: 10,
   },
   name: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 26,
+    fontWeight: '800',
     fontFamily: 'CormorantGaramond_600SemiBold',
     color: '#ffffff',
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
     flexShrink: 1,
+    textShadowColor: 'rgba(0,0,0,0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   age: {
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: 'CormorantGaramond_600SemiBold',
-    color: 'rgba(255,255,255,0.75)',
+    color: 'rgba(255,255,255,0.82)',
     letterSpacing: 0.2,
   },
   metaRow: {
@@ -420,58 +430,78 @@ const styles = StyleSheet.create({
   gym: {
     fontSize: 12,
     fontFamily: 'JosefinSans_400Regular',
-    color: 'rgba(255,255,255,0.55)',
+    color: 'rgba(255,255,255,0.62)',
     flex: 1,
+    letterSpacing: 0.4,
   },
   distanceText: {
     fontSize: 11,
     fontFamily: 'JosefinSans_400Regular',
-    color: 'rgba(100,180,255,0.85)',
+    color: 'rgba(100,210,255,0.90)',
     marginLeft: 8,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   bioPreview: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.65)',
+    color: 'rgba(255,255,255,0.60)',
     lineHeight: 17,
     fontStyle: 'italic',
+    letterSpacing: 0.1,
   },
   badgesContainer: {
     flexDirection: 'row',
     gap: 6,
     flexWrap: 'nowrap',
-    marginTop: 2,
+    marginTop: 4,
   },
   badge: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 20,
   },
   styleBadge: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.14)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.25)',
+    borderColor: 'rgba(255,255,255,0.28)',
   },
   badgeText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
     fontFamily: 'JosefinSans_400Regular',
     color: '#ffffff',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   buttonContainer: {
-    display: 'none',
-  },
-  button: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    gap: 32,
+    paddingTop: 14,
+    paddingBottom: 4,
+  },
+  button: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
   },
   rejectButton: {
-    borderColor: theme.colors.error,
+    backgroundColor: 'rgba(35,22,22,0.95)',
+    borderWidth: 2,
+    borderColor: 'rgba(239,68,68,0.6)',
   },
   acceptButton: {
-    borderColor: theme.colors.success,
+    backgroundColor: '#FF2E63',
+    borderWidth: 2,
+    borderColor: 'rgba(255,46,99,0.7)',
   },
 });

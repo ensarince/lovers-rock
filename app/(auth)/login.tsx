@@ -15,10 +15,13 @@ import {
 } from 'react-native';
 import Animated, {
   Easing,
+  interpolate,
+  interpolateColor,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withSequence,
+  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 
@@ -73,6 +76,89 @@ function FloatingOrbs({ accent, teal }: { accent: string; teal: string }) {
   );
 }
 
+// Animated input with focus glow
+function AnimatedInput({
+  style,
+  containerStyle,
+  accentColor,
+  surfaceColor,
+  borderColor,
+  children,
+  focused,
+}: {
+  style?: object;
+  containerStyle?: object;
+  accentColor: string;
+  surfaceColor: string;
+  borderColor: string;
+  children: React.ReactNode;
+  focused: boolean;
+}) {
+  const focus = useSharedValue(0);
+
+  useEffect(() => {
+    focus.value = withTiming(focused ? 1 : 0, { duration: 200 });
+  }, [focused]);
+
+  const animBorder = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(focus.value, [0, 1], [borderColor, accentColor]),
+    shadowOpacity: interpolate(focus.value, [0, 1], [0, 0.35]),
+    shadowColor: accentColor,
+    shadowRadius: interpolate(focus.value, [0, 1], [0, 10]),
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        {
+          backgroundColor: surfaceColor,
+          borderRadius: 14,
+          borderWidth: 1.5,
+          shadowOffset: { width: 0, height: 0 },
+          elevation: 0,
+        },
+        containerStyle,
+        animBorder,
+      ]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+// Press-scale animated button
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function ScaleButton({
+  onPress,
+  disabled,
+  style,
+  children,
+}: {
+  onPress: () => void;
+  disabled?: boolean;
+  style?: object;
+  children: React.ReactNode;
+}) {
+  const scale = useSharedValue(1);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <AnimatedPressable
+      onPressIn={() => { scale.value = withSpring(0.96, { damping: 15, stiffness: 300 }); }}
+      onPressOut={() => { scale.value = withSpring(1, { damping: 12, stiffness: 200 }); }}
+      onPress={onPress}
+      disabled={disabled}
+      style={[animStyle, style]}
+    >
+      {children}
+    </AnimatedPressable>
+  );
+}
+
 export default function LoginScreen() {
   const { login, register, loginWithGoogle, isLoading, darkMode } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
@@ -85,6 +171,7 @@ export default function LoginScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
   const [verificationStep, setVerificationStep] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -165,26 +252,41 @@ export default function LoginScreen() {
   return (
     <View style={styles.container}>
       <FloatingOrbs accent={theme.colors.accent} teal={theme.colors.edit} />
+
+      {/* Header — logo with accent ring + spaced title */}
       <View style={styles.headerMinimal}>
-        <Image
-          source={require('../../assets/images/logo.jpg')}
-          style={{ width: 128, height: 128 }}
-          resizeMode="cover"
-        />
-        <Text style={styles.titleMinimal}>Take!</Text>
+        <View style={styles.logoRing}>
+          <Image
+            source={require('../../assets/images/logo.jpg')}
+            style={styles.logoImage}
+            resizeMode="cover"
+          />
+        </View>
+        <Text style={styles.titleMinimal}>
+          Take<Text style={styles.titleAccent}>!</Text>
+        </Text>
+        <Text style={styles.tagline}>find your climbing partner</Text>
       </View>
 
       {verificationStep ? (
         // Email Verification Screen
         <View style={styles.formMinimal}>
+          <View style={styles.verificationIconRow}>
+            <Ionicons name="mail-outline" size={36} color={theme.colors.accent} />
+          </View>
           <Text style={styles.verificationTitleMinimal}>Check Your Email</Text>
           <Text style={styles.verificationSubtitleMinimal}>
-            We've sent a verification link to {email}. Click the link in the email to verify your account.
+            We sent a link to{'\n'}<Text style={styles.verificationEmail}>{email}</Text>
           </Text>
 
-          {error && <Text style={styles.errorMinimal}>{error}</Text>}
+          {error && (
+            <View style={styles.errorPill}>
+              <Ionicons name="alert-circle-outline" size={14} color={theme.colors.error} style={{ marginRight: 6 }} />
+              <Text style={styles.errorMinimal}>{error}</Text>
+            </View>
+          )}
 
-          <Pressable
+          <ScaleButton
             style={styles.buttonMinimal}
             onPress={() => {
               setVerificationStep(false);
@@ -195,78 +297,108 @@ export default function LoginScreen() {
               setError(null);
             }}>
             <Text style={styles.buttonTextMinimal}>Back to Login</Text>
-          </Pressable>
+          </ScaleButton>
 
           <Text style={styles.verificationInfoMinimal}>
-            Once you've verified your email, return here and log in with your credentials.
+            Once verified, return here and log in with your credentials.
           </Text>
         </View>
       ) : (
         // Login/Signup Screen
         <View style={styles.formMinimal}>
-        {error && <Text style={styles.errorMinimal}>{error}</Text>}
+          {error && (
+            <View style={styles.errorPill}>
+              <Ionicons name="alert-circle-outline" size={14} color={theme.colors.error} style={{ marginRight: 6 }} />
+              <Text style={styles.errorMinimal}>{error}</Text>
+            </View>
+          )}
 
-        <TextInput
-          style={styles.inputMinimal}
-          placeholder="Email"
-          placeholderTextColor={theme.colors.textSecondary}
-          value={email}
-          onChangeText={setEmail}
-          editable={!isLoading}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-
-        <View style={styles.passwordContainerMinimal}>
-          <TextInput
-            style={styles.passwordInputMinimal}
-            placeholder="Password"
-            placeholderTextColor={theme.colors.textSecondary}
-            value={password}
-            onChangeText={setPassword}
-            editable={!isLoading}
-            secureTextEntry={!showPassword}
-          />
-          <Pressable onPress={() => setShowPassword(!showPassword)}>
-            <Ionicons
-              name={showPassword ? 'eye' : 'eye-off'}
-              size={20}
-              color={theme.colors.textSecondary}
+          <AnimatedInput
+            accentColor={theme.colors.accent}
+            surfaceColor={theme.colors.surface}
+            borderColor={theme.colors.border}
+            focused={focusedField === 'email'}
+          >
+            <TextInput
+              style={styles.inputMinimal}
+              placeholder="Email"
+              placeholderTextColor={theme.colors.textSecondary}
+              value={email}
+              onChangeText={setEmail}
+              editable={!isLoading}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              onFocus={() => setFocusedField('email')}
+              onBlur={() => setFocusedField(null)}
             />
-          </Pressable>
-        </View>
+          </AnimatedInput>
 
-        {isSignup && (
-          <View style={styles.passwordContainerMinimal}>
+          <AnimatedInput
+            accentColor={theme.colors.accent}
+            surfaceColor={theme.colors.surface}
+            borderColor={theme.colors.border}
+            focused={focusedField === 'password'}
+            containerStyle={styles.passwordContainerMinimal}
+          >
             <TextInput
               style={styles.passwordInputMinimal}
-              placeholder="Confirm Password"
+              placeholder="Password"
               placeholderTextColor={theme.colors.textSecondary}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
+              value={password}
+              onChangeText={setPassword}
               editable={!isLoading}
-              secureTextEntry={!showConfirmPassword}
+              secureTextEntry={!showPassword}
+              onFocus={() => setFocusedField('password')}
+              onBlur={() => setFocusedField(null)}
             />
-            <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+            <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeButton}>
               <Ionicons
-                name={showConfirmPassword ? 'eye' : 'eye-off'}
+                name={showPassword ? 'eye' : 'eye-off'}
                 size={20}
-                color={theme.colors.textSecondary}
+                color={focusedField === 'password' ? theme.colors.accent : theme.colors.textSecondary}
               />
             </Pressable>
-          </View>
-        )}
+          </AnimatedInput>
 
-        <Pressable
-          style={[styles.buttonMinimal, isLoading && styles.buttonDisabledMinimal]}
-          onPress={isSignup ? handleSignup : handleLogin}
-          disabled={isLoading}>
-          {isLoading ? (
-            <ActivityIndicator color={theme.colors.text} />
-          ) : (
-            <Text style={styles.buttonTextMinimal}>{isSignup ? 'Sign Up' : 'Login'}</Text>
+          {isSignup && (
+            <AnimatedInput
+              accentColor={theme.colors.accent}
+              surfaceColor={theme.colors.surface}
+              borderColor={theme.colors.border}
+              focused={focusedField === 'confirm'}
+              containerStyle={styles.passwordContainerMinimal}
+            >
+              <TextInput
+                style={styles.passwordInputMinimal}
+                placeholder="Confirm Password"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                editable={!isLoading}
+                secureTextEntry={!showConfirmPassword}
+                onFocus={() => setFocusedField('confirm')}
+                onBlur={() => setFocusedField(null)}
+              />
+              <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeButton}>
+                <Ionicons
+                  name={showConfirmPassword ? 'eye' : 'eye-off'}
+                  size={20}
+                  color={focusedField === 'confirm' ? theme.colors.accent : theme.colors.textSecondary}
+                />
+              </Pressable>
+            </AnimatedInput>
           )}
-        </Pressable>
+
+          <ScaleButton
+            style={[styles.buttonMinimal, isLoading && styles.buttonDisabledMinimal]}
+            onPress={isSignup ? handleSignup : handleLogin}
+            disabled={isLoading}>
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonTextMinimal}>{isSignup ? 'CREATE ACCOUNT' : 'SIGN IN'}</Text>
+            )}
+          </ScaleButton>
         </View>
       )}
 
@@ -274,19 +406,21 @@ export default function LoginScreen() {
         <>
           <View style={styles.dividerMinimal}>
             <View style={styles.lineMinimal} />
-            <Text style={styles.dividerTextMinimal}>or</Text>
+            <Text style={styles.dividerTextMinimal}>OR</Text>
             <View style={styles.lineMinimal} />
           </View>
 
-          <Pressable
+          <ScaleButton
             style={[styles.googleButtonMinimal, isLoading && styles.buttonDisabledMinimal]}
             onPress={handleGoogleAuth}
             disabled={isLoading}>
-            <Ionicons name="logo-google" size={20} color={theme.colors.text} />
+            <View style={styles.googleIconWrap}>
+              <Ionicons name="logo-google" size={18} color="#fff" />
+            </View>
             <Text style={styles.googleButtonTextMinimal}>
-              {isSignup ? 'Sign Up' : 'Login'} with Google
+              Continue with Google
             </Text>
-          </Pressable>
+          </ScaleButton>
 
           <Pressable onPress={() => {
             setIsSignup(!isSignup);
@@ -294,7 +428,10 @@ export default function LoginScreen() {
             setConfirmPassword('');
           }}>
             <Text style={styles.footerMinimal}>
-              {isSignup ? 'Already have an account? Login' : "Don't have an account? Sign up"}
+              {isSignup
+                ? <>Already have an account? <Text style={styles.footerAccent}>Sign in</Text></>
+                : <>New here? <Text style={styles.footerAccent}>Create account</Text></>
+              }
             </Text>
           </Pressable>
         </>
@@ -305,154 +442,231 @@ export default function LoginScreen() {
 
 const createStyles = (theme: typeof themeLight) =>
   StyleSheet.create({
-    verificationTitleMinimal: {
-      fontSize: 20,
+    // ─── Layout ───────────────────────────────────────────────────────────────
+    container: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingHorizontal: 28,
+      paddingVertical: 0,
+      backgroundColor: theme.colors.background,
+      overflow: 'hidden',
+    },
+
+    // ─── Header ───────────────────────────────────────────────────────────────
+    headerMinimal: {
+      alignItems: 'center',
+      marginBottom: 36,
+      gap: 0,
+      backgroundColor: 'transparent',
+    },
+    logoRing: {
+      width: 112,
+      height: 112,
+      borderRadius: 56,
+      borderWidth: 2.5,
+      borderColor: theme.colors.accent,
+      overflow: 'hidden',
+      marginBottom: 16,
+      // subtle glow
+      shadowColor: theme.colors.accent,
+      shadowOpacity: 0.45,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 0 },
+      elevation: 8,
+    },
+    logoImage: {
+      width: '100%',
+      height: '100%',
+    },
+    titleMinimal: {
+      fontSize: 42,
       fontWeight: '700',
+      fontFamily: 'CormorantGaramond_700Bold',
       color: theme.colors.text,
-      marginBottom: 8,
+      letterSpacing: 2,
+      lineHeight: 48,
+      includeFontPadding: false,
+    },
+    titleAccent: {
+      color: theme.colors.accent,
+    },
+    tagline: {
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      letterSpacing: 3,
+      textTransform: 'uppercase',
+      marginTop: 6,
+      fontWeight: '500',
+      opacity: 0.7,
+    },
+
+    // ─── Form ─────────────────────────────────────────────────────────────────
+    formMinimal: {
+      gap: 14,
+      marginBottom: 0,
+      backgroundColor: 'transparent',
+    },
+    // Inner TextInput inside AnimatedInput wrapper — no bg/border here
+    inputMinimal: {
+      paddingHorizontal: 16,
+      paddingVertical: 15,
+      color: theme.colors.text,
+      fontSize: 15,
+      letterSpacing: 0.2,
+    },
+    // Password row (flex) — sits inside AnimatedInput wrapper
+    passwordContainerMinimal: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+    },
+    passwordInputMinimal: {
+      flex: 1,
+      paddingVertical: 15,
+      color: theme.colors.text,
+      fontSize: 15,
+      letterSpacing: 0.2,
+    },
+    eyeButton: {
+      paddingLeft: 10,
+      paddingVertical: 4,
+    },
+
+    // ─── Error pill ──────────────────────────────────────────────────────────
+    errorPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(255,46,99,0.10)',
+      borderLeftWidth: 3,
+      borderLeftColor: theme.colors.error,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    errorMinimal: {
+      color: theme.colors.error,
+      fontSize: 13,
+      flex: 1,
+      lineHeight: 18,
+    },
+
+    // ─── Primary CTA button ──────────────────────────────────────────────────
+    buttonMinimal: {
+      backgroundColor: theme.colors.accent,
+      borderRadius: 14,
+      paddingVertical: 16,
+      alignItems: 'center',
+      marginTop: 4,
+      shadowColor: theme.colors.accent,
+      shadowOpacity: 0.4,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 6,
+    },
+    buttonDisabledMinimal: {
+      opacity: 0.45,
+    },
+    buttonTextMinimal: {
+      color: '#fff',
+      fontWeight: '800',
+      fontSize: 13,
+      letterSpacing: 2.5,
+    },
+
+    // ─── Divider ─────────────────────────────────────────────────────────────
+    dividerMinimal: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginTop: 22,
+      marginBottom: 16,
+      backgroundColor: 'transparent',
+    },
+    lineMinimal: {
+      flex: 1,
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: theme.colors.border,
+      opacity: 0.6,
+    },
+    dividerTextMinimal: {
+      color: theme.colors.textSecondary,
+      fontSize: 11,
+      fontWeight: '700',
+      letterSpacing: 2,
+      opacity: 0.5,
+    },
+
+    // ─── Google button ───────────────────────────────────────────────────────
+    googleButtonMinimal: {
+      flexDirection: 'row',
+      backgroundColor: 'transparent',
+      borderRadius: 14,
+      paddingVertical: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+      borderWidth: 1.5,
+      borderColor: theme.colors.border,
+    },
+    googleIconWrap: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+      backgroundColor: 'rgba(255,255,255,0.10)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    googleButtonTextMinimal: {
+      color: theme.colors.text,
+      fontWeight: '600',
+      fontSize: 14,
+      letterSpacing: 0.3,
+    },
+
+    // ─── Footer toggle ────────────────────────────────────────────────────────
+    footerMinimal: {
       textAlign: 'center',
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      marginTop: 18,
+      fontWeight: '400',
+    },
+    footerAccent: {
+      color: theme.colors.accent,
+      fontWeight: '700',
+    },
+
+    // ─── Verification screen ─────────────────────────────────────────────────
+    verificationIconRow: {
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    verificationTitleMinimal: {
+      fontSize: 22,
+      fontWeight: '700',
+      fontFamily: 'CormorantGaramond_700Bold',
+      color: theme.colors.text,
+      marginBottom: 10,
+      textAlign: 'center',
+      letterSpacing: 0.5,
     },
     verificationSubtitleMinimal: {
       fontSize: 14,
       color: theme.colors.textSecondary,
       textAlign: 'center',
       marginBottom: 24,
-      lineHeight: 20,
+      lineHeight: 22,
+    },
+    verificationEmail: {
+      color: theme.colors.edit,
+      fontWeight: '600',
     },
     verificationInfoMinimal: {
       fontSize: 12,
       color: theme.colors.textSecondary,
       textAlign: 'center',
-      marginBottom: 16,
-      fontStyle: 'italic',
-      opacity: 0.8,
-    },
-    container: {
-      flex: 1,
-      justifyContent: 'center',
-      paddingHorizontal: 24,
-      paddingVertical: 0,
-      backgroundColor: theme.colors.background,
-      overflow: 'hidden',
-    },
-    headerMinimal: {
-      alignItems: 'center',
-      marginBottom: 32,
-      gap: 8,
-      backgroundColor: "transparent"
-    },
-    titleMinimal: {
-      fontSize: 34,
-      fontWeight: '700',
-      fontFamily: 'CormorantGaramond_700Bold',
-      color: theme.colors.text,
-      letterSpacing: 1.5,
-      marginTop: 8,
-    },
-    formMinimal: {
-      gap: 18,
-      marginBottom: 0,
-      backgroundColor: "transparent"
-    },
-    errorMinimal: {
-      color: theme.colors.error,
-      fontSize: 14,
-      textAlign: 'center',
-      marginBottom: 8,
-    },
-    inputMinimal: {
-      backgroundColor: theme.colors.surface,
-      borderWidth: 0,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      color: theme.colors.text,
-      fontSize: 15,
-      marginBottom: 4,
-      shadowColor: '#000',
-      shadowOpacity: 0.04,
-      shadowRadius: 2,
-      elevation: 1,
-    },
-    passwordContainerMinimal: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: theme.colors.surface,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      marginBottom: 4,
-      shadowColor: '#000',
-      shadowOpacity: 0.04,
-      shadowRadius: 2,
-      elevation: 1,
-    },
-    passwordInputMinimal: {
-      flex: 1,
-      paddingVertical: 14,
-      color: theme.colors.text,
-      fontSize: 15,
-    },
-    buttonMinimal: {
-      backgroundColor: theme.colors.accent,
-      borderRadius: 12,
-      paddingVertical: 14,
-      alignItems: 'center',
-      marginTop: 0,
-      shadowColor: theme.colors.accent,
-      shadowOpacity: 0.15,
-      shadowRadius: 8,
-      elevation: 2,
-    },
-    buttonDisabledMinimal: {
-      opacity: 0.5,
-    },
-    buttonTextMinimal: {
-      color: theme.colors.text,
-      fontWeight: '700',
-      fontSize: 16,
-      letterSpacing: 1.1,
-    },
-    dividerMinimal: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
-      marginTop: 18,
-      marginBottom: 18,
-      backgroundColor: "transparent"
-    },
-    lineMinimal: {
-      flex: 1,
-      height: 1,
-      backgroundColor: theme.colors.border,
-    },
-    dividerTextMinimal: {
-      color: theme.colors.textSecondary,
-      fontSize: 12,
-      fontWeight: '500',
-    },
-    googleButtonMinimal: {
-      flexDirection: 'row',
-      backgroundColor: theme.colors.surface,
-      borderRadius: 12,
-      paddingVertical: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
-      marginBottom: 0,
-    },
-    googleButtonTextMinimal: {
-      color: theme.colors.text,
-      fontWeight: '600',
-      fontSize: 15,
-      marginLeft: 8,
-    },
-    footerMinimal: {
-      textAlign: 'center',
-      color: theme.colors.textSecondary,
-      fontSize: 14,
-      marginTop: 14,
-      fontWeight: '500',
+      marginTop: 16,
+      lineHeight: 18,
+      opacity: 0.65,
     },
   });

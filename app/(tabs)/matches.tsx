@@ -444,7 +444,14 @@ export default function MatchesScreen() {
   if (!isProfileComplete) {
     return (
       <View style={styles.centerContainer}>
-        <Ionicons name="alert-circle" size={64} color={theme.colors.accent} />
+        <View style={{
+          width: 80, height: 80, borderRadius: 40,
+          backgroundColor: theme.colors.accent + '12',
+          borderWidth: 1, borderColor: theme.colors.accent + '30',
+          justifyContent: 'center', alignItems: 'center',
+        }}>
+          <Ionicons name="alert-circle" size={36} color={theme.colors.accent} />
+        </View>
         <Text style={styles.emptyTitle}>Complete your profile</Text>
         <Text style={styles.emptySubtitle}>
           Please fill out your profile before viewing matches.
@@ -457,7 +464,14 @@ export default function MatchesScreen() {
   if (!hasDatingIntent && !hasPartnerIntent) {
     return (
       <View style={styles.centerContainerMinimal}>
-        <Ionicons name="alert-circle" size={44} color={theme.colors.border} style={{ padding: 8 }} />
+        <View style={{
+          width: 72, height: 72, borderRadius: 36,
+          backgroundColor: 'rgba(255,255,255,0.04)',
+          borderWidth: 1, borderColor: theme.colors.border,
+          justifyContent: 'center', alignItems: 'center',
+        }}>
+          <Ionicons name="alert-circle" size={32} color={theme.colors.textSecondary} />
+        </View>
         <Text style={styles.titleMinimal}>No intents enabled</Text>
         <Text style={styles.subtitleMinimal}>
           Enable Dating or Climbing Partner in your profile to see matches.
@@ -470,7 +484,14 @@ export default function MatchesScreen() {
   if (filteredContent.length === 0 && !datingLikedHint && (showOnlyDating || showOnlyPartner)) {
     return (
       <View style={styles.centerContainerMinimal}>
-        <Ionicons name="heart-outline" size={44} color={theme.colors.textSecondary} style={{ padding: 8 }} />
+        <View style={{
+          width: 72, height: 72, borderRadius: 36,
+          backgroundColor: 'rgba(255,255,255,0.04)',
+          borderWidth: 1, borderColor: theme.colors.border,
+          justifyContent: 'center', alignItems: 'center',
+        }}>
+          <Ionicons name="heart-outline" size={32} color={theme.colors.textSecondary} />
+        </View>
         <Text style={styles.titleMinimal}>No matches yet</Text>
         <Text style={styles.subtitleMinimal}>
           Go discover climbers you like!
@@ -533,7 +554,14 @@ export default function MatchesScreen() {
       {/* Content */}
       {filteredContent.length === 0 ? (
         <View style={styles.emptyStateContainer}>
-          <Ionicons name="heart-outline" size={44} color={theme.colors.textSecondary} style={{ padding: 8 }} />
+          <View style={{
+            width: 72, height: 72, borderRadius: 36,
+            backgroundColor: 'rgba(255,255,255,0.04)',
+            borderWidth: 1, borderColor: theme.colors.border,
+            justifyContent: 'center', alignItems: 'center',
+          }}>
+            <Ionicons name="heart-outline" size={32} color={theme.colors.textSecondary} />
+          </View>
           <Text style={styles.titleMinimal}>No {activeFilter === 'requests' ? 'requests' : activeFilter === 'dating' ? 'dating matches' : activeFilter === 'partner' ? 'climbing partner matches' : 'matches'} yet</Text>
           <Text style={styles.subtitleMinimal}>
             Go discover climbers you like!
@@ -656,9 +684,9 @@ const createStyles = (theme: typeof themeLight) =>
       backgroundColor: 'transparent',
     },
     heroEyebrow: {
-      fontSize: 12,
+      fontSize: 11,
       fontWeight: '700',
-      letterSpacing: 1,
+      letterSpacing: 1.5,
       textTransform: 'uppercase',
       color: theme.colors.textSecondary,
       marginBottom: 6,
@@ -693,7 +721,7 @@ const createStyles = (theme: typeof themeLight) =>
     },
     introOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(8,12,18,0.84)',
+      backgroundColor: 'rgba(8,12,18,0.88)',
       justifyContent: 'center',
       alignItems: 'center',
       paddingHorizontal: 20,
@@ -703,49 +731,56 @@ const createStyles = (theme: typeof themeLight) =>
     introCard: {
       width: '100%',
       borderRadius: 28,
-      padding: 22,
+      padding: 24,
       borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.16)',
+      borderColor: 'rgba(255,255,255,0.12)',
       overflow: 'hidden',
       backgroundColor: theme.colors.surface,
       shadowColor: '#000',
-      shadowOpacity: 0.3,
-      shadowRadius: 18,
-      shadowOffset: { width: 0, height: 10 },
-      elevation: 10,
+      shadowOpacity: 0.5,
+      shadowRadius: 28,
+      shadowOffset: { width: 0, height: 14 },
+      elevation: 16,
     },
     introHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 10,
+      marginBottom: 12,
       backgroundColor: 'transparent',
     },
     introCloseButton: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: 'rgba(255,255,255,0.82)',
+      backgroundColor: 'rgba(255,255,255,0.10)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.14)',
     },
     introBodyText: {
       fontSize: 14,
-      lineHeight: 21,
+      lineHeight: 22,
       color: theme.colors.textSecondary,
-      marginBottom: 18,
+      marginBottom: 20,
     },
     introActionButton: {
       alignSelf: 'flex-start',
-      paddingHorizontal: 16,
+      paddingHorizontal: 20,
       paddingVertical: 12,
       borderRadius: 999,
       backgroundColor: theme.colors.accent,
+      shadowColor: theme.colors.accent,
+      shadowOpacity: 0.35,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
     },
     introActionText: {
       color: '#fff',
       fontSize: 14,
       fontWeight: '700',
+      letterSpacing: 0.3,
     },
     centerContainerMinimal: {
       flex: 1,
@@ -765,94 +800,114 @@ const createStyles = (theme: typeof themeLight) =>
       justifyContent: 'center',
       alignItems: 'center',
       backgroundColor: theme.colors.background,
+      paddingHorizontal: 32,
     },
+    // ─── Filter pill bar ──────────────────────────────────────────
     chipContainer: {
       backgroundColor: theme.colors.background,
-      maxHeight: 60,
+      maxHeight: 58,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border + '60',
     },
     chipContent: {
       paddingHorizontal: 16,
       paddingTop: 10,
       paddingBottom: 10,
-      gap: 8,
+      gap: 7,
+      alignItems: 'center',
     },
     chip: {
-      paddingHorizontal: 16,
-      paddingVertical: 9,
-      borderRadius: 20,
-      backgroundColor: theme.colors.surface,
+      paddingHorizontal: 15,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: 'transparent',
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
     chipActive: {
       backgroundColor: theme.colors.accent,
       borderColor: theme.colors.accent,
+      shadowColor: theme.colors.accent,
+      shadowOpacity: 0.30,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 4,
     },
     chipText: {
       fontSize: 12,
       fontWeight: '600',
-      color: theme.colors.text,
+      color: theme.colors.textSecondary,
+      letterSpacing: 0.2,
     },
     chipTextActive: {
       color: '#fff',
+      fontWeight: '700',
     },
     listContent: {
-      paddingTop: 2,
-      paddingBottom: 24,
+      paddingTop: 6,
+      paddingBottom: 28,
     },
+    // ─── Match card ───────────────────────────────────────────────
     matchCardMinimal: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: theme.colors.surface,
-      marginHorizontal: 16,
-      marginVertical: 8,
-      borderRadius: 20,
-      overflow: 'hidden',
-      padding: 14,
+      marginHorizontal: 14,
+      marginVertical: 5,
+      borderRadius: 18,
+      padding: 13,
       shadowColor: '#000',
-      shadowOpacity: 0.06,
-      shadowRadius: 10,
-      shadowOffset: { width: 0, height: 4 },
-      elevation: 4,
+      shadowOpacity: 0.18,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 6,
       borderWidth: 1,
-      borderColor: theme.colors.border,
+      borderColor: 'rgba(255,255,255,0.06)',
     },
+    // ─── Partner request card ─────────────────────────────────────
     requestCardMinimal: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: theme.colors.accent + '15',
-      marginHorizontal: 16,
-      marginVertical: 8,
-      borderRadius: 20,
-      overflow: 'hidden',
-      padding: 14,
+      backgroundColor: 'rgba(52,211,207,0.07)',
+      marginHorizontal: 14,
+      marginVertical: 5,
+      borderRadius: 18,
+      padding: 13,
       borderWidth: 1,
-      borderColor: theme.colors.accent + '30',
+      borderColor: 'rgba(52,211,207,0.20)',
+      shadowColor: '#34D3CF',
+      shadowOpacity: 0.08,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 3,
     },
+    // ─── Dating liked hint ────────────────────────────────────────
     datingLikedHintCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: '#D4AF3720',
-      marginHorizontal: 16,
-      marginVertical: 8,
-      marginTop: 4,
-      borderRadius: 20,
-      overflow: 'hidden',
-      padding: 14,
-      borderWidth: 1.5,
-      borderColor: '#D4AF3740',
+      backgroundColor: 'rgba(212,175,55,0.10)',
+      marginHorizontal: 14,
+      marginVertical: 5,
+      marginTop: 8,
+      borderRadius: 18,
+      padding: 13,
+      borderWidth: 1,
+      borderColor: 'rgba(212,175,55,0.25)',
     },
+    // ─── Avatars ──────────────────────────────────────────────────
     matchImageMinimal: {
-      width: 72,
-      height: 72,
-      borderRadius: 22,
-      marginRight: 14,
+      width: 68,
+      height: 68,
+      borderRadius: 20,
+      marginRight: 13,
+      borderWidth: 2,
+      borderColor: 'rgba(255,255,255,0.08)',
     },
     imageContainer: {
       position: 'relative',
-      width: 72,
-      height: 72,
-      marginRight: 14,
+      width: 68,
+      height: 68,
+      marginRight: 13,
     },
     viewProfileOverlay: {
       position: 'absolute',
@@ -860,8 +915,8 @@ const createStyles = (theme: typeof themeLight) =>
       left: 0,
       right: 0,
       bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      borderRadius: 35,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      borderRadius: 20,
       justifyContent: 'center',
       alignItems: 'center',
       flexDirection: 'row',
@@ -869,77 +924,89 @@ const createStyles = (theme: typeof themeLight) =>
     viewProfileText: {
       color: '#fff',
       fontSize: 10,
-      width: "50%",
+      width: '50%',
       textAlign: 'center',
-      fontWeight: '600',
+      fontWeight: '700',
+      letterSpacing: 0.2,
     },
     hintImage: {
-      width: 70,
-      height: 70,
-      borderRadius: 35,
-      marginRight: 14,
-      filter: 'blur(5px)',
+      width: 68,
+      height: 68,
+      borderRadius: 20,
+      marginRight: 13,
+      opacity: 0.2,
     },
+    // ─── Card text ────────────────────────────────────────────────
     matchInfoMinimal: {
       flex: 1,
-      backgroundColor: "transparent"
+      backgroundColor: 'transparent',
     },
     matchHeaderMinimal: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
       marginBottom: 2,
-      backgroundColor: "transparent"
+      backgroundColor: 'transparent',
     },
     matchNameMinimal: {
-      fontSize: 16,
+      fontSize: 15,
       fontWeight: '700',
       color: theme.colors.text,
+      letterSpacing: 0.1,
     },
     matchGymMinimal: {
       fontSize: 12,
       color: theme.colors.textSecondary,
       marginTop: 2,
+      letterSpacing: 0.1,
     },
     requestBadge: {
       fontSize: 11,
-      color: theme.colors.accent,
-      fontWeight: '600',
+      color: '#34D3CF',
+      fontWeight: '700',
       marginTop: 6,
+      letterSpacing: 0.3,
+      textTransform: 'uppercase',
     },
+    // ─── Request action buttons ───────────────────────────────────
     requestActions: {
       marginLeft: 8,
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: "transparent",
+      backgroundColor: 'transparent',
       gap: 4,
     },
     requestButtonsContainer: {
       flexDirection: 'column',
       gap: 6,
-      backgroundColor: "transparent",
+      backgroundColor: 'transparent',
     },
     acceptButton: {
       backgroundColor: theme.colors.accent,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 8,
-      minWidth: 70,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderRadius: 10,
+      minWidth: 74,
       alignItems: 'center',
+      shadowColor: theme.colors.accent,
+      shadowOpacity: 0.28,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
     },
     acceptButtonText: {
       color: '#fff',
-      fontWeight: '600',
+      fontWeight: '700',
       fontSize: 12,
+      letterSpacing: 0.2,
     },
     declineButton: {
       backgroundColor: 'transparent',
       borderWidth: 1,
-      borderColor: theme.colors.textSecondary,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 8,
-      minWidth: 70,
+      borderColor: theme.colors.border,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderRadius: 10,
+      minWidth: 74,
       alignItems: 'center',
     },
     declineButtonText: {
@@ -947,24 +1014,36 @@ const createStyles = (theme: typeof themeLight) =>
       fontWeight: '600',
       fontSize: 12,
     },
+    // ─── Menu / overflow ──────────────────────────────────────────
     menuIconContainer: {
-      padding: 8,
-      marginLeft: 8,
-      borderRadius: 999,
+      width: 34,
+      height: 34,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginLeft: 4,
+      borderRadius: 17,
+      backgroundColor: 'rgba(255,255,255,0.05)',
     },
     menuIconContainerSmall: {
-      padding: 6,
+      width: 30,
+      height: 30,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: 15,
     },
+    // ─── Hint card text ───────────────────────────────────────────
     datingLikedHintLabel: {
       fontSize: 15,
       fontWeight: '700',
       color: '#D4AF37',
+      letterSpacing: 0.1,
     },
     datingLikedHintSubtext: {
       fontSize: 12,
-      color: '#D4AF37CC',
-      marginTop: 2,
+      color: 'rgba(212,175,55,0.75)',
+      marginTop: 3,
     },
+    // ─── Unread badge (matches context) ──────────────────────────
     unreadBadgeMinimal: {
       backgroundColor: theme.colors.accent,
       borderRadius: 10,
@@ -975,43 +1054,52 @@ const createStyles = (theme: typeof themeLight) =>
       marginLeft: 8,
     },
     unreadTextMinimal: {
-      color: theme.colors.text,
-      fontSize: 12,
+      color: '#fff',
+      fontSize: 11,
       fontWeight: '700',
     },
+    // ─── Match card body text ─────────────────────────────────────
     messagePreviewMinimal: {
       fontSize: 13,
       color: theme.colors.textSecondary,
-      marginBottom: 6,
+      marginBottom: 5,
+      lineHeight: 18,
     },
     matchedTimeMinimal: {
       fontSize: 11,
-      color: theme.colors.textSecondary,
+      color: theme.colors.textSecondary + 'AA',
+      letterSpacing: 0.1,
     },
+    // ─── Empty / error states ─────────────────────────────────────
     titleMinimal: {
-      fontSize: 18,
+      fontSize: 17,
       fontWeight: '700',
       marginBottom: 6,
-      marginTop: 10,
+      marginTop: 14,
       color: theme.colors.text,
-      letterSpacing: 1.1,
+      letterSpacing: 0.2,
+      textAlign: 'center',
     },
     subtitleMinimal: {
       fontSize: 13,
       color: theme.colors.textSecondary,
+      textAlign: 'center',
+      lineHeight: 20,
     },
     emptyTitle: {
-      fontSize: 18,
+      fontSize: 17,
       fontWeight: '700',
       marginBottom: 6,
       color: theme.colors.text,
       textAlign: 'center',
+      letterSpacing: 0.2,
     },
     emptySubtitle: {
       fontSize: 14,
       color: theme.colors.textSecondary,
       textAlign: 'center',
       marginTop: 4,
+      lineHeight: 21,
     },
     emptyDecoration: {
       width: 80,

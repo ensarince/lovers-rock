@@ -779,10 +779,14 @@ export default function DiscoverScreen() {
 
       {/* Mode Toggle - Show only if user has both intents */}
       {hasDatingIntent && hasPartnerIntent && (
-        <View style={[styles.toggleContainer, { borderColor: modeColors.accentSoft }]}>
+        <View style={styles.toggleContainer}>
           <View style={styles.segmentedToggle}>
             <Pressable
-              style={[styles.segmentButton, isDatingMode && styles.segmentButtonActive, isDatingMode && { backgroundColor: modeColors.accent }]}
+              style={[
+                styles.segmentButton,
+                isDatingMode && styles.segmentButtonActive,
+                isDatingMode && { backgroundColor: modeColors.accent, shadowColor: modeColors.accent },
+              ]}
               onPress={() => {
                 setIsDatingMode(true);
                 setCurrentIndex(0);
@@ -794,7 +798,11 @@ export default function DiscoverScreen() {
               </Text>
             </Pressable>
             <Pressable
-              style={[styles.segmentButton, !isDatingMode && styles.segmentButtonActive, !isDatingMode && { backgroundColor: modeColors.accent }]}
+              style={[
+                styles.segmentButton,
+                !isDatingMode && styles.segmentButtonActive,
+                !isDatingMode && { backgroundColor: modeColors.accent, shadowColor: modeColors.accent },
+              ]}
               onPress={() => {
                 setIsDatingMode(false);
                 setCurrentIndex(0);
@@ -807,7 +815,7 @@ export default function DiscoverScreen() {
                 adjustsFontSizeToFit
                 minimumFontScale={0.82}
               >
-                Climbing Partner
+                Partner
               </Text>
             </Pressable>
           </View>
@@ -829,7 +837,13 @@ export default function DiscoverScreen() {
             />
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="checkmark-circle" size={64} color={modeColors.accent} />
+              <View style={styles.emptyIconWrap}>
+                <Ionicons
+                  name={filteredClimbers.length === 0 ? 'options-outline' : 'checkmark'}
+                  size={36}
+                  color={modeColors.accent}
+                />
+              </View>
               <Text style={styles.emptyTitle}>
                 {filteredClimbers.length === 0
                   ? 'No climbers found'
@@ -869,7 +883,8 @@ export default function DiscoverScreen() {
                     imageStyle={styles.partnerCardImageStyle}
                   >
                     <LinearGradient
-                      colors={['rgba(10,14,20,0.10)', 'rgba(10,14,20,0.78)']}
+                      colors={['rgba(8,12,18,0.05)', 'rgba(8,12,18,0.35)', 'rgba(8,12,18,0.88)']}
+                      locations={[0, 0.45, 1]}
                       start={{ x: 0.5, y: 0 }}
                       end={{ x: 0.5, y: 1 }}
                       style={styles.partnerCardOverlay}
@@ -938,7 +953,11 @@ export default function DiscoverScreen() {
             }}
             ListEmptyComponent={
               <View style={styles.partnerEmptyState}>
-                <Text style={styles.emptyText}>No climbing partners found.</Text>
+                <View style={styles.partnerEmptyIconWrap}>
+                  <Ionicons name="people-outline" size={32} color={theme.colors.edit} />
+                </View>
+                <Text style={[styles.emptyTitle, { fontSize: 19 }]}>No partners found</Text>
+                <Text style={styles.emptyText}>Try adjusting your filters or check back later</Text>
               </View>
             }
           />
@@ -1056,8 +1075,8 @@ const createStyles = (theme: typeof themeLight) =>
     },
     topSection: {
       paddingHorizontal: 16,
-      paddingTop: 10,
-      paddingBottom: 6,
+      paddingTop: 14,
+      paddingBottom: 8,
       backgroundColor: theme.colors.background,
     },
     heroCard: {
@@ -1080,9 +1099,9 @@ const createStyles = (theme: typeof themeLight) =>
       paddingRight: 12,
     },
     heroEyebrow: {
-      fontSize: 12,
-      fontWeight: '700',
-      letterSpacing: 1,
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 2,
       textTransform: 'uppercase',
       color: theme.colors.textSecondary,
       marginBottom: 6,
@@ -1090,9 +1109,10 @@ const createStyles = (theme: typeof themeLight) =>
     heroTitle: {
       fontSize: 24,
       lineHeight: 30,
-      fontWeight: '700',
+      fontWeight: '800',
       color: theme.colors.text,
       marginBottom: 6,
+      letterSpacing: 0.2,
     },
     heroSubtitle: {
       fontSize: 14,
@@ -1119,42 +1139,45 @@ const createStyles = (theme: typeof themeLight) =>
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: theme.colors.surface,
-      borderRadius: 20,
+      borderRadius: 16,
       paddingHorizontal: 14,
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderColor: theme.colors.border,
-      minHeight: 52,
+      minHeight: 50,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.12,
+      shadowRadius: 8,
+      elevation: 3,
     },
     searchIcon: {
       marginRight: 8,
+      opacity: 0.7,
     },
     searchInput: {
       flex: 1,
       paddingVertical: 12,
       color: theme.colors.text,
-      fontSize: 15,
+      fontSize: 14,
+      letterSpacing: 0.2,
     },
     filterButton: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
-      backgroundColor: 'rgba(255,46,99,0.08)',
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: 'rgba(255,46,99,0.12)',
       alignItems: 'center',
       justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255,46,99,0.20)',
     },
     toggleContainer: {
-      flexDirection: 'column',
-      alignItems: 'stretch',
-      justifyContent: 'flex-start',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
       marginHorizontal: 16,
-      marginTop: 2,
+      marginTop: 6,
       marginBottom: 6,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      borderRadius: 20,
-      backgroundColor: theme.colors.surface,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
     },
     toggleCopy: {
       backgroundColor: 'transparent',
@@ -1168,32 +1191,47 @@ const createStyles = (theme: typeof themeLight) =>
     },
     segmentedToggle: {
       flexDirection: 'row',
-      backgroundColor: theme.colors.background,
-      borderRadius: 999,
-      padding: 3,
-      gap: 4,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 14,
+      padding: 4,
+      gap: 3,
       alignSelf: 'stretch',
+      flex: 1,
+      borderWidth: 1.5,
+      borderColor: theme.colors.border,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.14,
+      shadowRadius: 8,
+      elevation: 3,
     },
     segmentButton: {
       flex: 1,
-      paddingHorizontal: 12,
-      paddingVertical: 9,
-      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 10,
+      borderRadius: 10,
       backgroundColor: 'transparent',
       alignItems: 'center',
       justifyContent: 'center',
     },
     segmentButtonActive: {
       backgroundColor: theme.colors.accent,
+      shadowColor: theme.colors.accent,
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.5,
+      shadowRadius: 8,
+      elevation: 5,
     },
     segmentButtonText: {
       fontSize: 13,
       fontWeight: '700',
       color: theme.colors.textSecondary,
       textAlign: 'center',
+      letterSpacing: 0.3,
     },
     segmentButtonTextActive: {
       color: '#ffffff',
+      letterSpacing: 0.3,
     },
     cardContainer: {
       flex: 1,
@@ -1207,21 +1245,36 @@ const createStyles = (theme: typeof themeLight) =>
     emptyState: {
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 12,
+      gap: 10,
       backgroundColor: 'transparent',
+      paddingHorizontal: 32,
+      paddingVertical: 24,
+    },
+    emptyIconWrap: {
+      width: 80,
+      height: 80,
+      borderRadius: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(255,46,99,0.10)',
+      borderWidth: 1.5,
+      borderColor: 'rgba(255,46,99,0.22)',
+      marginBottom: 4,
     },
     emptyTitle: {
       fontSize: 22,
-      fontWeight: '700',
+      fontWeight: '800',
       color: theme.colors.text,
-      marginTop: 12,
+      marginTop: 8,
+      letterSpacing: 0.2,
+      textAlign: 'center',
     },
     emptySubtitle: {
-      fontSize: 15,
+      fontSize: 14,
       textAlign: 'center',
       color: theme.colors.textSecondary,
-      maxWidth: 260,
-      lineHeight: 22,
+      maxWidth: 240,
+      lineHeight: 21,
     },
     counterContainer: {
       alignItems: 'center',
@@ -1238,41 +1291,42 @@ const createStyles = (theme: typeof themeLight) =>
     },
     partnerListContent: {
       paddingHorizontal: 16,
-      paddingTop: 8,
-      paddingBottom: 24,
+      paddingTop: 10,
+      paddingBottom: 28,
     },
     partnerCard: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 20,
-      minHeight: 152,
-      marginBottom: 10,
+      borderRadius: 22,
+      minHeight: 168,
+      marginBottom: 12,
       marginVertical: 0,
       shadowColor: '#000',
-      shadowOpacity: 0.06,
-      shadowRadius: 12,
-      shadowOffset: { width: 0, height: 6 },
-      elevation: 4,
-      borderWidth: 1,
-      borderColor: theme.colors.border,
+      shadowOpacity: 0.18,
+      shadowRadius: 16,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 6,
+      borderWidth: 1.5,
+      borderColor: 'rgba(52,211,207,0.14)',
+      overflow: 'hidden',
     },
     partnerCardContent: {
       flexDirection: 'row',
       alignItems: 'flex-end',
       justifyContent: 'space-between',
       backgroundColor: 'transparent',
-      padding: 16,
-      minHeight: 152,
+      padding: 18,
+      minHeight: 168,
     },
     partnerCardImage: {
-      minHeight: 152,
+      minHeight: 168,
       justifyContent: 'flex-end',
     },
     partnerCardImageStyle: {
-      borderRadius: 20,
+      borderRadius: 22,
     },
     partnerCardOverlay: {
-      borderRadius: 20,
-      minHeight: 152,
+      borderRadius: 22,
+      minHeight: 168,
       justifyContent: 'flex-end',
     },
     partnerAvatar: {
@@ -1287,7 +1341,7 @@ const createStyles = (theme: typeof themeLight) =>
       height: 64,
       borderRadius: 20,
       marginRight: 14,
-      backgroundColor: theme.colors.accent,
+      backgroundColor: theme.colors.edit,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -1300,69 +1354,84 @@ const createStyles = (theme: typeof themeLight) =>
       alignItems: 'flex-start',
       justifyContent: 'space-between',
       backgroundColor: 'transparent',
-      marginBottom: 6,
+      marginBottom: 5,
       gap: 8,
     },
     partnerNameOnImage: {
-      fontSize: 20,
-      fontWeight: '700',
+      fontSize: 21,
+      fontWeight: '800',
       color: '#ffffff',
       flex: 1,
+      letterSpacing: 0.2,
+      textShadowColor: 'rgba(0,0,0,0.5)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 4,
     },
     partnerName: {
       fontSize: 18,
-      fontWeight: '700',
+      fontWeight: '800',
       color: theme.colors.text,
       flex: 1,
+      letterSpacing: 0.2,
     },
     partnerChip: {
-      borderRadius: 999,
+      borderRadius: 8,
       paddingHorizontal: 8,
       paddingVertical: 4,
-      backgroundColor: 'rgba(26,166,163,0.12)',
+      backgroundColor: 'rgba(52,211,207,0.14)',
+      borderWidth: 1,
+      borderColor: 'rgba(52,211,207,0.28)',
     },
     partnerChipText: {
-      fontSize: 11,
-      fontWeight: '700',
+      fontSize: 10,
+      fontWeight: '800',
       color: theme.colors.edit,
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
     },
     partnerChipOnImage: {
-      borderRadius: 999,
+      borderRadius: 8,
       paddingHorizontal: 8,
       paddingVertical: 4,
-      backgroundColor: 'rgba(255,255,255,0.22)',
+      backgroundColor: 'rgba(52,211,207,0.22)',
       borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.18)',
+      borderColor: 'rgba(52,211,207,0.35)',
     },
     partnerChipTextOnImage: {
-      fontSize: 11,
-      fontWeight: '700',
-      color: '#ffffff',
+      fontSize: 10,
+      fontWeight: '800',
+      color: '#34D3CF',
+      letterSpacing: 0.5,
+      textTransform: 'uppercase',
     },
     partnerDetail: {
       fontSize: 13,
       color: theme.colors.textSecondary,
-      marginTop: 4,
+      marginTop: 3,
       lineHeight: 18,
     },
     partnerDetailOnImage: {
       fontSize: 13,
-      color: 'rgba(255,255,255,0.88)',
-      marginTop: 4,
+      color: 'rgba(255,255,255,0.85)',
+      marginTop: 3,
       lineHeight: 18,
+      textShadowColor: 'rgba(0,0,0,0.4)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 3,
     },
     partnerDistance: {
       flexDirection: 'row',
       backgroundColor: 'transparent',
       alignItems: 'center',
-      marginTop: 8,
+      marginTop: 7,
       gap: 4,
     },
     emptyText: {
       color: theme.colors.textSecondary,
-      fontSize: 16,
+      fontSize: 15,
       textAlign: 'center',
-      marginTop: 28,
+      marginTop: 16,
+      lineHeight: 22,
     },
     emptyStateDecoration: {
       width: 80,
@@ -1372,7 +1441,19 @@ const createStyles = (theme: typeof themeLight) =>
     },
     partnerEmptyState: {
       alignItems: 'center',
-      paddingTop: 32,
+      paddingTop: 48,
+      paddingHorizontal: 32,
+      gap: 12,
+    },
+    partnerEmptyIconWrap: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(52,211,207,0.10)',
+      borderWidth: 1.5,
+      borderColor: 'rgba(52,211,207,0.22)',
     },
     partnerEmptyDecoration: {
       width: 72,
@@ -1382,7 +1463,7 @@ const createStyles = (theme: typeof themeLight) =>
     },
     introOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(8,12,18,0.84)',
+      backgroundColor: 'rgba(6,10,16,0.88)',
       justifyContent: 'center',
       alignItems: 'center',
       paddingHorizontal: 20,
@@ -1392,22 +1473,22 @@ const createStyles = (theme: typeof themeLight) =>
     introCard: {
       width: '100%',
       borderRadius: 28,
-      padding: 22,
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.16)',
+      padding: 24,
+      borderWidth: 1.5,
+      borderColor: 'rgba(255,255,255,0.14)',
       overflow: 'hidden',
       backgroundColor: theme.colors.surface,
-      shadowColor: '#000',
-      shadowOpacity: 0.3,
-      shadowRadius: 18,
-      shadowOffset: { width: 0, height: 10 },
-      elevation: 10,
+      shadowColor: '#FF2E63',
+      shadowOpacity: 0.25,
+      shadowRadius: 24,
+      shadowOffset: { width: 0, height: 12 },
+      elevation: 14,
     },
     introHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 10,
+      marginBottom: 12,
       backgroundColor: 'transparent',
     },
     introCloseButton: {
@@ -1416,7 +1497,9 @@ const createStyles = (theme: typeof themeLight) =>
       borderRadius: 17,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: 'rgba(255,255,255,0.82)',
+      backgroundColor: 'rgba(255,255,255,0.12)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.18)',
     },
     introModeRow: {
       flexDirection: 'row',
@@ -1427,34 +1510,48 @@ const createStyles = (theme: typeof themeLight) =>
     },
     introBodyText: {
       fontSize: 14,
-      lineHeight: 21,
+      lineHeight: 22,
       color: theme.colors.textSecondary,
-      marginBottom: 18,
+      marginBottom: 20,
     },
     introActionButton: {
-      alignSelf: 'flex-start',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      borderRadius: 999,
+      alignSelf: 'stretch',
+      paddingHorizontal: 20,
+      paddingVertical: 14,
+      borderRadius: 14,
       backgroundColor: theme.colors.accent,
+      alignItems: 'center',
+      shadowColor: '#FF2E63',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.45,
+      shadowRadius: 12,
+      elevation: 6,
     },
     introActionText: {
       color: '#fff',
-      fontSize: 14,
-      fontWeight: '700',
+      fontSize: 15,
+      fontWeight: '800',
+      letterSpacing: 0.3,
     },
     bioModalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
+      backgroundColor: 'rgba(0,0,0,0.65)',
       justifyContent: 'center',
       alignItems: 'center',
     },
     bioModalContent: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 16,
-      padding: 20,
-      width: '85%',
+      borderRadius: 24,
+      padding: 22,
+      width: '88%',
       maxHeight: '75%',
+      borderWidth: 1.5,
+      borderColor: 'rgba(255,46,99,0.15)',
+      shadowColor: '#FF2E63',
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.20,
+      shadowRadius: 24,
+      elevation: 12,
     },
     bioModalHeader: {
       flexDirection: 'row',
@@ -1462,23 +1559,30 @@ const createStyles = (theme: typeof themeLight) =>
       alignItems: 'center',
       marginBottom: 16,
       backgroundColor: 'transparent',
-      paddingBottom: 12,
+      paddingBottom: 14,
       borderBottomWidth: 1,
       borderBottomColor: theme.colors.border,
     },
     bioModalTitle: {
-      fontSize: 18,
-      fontWeight: '700',
+      fontSize: 17,
+      fontWeight: '800',
       color: theme.colors.text,
       flex: 1,
+      letterSpacing: 0.2,
     },
     bioModalCloseBtn: {
-      padding: 4,
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(255,46,99,0.10)',
     },
     bioModalText: {
-      fontSize: 16,
+      fontSize: 15,
       color: theme.colors.text,
       lineHeight: 24,
+      opacity: 0.92,
     },
   });
 
