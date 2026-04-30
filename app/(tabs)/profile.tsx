@@ -3,11 +3,12 @@ import { Text } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
 import { SkeletonProfile } from '@/src/components/SkeletonLoader';
 import { getBlockedUsersData } from '@/src/services/accountService';
-import { createDefaultGrade, formatGradeDisplay, getExampleGrades } from '@/src/services/gradeService';
+import { GradePicker } from '@/src/components/GradePicker';
+import { createDefaultGrade, formatGradeDisplay } from '@/src/services/gradeService';
 import { getReportService } from '@/src/services/reportService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
-import { Climber, ClimbingGrade, ClimbingStyle, Gender, GeneralLevel, GradeSystem } from '@/src/types/climber';
+import { Climber, ClimbingGrade, ClimbingStyle, Gender } from '@/src/types/climber';
 import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -42,18 +43,6 @@ const getStyleImage = (style: ClimbingStyle) => {
   return imageMap[style];
 };
 
-const GENERAL_LEVELS: GeneralLevel[] = [
-  'beginner',
-  'intermediate',
-  'advanced',
-  'expert',
-  'elite',
-];
-
-const GRADE_SYSTEMS: GradeSystem[] = [
-  'french',
-  'uiaa',
-];
 
 const CLIMBING_STYLES: ClimbingStyle[] = [
   'bouldering',
@@ -108,8 +97,6 @@ export default function ProfileScreen() {
   const [images, setImages] = useState(typedUser?.images || []);
   const [avatar, setAvatar] = useState(typedUser?.avatar || '');
   const [imageSlots, setImageSlots] = useState<Array<{ kind: 'existing' | 'new'; value: string } | null>>([]);
-  // Grade edit state
-  const [showGradeSystemModal, setShowGradeSystemModal] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -907,56 +894,7 @@ export default function ProfileScreen() {
           <View style={[styles.infoCardMinimal]}>
             <Text style={styles.labelMinimal}>Climbing Grade</Text>
             {editMode ? (
-              <View style={{ backgroundColor: "transparent" }}>
-                <Pressable
-                  style={{
-                    padding: 12,
-                    backgroundColor: theme.colors.accent,
-                    borderRadius: 8,
-                    marginBottom: 12,
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                  onPress={() => setShowGradeSystemModal(true)}
-                >
-                  <Text style={{ color: '#fff', fontWeight: '600' }}>
-                    {formatGradeDisplay(grade)}
-                  </Text>
-                  <Ionicons name="chevron-forward" size={20} color="#fff" />
-                </Pressable>
-
-                {/* General Level Quick Select */}
-                <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.textSecondary, marginBottom: 8 }}>
-                  General Level
-                </Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12, backgroundColor: "transparent" }}>
-                  {GENERAL_LEVELS.map(level => (
-                    <Pressable
-                      key={level}
-                      style={{
-                        paddingVertical: 8,
-                        paddingHorizontal: 12,
-                        backgroundColor: grade.general_level === level ? theme.colors.accent : theme.colors.surface,
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: theme.colors.border,
-                      }}
-                      onPress={() => setGrade({ ...grade, general_level: level })}
-                    >
-                      <Text
-                        style={{
-                          color: grade.general_level === level ? '#fff' : theme.colors.text,
-                          fontSize: 12,
-                          fontWeight: '500',
-                        }}
-                      >
-                        {level.charAt(0).toUpperCase() + level.slice(1)}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
+              <GradePicker value={grade} onChange={setGrade} colors={theme.colors} />
             ) : (
               <Text style={styles.valueMinimal}>{formatGradeDisplay(grade)}</Text>
             )}
@@ -1135,150 +1073,6 @@ export default function ProfileScreen() {
           >
             <Ionicons name="close" size={24} color="#fff" />
           </Pressable>
-        </View>
-      </Modal>
-
-      {/* Grade System Selection Modal */}
-      <Modal
-        visible={showGradeSystemModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowGradeSystemModal(false)}
-      >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' }}>
-          <View
-            style={{
-              backgroundColor: theme.colors.background,
-              borderTopLeftRadius: 20,
-              borderTopRightRadius: 20,
-              padding: 20,
-              paddingBottom: 40,
-              maxHeight: '80%',
-            }}
-          >
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 16, color: theme.colors.text }}>
-                Select Grade System
-              </Text>
-
-              {GRADE_SYSTEMS.map(system => (
-                <Pressable
-                  key={system}
-                  onPress={() => {
-                    setGrade({ ...grade, system });
-                  }}
-                  style={{
-                    padding: 16,
-                    borderBottomWidth: 1,
-                    borderBottomColor: theme.colors.border,
-                    backgroundColor: grade.system === system ? theme.colors.surface : 'transparent',
-                    flexDirection: 'row',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <Text
-                    style={{
-                      fontSize: 16,
-                      fontWeight: grade.system === system ? '700' : '500',
-                      color: grade.system === system ? theme.colors.accent : theme.colors.text,
-                    }}
-                  >
-                    {system.toUpperCase()}
-                  </Text>
-                  {grade.system === system && (
-                    <Ionicons name="checkmark" size={20} color={theme.colors.accent} />
-                  )}
-                </Pressable>
-              ))}
-
-              {/* Grade level and value selection if system is selected */}
-              {grade.system && (
-                <>
-                  <Text style={{ fontSize: 18, fontWeight: '700', marginTop: 20, marginBottom: 16, color: theme.colors.text }}>
-                    Select Level
-                  </Text>
-                  {GENERAL_LEVELS.map((level) => (
-                    <Pressable
-                      key={level}
-                      onPress={() => {
-                        setGrade({ ...grade, general_level: level });
-                      }}
-                      style={{
-                        padding: 16,
-                        borderBottomWidth: 1,
-                        borderBottomColor: theme.colors.border,
-                        backgroundColor: grade.general_level === level ? theme.colors.surface : 'transparent',
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 16,
-                          fontWeight: grade.general_level === level ? '700' : '500',
-                          color: grade.general_level === level ? theme.colors.accent : theme.colors.text,
-                        }}
-                      >
-                        {level.charAt(0).toUpperCase() + level.slice(1)}
-                      </Text>
-                      {grade.general_level === level && (
-                        <Ionicons name="checkmark" size={20} color={theme.colors.accent} />
-                      )}
-                    </Pressable>
-                  ))}
-
-                  <Text style={{ fontSize: 18, fontWeight: '700', marginTop: 20, marginBottom: 16, color: theme.colors.text }}>
-                    Select Grade Value
-                  </Text>
-                  {getExampleGrades(grade.system).map((exGrade, index) => (
-                    <Pressable
-                      key={`${grade.system}-${index}-${exGrade}`}
-                      onPress={() => {
-                        setGrade({ ...grade, value: exGrade });
-                      }}
-                      style={{
-                        padding: 16,
-                        borderBottomWidth: 1,
-                        borderBottomColor: theme.colors.border,
-                        backgroundColor: grade.value === exGrade ? theme.colors.surface : 'transparent',
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 16,
-                          fontWeight: grade.value === exGrade ? '700' : '500',
-                          color: grade.value === exGrade ? theme.colors.accent : theme.colors.text,
-                        }}
-                      >
-                        {exGrade}
-                      </Text>
-                      {grade.value === exGrade && (
-                        <Ionicons name="checkmark" size={20} color={theme.colors.accent} />
-                      )}
-                    </Pressable>
-                  ))}
-                </>
-              )}
-
-              <Pressable
-                onPress={() => setShowGradeSystemModal(false)}
-                style={{
-                  marginTop: 20,
-                  paddingVertical: 12,
-                  backgroundColor: theme.colors.accent,
-                  borderRadius: 8,
-                  alignItems: 'center',
-                }}
-              >
-                <Text style={{ color: '#fff', fontWeight: '600' }}>Done</Text>
-              </Pressable>
-            </ScrollView>
-          </View>
         </View>
       </Modal>
 

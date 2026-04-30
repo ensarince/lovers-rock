@@ -1,9 +1,10 @@
 import { Text, View } from '@/components/Themed';
 import { useAuth } from '@/src/context/AuthContext';
-import { createDefaultGrade, formatGradeDisplay, getExampleGrades } from '@/src/services/gradeService';
+import { GradePicker } from '@/src/components/GradePicker';
+import { createDefaultGrade } from '@/src/services/gradeService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
-import { Climber, ClimbingGrade, ClimbingStyle, Gender, GeneralLevel, GradeSystem } from '@/src/types/climber';
+import { Climber, ClimbingGrade, ClimbingStyle, Gender } from '@/src/types/climber';
 import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
@@ -19,18 +20,6 @@ import {
     TextInput,
 } from 'react-native';
 
-const GENERAL_LEVELS: GeneralLevel[] = [
-    'beginner',
-    'intermediate',
-    'advanced',
-    'expert',
-    'elite',
-];
-
-const GRADE_SYSTEMS: GradeSystem[] = [
-    'french',
-    'uiaa',
-];
 
 const CLIMBING_STYLES: ClimbingStyle[] = [
     'bouldering',
@@ -78,7 +67,6 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
     const [images, setImages] = useState<string[]>(user?.images || []);
     const [newPhotos, setNewPhotos] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
-    const [showGradeSystemModal, setShowGradeSystemModal] = useState(false);
     const [step, setStep] = useState<0 | 1>(0);
     const [selectedIntent, setSelectedIntent] = useState<Array<'date' | 'partner'>>([]);
 
@@ -140,12 +128,6 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
         );
     };
 
-    const handleGradeChange = (field: keyof ClimbingGrade, value: string) => {
-        setGrade((prev) => ({
-            ...prev,
-            [field]: value,
-        }));
-    };
 
     const handleSave = async () => {
         // Validation
@@ -616,131 +598,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                     {/* Climbing Grade */}
                     <View style={styles.fieldGroup}>
                         <Text style={styles.label}>Climbing Grade</Text>
-                        <Pressable
-                            style={styles.gradeSelector}
-                            onPress={() => setShowGradeSystemModal(true)}
-                        >
-                            <Text style={styles.gradeSelectorText}>
-                                {formatGradeDisplay(grade)}
-                            </Text>
-                            <Ionicons
-                                name="chevron-down"
-                                size={20}
-                                color={theme.colors.accent}
-                            />
-                        </Pressable>
-
-                        {/* Grade System Modal */}
-                        <Modal
-                            visible={showGradeSystemModal}
-                            transparent
-                            animationType="fade"
-                            onRequestClose={() => setShowGradeSystemModal(false)}
-                        >
-                            <Pressable
-                                style={styles.modalOverlay}
-                                onPress={() => setShowGradeSystemModal(false)}
-                            >
-                                <Pressable
-                                    style={styles.gradeModal}
-                                    onPress={(e) => e.stopPropagation()}
-                                >
-                                    <ScrollView showsVerticalScrollIndicator={false}>
-                                        <Text style={styles.modalTitle}>Select Grade System</Text>
-
-                                        {GRADE_SYSTEMS.map((sys) => (
-                                            <Pressable
-                                                key={sys}
-                                                style={[
-                                                    styles.systemOption,
-                                                    grade.system === sys && styles.systemOptionSelected,
-                                                ]}
-                                                onPress={() => {
-                                                    setGrade((prev) => ({ ...prev, system: sys }));
-                                                }}
-                                            >
-                                                <Text
-                                                    style={[
-                                                        styles.systemOptionText,
-                                                        grade.system === sys && styles.systemOptionTextActive,
-                                                    ]}
-                                                >
-                                                    {sys.toUpperCase()}
-                                                </Text>
-                                                {grade.system === sys && (
-                                                    <Ionicons name="checkmark" size={20} color={theme.colors.accent} />
-                                                )}
-                                            </Pressable>
-                                        ))}
-
-                                        {grade.system && (
-                                            <>
-                                                <Text style={styles.modalTitle}>Select Level</Text>
-                                                {GENERAL_LEVELS.map((level) => (
-                                                    <Pressable
-                                                        key={level}
-                                                        style={[
-                                                            styles.gradeOption,
-                                                            grade.general_level === level && styles.gradeOptionSelected,
-                                                        ]}
-                                                        onPress={() => {
-                                                            setGrade((prev) => ({ ...prev, general_level: level }));
-                                                        }}
-                                                    >
-                                                        <Text
-                                                            style={[
-                                                                styles.gradeOptionText,
-                                                                grade.general_level === level &&
-                                                                styles.gradeOptionTextActive,
-                                                            ]}
-                                                        >
-                                                            {level.charAt(0).toUpperCase() + level.slice(1)}
-                                                        </Text>
-                                                        {grade.general_level === level && (
-                                                            <Ionicons name="checkmark" size={20} color={theme.colors.accent} />
-                                                        )}
-                                                    </Pressable>
-                                                ))}
-
-                                                <Text style={styles.modalTitle}>Select Grade Value</Text>
-                                                {getExampleGrades(grade.system as GradeSystem).map((exGrade, index) => (
-                                                    <Pressable
-                                                        key={`${grade.system}-${index}-${exGrade}`}
-                                                        style={[
-                                                            styles.gradeOption,
-                                                            grade.value === exGrade && styles.gradeOptionSelected,
-                                                        ]}
-                                                        onPress={() => {
-                                                            setGrade((prev) => ({ ...prev, value: exGrade }));
-                                                        }}
-                                                    >
-                                                        <Text
-                                                            style={[
-                                                                styles.gradeOptionText,
-                                                                grade.value === exGrade &&
-                                                                styles.gradeOptionTextActive,
-                                                            ]}
-                                                        >
-                                                            {exGrade}
-                                                        </Text>
-                                                        {grade.value === exGrade && (
-                                                            <Ionicons name="checkmark" size={20} color={theme.colors.accent} />
-                                                        )}
-                                                    </Pressable>
-                                                ))}
-                                            </>
-                                        )}
-
-                                        <Pressable
-                                            style={styles.closeButton}
-                                            onPress={() => setShowGradeSystemModal(false)}
-                                        >
-                                            <Text style={styles.closeButtonText}>Done</Text>
-                                        </Pressable>
-                                    </ScrollView>
-                                </Pressable>
-                            </Pressable>
-                        </Modal>
+                        <GradePicker value={grade} onChange={setGrade} colors={theme.colors} />
                     </View>
 
                     {/* Home Gym Input */}
@@ -1052,94 +910,6 @@ const createStyles = (theme: any) =>
         styleButtonTextActive: {
             color: '#fff',
             fontWeight: '600',
-        },
-        gradeSelector: {
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            borderWidth: 1,
-            borderColor: theme.colors.border,
-            borderRadius: 8,
-            paddingHorizontal: 12,
-            paddingVertical: 10,
-            backgroundColor: theme.colors.surface,
-        },
-        gradeSelectorText: {
-            fontSize: 14,
-            color: theme.colors.text,
-        },
-        modalOverlay: {
-            flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            justifyContent: 'flex-end',
-        },
-        gradeModal: {
-            backgroundColor: theme.colors.background,
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
-            paddingHorizontal: 20,
-            paddingTop: 20,
-            paddingBottom: 40,
-            maxHeight: '80%',
-        },
-        modalTitle: {
-            fontSize: 16,
-            fontWeight: 'bold',
-            color: theme.colors.text,
-            marginTop: 16,
-            marginBottom: 12,
-        },
-        systemOption: {
-            paddingVertical: 12,
-            paddingHorizontal: 12,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.colors.border,
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-        },
-        systemOptionSelected: {
-            backgroundColor: theme.colors.surface,
-        },
-        systemOptionText: {
-            fontSize: 14,
-            color: theme.colors.text,
-        },
-        systemOptionTextActive: {
-            color: theme.colors.accent,
-            fontWeight: 'bold',
-        },
-        gradeOption: {
-            paddingVertical: 12,
-            paddingHorizontal: 12,
-            borderBottomWidth: 1,
-            borderBottomColor: theme.colors.border,
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-        },
-        gradeOptionSelected: {
-            backgroundColor: theme.colors.surface,
-        },
-        gradeOptionText: {
-            fontSize: 14,
-            color: theme.colors.text,
-        },
-        gradeOptionTextActive: {
-            color: theme.colors.accent,
-            fontWeight: 'bold',
-        },
-        closeButton: {
-            marginTop: 16,
-            paddingVertical: 12,
-            backgroundColor: theme.colors.accent,
-            borderRadius: 8,
-            alignItems: 'center',
-        },
-        closeButtonText: {
-            color: '#fff',
-            fontSize: 16,
-            fontWeight: 'bold',
         },
         spacer: {
             height: 20,
