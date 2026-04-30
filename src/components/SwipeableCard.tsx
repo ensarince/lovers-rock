@@ -2,7 +2,7 @@ import { Text } from '@/components/Themed';
 import { BlockReportMenu } from '@/src/components/BlockReportMenu';
 import { ImageCarousel } from '@/src/components/ImageCarousel';
 import { useAuth } from '@/src/context/AuthContext';
-import { calculateDistance, formatDistance } from '@/src/services/geoService';
+import { formatDistance } from '@/src/services/geoService';
 import { formatGradeDisplay } from '@/src/services/gradeService';
 import { theme } from '@/src/themeDark';
 import { Climber } from '@/src/types/climber';
@@ -61,18 +61,12 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
 
   // Cleanup on unmount
 
-  // Calculate distance on mount and when location/climber changes
+  // Use server-computed distance from /api/nearby-profiles (no raw coords needed)
   useEffect(() => {
-    if (userLatitude && userLongitude && climber.latitude && climber.longitude) {
-      const dist = calculateDistance(
-        userLatitude,
-        userLongitude,
-        climber.latitude,
-        climber.longitude
-      );
-      setDistance(dist);
+    if (climber.distance_km !== null && climber.distance_km !== undefined) {
+      setDistance(climber.distance_km);
     }
-  }, [userLatitude, userLongitude, climber.latitude, climber.longitude]);
+  }, [climber.distance_km]);
 
   // Update the ref when climber changes
   useEffect(() => {

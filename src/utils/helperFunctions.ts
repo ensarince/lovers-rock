@@ -1,16 +1,21 @@
+const PRIVATE_IP_PATTERN = /^https?:\/\/(localhost|127\.|192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/;
+
 // Helper function to get correct PocketBase URL (handles both local and deployed)
 export const getPocketBaseUrl = (): string => {
   const ip = process.env.EXPO_PUBLIC_IP;
   if (ip?.startsWith('http')) {
     if (!__DEV__ && !ip.startsWith('https://')) {
-      throw new Error('Production PocketBase URL must use https');
+      throw new Error('Production PocketBase URL must use HTTPS');
     }
-    return ip; // Already a full URL (deployed)
+    if (!__DEV__ && PRIVATE_IP_PATTERN.test(ip)) {
+      throw new Error('Production PocketBase URL must not be a local or private IP address');
+    }
+    return ip;
   }
   if (!__DEV__) {
-    throw new Error('Production PocketBase URL is missing');
+    throw new Error('Production PocketBase URL is missing — set EXPO_PUBLIC_IP in eas.json');
   }
-  return `http://${ip}:8090`; // Local development
+  return `http://${ip}:8090`; // Local development only
 };
 
 // Helper function to get first image URL

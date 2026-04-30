@@ -34,9 +34,10 @@ export interface Climber {
   declined_users_as_partner?: string[]; // Partner requests declined
   declined_users_as_dating?: Array<{ userId: string; declinedAt: number }> | string[]; // Dating users declined (with timestamp for 1-month expiry)
   intent: 'partner' | 'date' | Array<'partner' | 'date'>;
-  latitude?: number; // User's latitude for geofinding
-  longitude?: number; // User's longitude for geofinding
+  latitude?: number; // Own user's latitude (from AuthContext — never from public profiles)
+  longitude?: number; // Own user's longitude (from AuthContext — never from public profiles)
   last_location_update?: string; // ISO timestamp of last location update
+  distance_km?: number | null; // Server-computed distance (returned by /api/nearby-profiles)
   profile_completed?: boolean; // Whether user has completed profile setup
   blocked_users?: string[]; // Blocked user IDs
 }

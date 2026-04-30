@@ -42,7 +42,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 let notificationService: NotificationService | null = null;
 
 const safeUserForStorage = (user: Climber) => {
-  const { latitude, longitude, blocked_users, ...safe } = user;
+  // Strip location, sensitive social graph, and email (PII) before caching in plaintext AsyncStorage.
+  // Token is in SecureStore; re-fetch full profile from server when needed.
+  const { latitude, longitude, blocked_users, email, ...safe } = user;
   return safe;
 };
 

@@ -23,6 +23,7 @@
       }
     },
     "android": {
+      "allowBackup": false,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/logo.jpg",
         "backgroundColor": "#ffffff"

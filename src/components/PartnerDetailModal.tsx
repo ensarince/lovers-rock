@@ -1,7 +1,7 @@
 import { BlockReportMenu } from '@/src/components/BlockReportMenu';
 import { ImageCarousel } from '@/src/components/ImageCarousel';
 import { useAuth } from '@/src/context/AuthContext';
-import { calculateDistance, formatDistance } from '@/src/services/geoService';
+import { formatDistance } from '@/src/services/geoService';
 import { formatGradeDisplay } from '@/src/services/gradeService';
 import { getOutgoingLikes } from '@/src/services/socialGraphService';
 import { theme as themeDark } from '@/src/themeDark';
@@ -30,20 +30,14 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
   const [distance, setDistance] = useState<number | null>(null);
   const [showBlockReportMenu, setShowBlockReportMenu] = useState(false);
 
-  // Calculate distance when climber or user location changes
+  // Use server-computed distance from /api/nearby-profiles (no raw coords needed)
   useEffect(() => {
-    if (userLatitude && userLongitude && climber?.latitude && climber?.longitude) {
-      const dist = calculateDistance(
-        userLatitude,
-        userLongitude,
-        climber.latitude,
-        climber.longitude
-      );
-      setDistance(dist);
+    if (climber?.distance_km !== null && climber?.distance_km !== undefined) {
+      setDistance(climber.distance_km);
     } else {
       setDistance(null);
     }
-  }, [userLatitude, userLongitude, climber?.latitude, climber?.longitude]);
+  }, [climber?.distance_km]);
 
   // Check if climber is in outgoing partner likes
   React.useEffect(() => {

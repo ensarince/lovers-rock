@@ -61,44 +61,33 @@ export async function getAllAccounts(token: string): Promise<Climber[]> {
 }
 
 export async function getPublicProfiles(token: string): Promise<Climber[]> {
-  const perPage = 200;
-  let page = 1;
-  const allItems: any[] = [];
-
-  while (true) {
-    const response = await fetch(
-      `${POCKETBASE_URL}/api/collections/public_profiles/records?page=${page}&perPage=${perPage}`,
-      {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch public profiles');
+  // Uses the server-side /api/nearby-profiles hook which computes distance
+  // server-side and never returns raw coordinates to clients.
+  const response = await fetch(
+    `${POCKETBASE_URL}/api/nearby-profiles`,
+    {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
     }
+  );
 
-    const data = await response.json();
-    allItems.push(...(data.items || []));
-
-    if (!data.totalPages || page >= data.totalPages) {
-      break;
-    }
-
-    page += 1;
+  if (!response.ok) {
+    throw new Error('Failed to fetch public profiles');
   }
 
-  return allItems.map((item: any) => ({
+  const data = await response.json();
+  return (data.items || []).map((item: any) => ({
     ...item,
-    email: item.email || '',
+    email: '',
     grade: parseGrade(item.grade),
-    blocked_users: Array.isArray(item.blocked_users) ? item.blocked_users : [],
+    blocked_users: [],
     intent: Array.isArray(item.intent)
       ? item.intent.map((value: string) => normalizeIntentValue(value)).filter(Boolean)
       : [],
+    distance_km: typeof item.distance_km === 'number' ? item.distance_km : null,
   })) as Climber[];
 }
 

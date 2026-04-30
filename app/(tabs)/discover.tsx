@@ -4,7 +4,6 @@ import PartnerDetailModal from '@/src/components/PartnerDetailModal';
 import { SkeletonCard } from '@/src/components/SkeletonLoader';
 import { SwipeableCard } from '@/src/components/SwipeableCard';
 import { useAuth } from '@/src/context/AuthContext';
-import { calculateDistance } from '@/src/services/geoService';
 import { locationService } from '@/src/services/locationService';
 import { declineDatingUser } from '@/src/services/matchData';
 import { notificationService } from '@/src/services/notificationService';
@@ -427,19 +426,11 @@ export default function DiscoverScreen() {
     if (activeFilters.maxAge) {
       result = result.filter((c) => c.age <= activeFilters.maxAge!);
     }
-    // Filter by distance for partner mode
-    if (activeFilters.maxDistance !== undefined && user?.latitude && user?.longitude) {
-      const userLat = user.latitude;
-      const userLon = user.longitude;
+    // Filter by distance using server-computed distance_km
+    if (activeFilters.maxDistance !== undefined) {
       result = result.filter((c) => {
-        if (!c.latitude || !c.longitude) return false;
-        const distance = calculateDistance(
-          userLat,
-          userLon,
-          c.latitude,
-          c.longitude
-        );
-        return distance <= (activeFilters.maxDistance || 50);
+        if (c.distance_km === null || c.distance_km === undefined) return true;
+        return c.distance_km <= (activeFilters.maxDistance || 50);
       });
     }
     // Filter by gym name (case-insensitive) for partner mode
@@ -513,19 +504,11 @@ export default function DiscoverScreen() {
       result = result.filter((c) => c.age <= filters.maxAge!);
     }
 
-    // Filter by distance
-    if (filters.maxDistance !== undefined && user?.latitude && user?.longitude) {
-      const userLat = user.latitude;
-      const userLon = user.longitude;
+    // Filter by distance using server-computed distance_km
+    if (filters.maxDistance !== undefined) {
       result = result.filter((c) => {
-        if (!c.latitude || !c.longitude) return false; // Exclude users without location
-        const distance = calculateDistance(
-          userLat,
-          userLon,
-          c.latitude,
-          c.longitude
-        );
-        return distance <= (filters.maxDistance || 50);
+        if (c.distance_km === null || c.distance_km === undefined) return true;
+        return c.distance_km <= (filters.maxDistance || 50);
       });
     }
 
@@ -905,11 +888,11 @@ export default function DiscoverScreen() {
                           <Text style={styles.partnerDetailOnImage} numberOfLines={1}>
                             {Array.isArray(item.climbing_styles) ? item.climbing_styles.join(' | ') : ''}
                           </Text>
-                          {user?.latitude && user?.longitude && item.latitude && item.longitude && (
+                          {item.distance_km !== null && item.distance_km !== undefined && (
                             <View style={styles.partnerDistance}>
                               <Ionicons name="location" size={12} color="#ffffff" />
                               <Text style={styles.partnerDetailOnImage}>
-                                {calculateDistance(user.latitude, user.longitude, item.latitude, item.longitude).toFixed(1)} km away
+                                {item.distance_km} km away
                               </Text>
                             </View>
                           )}
@@ -937,11 +920,11 @@ export default function DiscoverScreen() {
                       <Text style={styles.partnerDetail} numberOfLines={1}>
                         {Array.isArray(item.climbing_styles) ? item.climbing_styles.join(' | ') : ''}
                       </Text>
-                      {user?.latitude && user?.longitude && item.latitude && item.longitude && (
+                      {item.distance_km !== null && item.distance_km !== undefined && (
                         <View style={styles.partnerDistance}>
                           <Ionicons name="location" size={12} color="#6b7280" />
                           <Text style={styles.partnerDetail}>
-                            {calculateDistance(user.latitude, user.longitude, item.latitude, item.longitude).toFixed(1)} km away
+                            {item.distance_km} km away
                           </Text>
                         </View>
                       )}
