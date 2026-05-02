@@ -14,6 +14,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface BlockReportMenuProps {
   visible: boolean;
@@ -37,6 +38,7 @@ export const BlockReportMenu: React.FC<BlockReportMenuProps> = ({
   const { user, token, setUser } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
+  const insets = useSafeAreaInsets();
 
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [reportReason, setReportReason] = useState<string>('');
@@ -109,7 +111,7 @@ export const BlockReportMenu: React.FC<BlockReportMenuProps> = ({
         onRequestClose={onClose}
       >
         <Pressable style={styles.overlay} onPress={onClose}>
-          <View style={styles.menuContainer}>
+          <View style={[styles.menuContainer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
             <Text style={styles.menuTitle}>Actions for {userName}</Text>
 
             {onUnmatch && (

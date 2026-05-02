@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /**
  * Seed 100-200 realistic bot climber profiles into PocketBase.
+ * Each bot gets 3 images: 1 face photo + 2 climbing action photos.
+ * Location pool: ~50% Turkey, ~35% Germany, ~15% other Europe.
  *
  * Usage (dev):
  *   ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=yourpass node scripts/seed_bots.js
@@ -43,7 +45,6 @@ const UIAA_GRADES = {
   elite:        ['IX+', 'X', 'XI'],
 };
 
-// Realistic climbing population distribution
 const LEVEL_POOL = [
   ...Array(15).fill('beginner'),
   ...Array(40).fill('intermediate'),
@@ -68,6 +69,18 @@ const STYLE_COMBOS = [
 ];
 
 const HOME_GYMS = [
+  // Turkey
+  'Atom Climbing Istanbul',
+  'Blok Istanbul',
+  'ReachHigh Climbing Istanbul',
+  'Ankara Boulder',
+  'İzmir Boulder Salonu',
+  'Antalya Tırmanma Merkezi',
+  'Crux Istanbul',
+  'Bursa Bouldering',
+  'Eskişehir Climbing Hub',
+  'Kadıköy Boulder',
+  // Germany
   'Boulderwelt München',
   'Magic Mountain Berlin',
   'DAV Kletterzentrum München',
@@ -75,47 +88,55 @@ const HOME_GYMS = [
   'Blockhelden Nürnberg',
   'Bloc House Hamburg',
   'Boulder Bande Stuttgart',
+  'DAV Kletterhalle Köln',
+  'Kletterzentrum Hannover',
+  // Other Europe
   'Rockerei Vienna',
-  'Boulderklub Graz',
   'Kletterzentrum Innsbruck',
   'The Arch London',
-  'Climbing Hangar Liverpool',
-  'Edinburgh International Climbing Arena',
   'Sharma Climbing Barcelona',
-  'Vertical Art Lyon',
   'Crux Climbing Centre Amsterdam',
-  'Movement Climbing Denver',
-  'Brooklyn Boulders NYC',
-  'Sender One LA',
-  'Earth Treks Washington DC',
-  'Austin Bouldering Project',
-  'Momentum Climbing Salt Lake City',
-  'The Circuit Portland',
-  'Mesa Rim San Francisco',
-  'Touchstone Berkeley',
 ];
 
+// ─── Locations — ~50% Turkey, ~35% Germany, ~15% other ────────────────────
+
+const TR_CITIES = [
+  { city: 'Istanbul',    lat: 41.015, lon: 28.979 },
+  { city: 'Ankara',      lat: 39.925, lon: 32.866 },
+  { city: 'Izmir',       lat: 38.423, lon: 27.143 },
+  { city: 'Antalya',     lat: 36.896, lon: 30.713 },
+  { city: 'Bursa',       lat: 40.182, lon: 29.061 },
+  { city: 'Bodrum',      lat: 37.034, lon: 27.430 },
+  { city: 'Eskişehir',   lat: 39.776, lon: 30.520 },
+  { city: 'Mersin',      lat: 36.800, lon: 34.641 },
+  { city: 'Geyikbayiri', lat: 36.880, lon: 30.530 },
+  { city: 'Kapadokya',   lat: 38.643, lon: 34.828 },
+];
+
+const DE_CITIES = [
+  { city: 'Munich',    lat: 48.137, lon: 11.576 },
+  { city: 'Berlin',    lat: 52.520, lon: 13.405 },
+  { city: 'Hamburg',   lat: 53.551, lon:  9.993 },
+  { city: 'Frankfurt', lat: 50.110, lon:  8.682 },
+  { city: 'Stuttgart', lat: 48.775, lon:  9.181 },
+  { city: 'Cologne',   lat: 50.938, lon:  6.960 },
+  { city: 'Nuremberg', lat: 49.453, lon: 11.077 },
+];
+
+const OTHER_CITIES = [
+  { city: 'Vienna',    lat: 48.208, lon: 16.373 },
+  { city: 'Innsbruck', lat: 47.269, lon: 11.404 },
+  { city: 'Zurich',    lat: 47.377, lon:  8.541 },
+  { city: 'London',    lat: 51.508, lon: -0.128 },
+  { city: 'Barcelona', lat: 41.385, lon:  2.173 },
+  { city: 'Amsterdam', lat: 52.373, lon:  4.890 },
+];
+
+// TR: 50 entries (~49%), DE: 35 entries (~34%), Other: 18 entries (~17%)
 const LOCATIONS = [
-  { city: 'Munich',      lat: 48.137,  lon: 11.576 },
-  { city: 'Berlin',      lat: 52.520,  lon: 13.405 },
-  { city: 'Frankfurt',   lat: 50.110,  lon:  8.682 },
-  { city: 'Hamburg',     lat: 53.551,  lon:  9.993 },
-  { city: 'Stuttgart',   lat: 48.775,  lon:  9.181 },
-  { city: 'Cologne',     lat: 50.938,  lon:  6.960 },
-  { city: 'Innsbruck',   lat: 47.269,  lon: 11.404 },
-  { city: 'Vienna',      lat: 48.208,  lon: 16.373 },
-  { city: 'Graz',        lat: 47.070,  lon: 15.439 },
-  { city: 'Chamonix',    lat: 45.924,  lon:  6.869 },
-  { city: 'Lyon',        lat: 45.764,  lon:  4.836 },
-  { city: 'Paris',       lat: 48.857,  lon:  2.352 },
-  { city: 'London',      lat: 51.508,  lon: -0.128 },
-  { city: 'Edinburgh',   lat: 55.953,  lon: -3.188 },
-  { city: 'Barcelona',   lat: 41.385,  lon:  2.173 },
-  { city: 'Zurich',      lat: 47.377,  lon:  8.541 },
-  { city: 'Bern',        lat: 46.948,  lon:  7.447 },
-  { city: 'Amsterdam',   lat: 52.373,  lon:  4.890 },
-  { city: 'Copenhagen',  lat: 55.676,  lon: 12.568 },
-  { city: 'Stockholm',   lat: 59.334,  lon: 18.063 },
+  ...Array(5).fill(TR_CITIES).flat(),
+  ...Array(5).fill(DE_CITIES).flat(),
+  ...Array(3).fill(OTHER_CITIES).flat(),
 ];
 
 const MALE_BIOS = [
@@ -164,6 +185,17 @@ const FEMALE_BIOS = [
   "Rest days are for planning the next project.",
 ];
 
+// Loremflickr keyword combos for climbing photos
+const CLIMBING_QUERIES = [
+  'rock,climbing',
+  'bouldering',
+  'sport,climbing',
+  'climbing,outdoor',
+  'climbing,wall',
+  'rock+climbing',
+  'climbing,mountain',
+];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
@@ -175,7 +207,7 @@ function jitter(coord, radius = 0.15) {
 
 function pickGrade() {
   const generalLevel = pick(LEVEL_POOL);
-  const useFrench = Math.random() > 0.25; // 75% French, 25% UIAA
+  const useFrench = Math.random() > 0.25;
   const system = useFrench ? 'french' : 'uiaa';
   const gradeMap = useFrench ? FRENCH_GRADES : UIAA_GRADES;
   const value = pick(gradeMap[generalLevel]);
@@ -189,10 +221,48 @@ function pickIntent() {
   return ['date', 'partner'];
 }
 
+const usedLocks = new Set();
+function getClimbingPhotoUrl() {
+  let lock;
+  do { lock = Math.floor(Math.random() * 9500) + 500; } while (usedLocks.has(lock));
+  usedLocks.add(lock);
+  return `https://loremflickr.com/640/640/${pick(CLIMBING_QUERIES)}?lock=${lock}`;
+}
+
+// ─── Pre-fetch climbing photos upfront ────────────────────────────────────
+// Re-uses a pool of 30 photos across all bots (much faster than fetching per-bot).
+
+async function prefetchClimbingPhotos(count = 30) {
+  process.stdout.write(`Pre-fetching ${count} climbing photos`);
+  const photos = [];
+  const batchSize = 5;
+
+  for (let i = 0; i < count; i += batchSize) {
+    const batchCount = Math.min(batchSize, count - i);
+    const batch = Array.from({ length: batchCount }, () => getClimbingPhotoUrl());
+
+    const results = await Promise.allSettled(
+      batch.map(url =>
+        fetch(url, { signal: AbortSignal.timeout(15000) })
+          .then(r => r.ok ? r.arrayBuffer() : null)
+          .catch(() => null)
+      )
+    );
+
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value) photos.push(r.value);
+    }
+    process.stdout.write(`.`);
+    await sleep(600);
+  }
+
+  console.log(` ${photos.length}/${count} ready\n`);
+  return photos;
+}
+
 // ─── PocketBase helpers ────────────────────────────────────────────────────
 
 async function adminAuth() {
-  // Try new v0.26 superusers endpoint first, fall back to legacy
   for (const endpoint of [
     '/api/collections/_superusers/auth-with-password',
     '/api/admins/auth-with-password',
@@ -229,29 +299,44 @@ async function createUser(payload, adminToken) {
   return res.json();
 }
 
-async function uploadPhoto(userId, photoUrl, adminToken) {
+async function uploadPhotos(userId, personPhotoUrl, climbingPool, adminToken) {
+  const form = new FormData();
+  let uploaded = 0;
+
+  // Image 1: person's face photo
   try {
-    const photoRes = await fetch(photoUrl, { signal: AbortSignal.timeout(8000) });
-    if (!photoRes.ok) return;
+    const res = await fetch(personPhotoUrl, { signal: AbortSignal.timeout(8000) });
+    if (res.ok) {
+      form.append('images', new Blob([await res.arrayBuffer()], { type: 'image/jpeg' }), `img1_${userId}.jpg`);
+      uploaded++;
+    }
+  } catch (_) {}
 
-    const buffer = await photoRes.arrayBuffer();
-    const filename = `avatar_${userId}.jpg`;
+  // Images 2 & 3: random climbing photos from pre-fetched pool
+  if (climbingPool.length >= 2) {
+    const shuffled = [...climbingPool].sort(() => Math.random() - 0.5);
+    for (let i = 0; i < 2; i++) {
+      form.append('images', new Blob([shuffled[i]], { type: 'image/jpeg' }), `img${i + 2}_${userId}.jpg`);
+      uploaded++;
+    }
+  }
 
-    const form = new FormData();
-    form.append('images', new Blob([buffer], { type: 'image/jpeg' }), filename);
+  if (uploaded === 0) return 0;
 
+  try {
     const patchRes = await fetch(`${POCKETBASE_URL}/api/collections/users/records/${userId}`, {
       method: 'PATCH',
       headers: { Authorization: adminToken },
       body: form,
     });
-
     if (!patchRes.ok && process.env.VERBOSE) {
-      console.warn(`  ⚠ Photo upload failed for ${userId}: ${await patchRes.text()}`);
+      console.warn(`\n  ⚠ Photo upload failed for ${userId}: ${await patchRes.text()}`);
     }
   } catch (err) {
-    if (process.env.VERBOSE) console.warn(`  ⚠ Photo fetch failed: ${err.message}`);
+    if (process.env.VERBOSE) console.warn(`\n  ⚠ Photo patch error: ${err.message}`);
   }
+
+  return uploaded;
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────
@@ -259,18 +344,40 @@ async function uploadPhoto(userId, photoUrl, adminToken) {
 async function main() {
   console.log(`\nTake! Bot Seeder`);
   console.log(`Target: ${POCKETBASE_URL}`);
-  console.log(`Count:  ${BOT_COUNT} users\n`);
+  console.log(`Count:  ${BOT_COUNT} users (3 images each)\n`);
 
   const adminToken = await adminAuth();
 
-  // Fetch real user data from randomuser.me (names, photos, age, gender)
-  console.log(`Fetching ${BOT_COUNT} user profiles from randomuser.me...`);
-  const ruRes = await fetch(
-    `https://randomuser.me/api/?results=${BOT_COUNT}&nat=de,at,gb,fr,es,ch,nl,dk,se&inc=name,gender,dob,picture&noinfo`,
-    { signal: AbortSignal.timeout(15000) }
-  );
-  if (!ruRes.ok) throw new Error('randomuser.me fetch failed');
-  const { results } = await ruRes.json();
+  // Pre-fetch climbing photos before creating any users
+  const climbingPool = await prefetchClimbingPhotos(30);
+  if (climbingPool.length < 2) {
+    console.warn('⚠ Fewer than 2 climbing photos fetched — bots will have fewer images.');
+  }
+
+  // Fetch user templates: ~55% Turkish, ~45% European
+  const trCount = Math.round(BOT_COUNT * 0.55);
+  const euCount = BOT_COUNT - trCount;
+
+  console.log(`Fetching ${trCount} Turkish + ${euCount} European user templates from randomuser.me...`);
+
+  const [trRes, euRes] = await Promise.all([
+    fetch(
+      `https://randomuser.me/api/?results=${trCount}&nat=tr&inc=name,gender,dob,picture&noinfo`,
+      { signal: AbortSignal.timeout(15000) }
+    ),
+    fetch(
+      `https://randomuser.me/api/?results=${euCount}&nat=de,at,gb,fr,es&inc=name,gender,dob,picture&noinfo`,
+      { signal: AbortSignal.timeout(15000) }
+    ),
+  ]);
+
+  if (!trRes.ok || !euRes.ok) throw new Error('randomuser.me fetch failed');
+
+  const trData = await trRes.json();
+  const euData = await euRes.json();
+
+  // Shuffle Turkish and European users together
+  const results = [...trData.results, ...euData.results].sort(() => Math.random() - 0.5);
   console.log(`✓ Got ${results.length} user templates\n`);
 
   let created = 0;
@@ -289,38 +396,35 @@ async function main() {
       const age      = Math.max(20, Math.min(42, ru.dob.age));
       const name     = `${ru.name.first} ${ru.name.last}`;
 
-      // Use a unique bot email that won't clash with real users
-      const uid = `${Date.now()}${Math.random().toString(36).slice(2, 6)}`;
+      const uid   = `${Date.now()}${Math.random().toString(36).slice(2, 6)}`;
       const email = `bot.${uid}@takeapp.internal`;
 
       const record = await createUser({
         email,
-        password:        'TakeBot2024!',
-        passwordConfirm: 'TakeBot2024!',
+        password:          'TakeBot2024!',
+        passwordConfirm:   'TakeBot2024!',
         name,
         age,
-        gender:           ru.gender === 'male' ? 'male' : 'female',
-        grade:            JSON.stringify(grade),
-        climbing_styles:  JSON.stringify(styles),
-        home_gym:         gym,
+        gender:            ru.gender === 'male' ? 'male' : 'female',
+        grade:             JSON.stringify(grade),
+        climbing_styles:   JSON.stringify(styles),
+        home_gym:          gym,
         bio,
-        intent:           JSON.stringify(intent),
-        latitude:         jitter(location.lat),
-        longitude:        jitter(location.lon),
+        intent:            JSON.stringify(intent),
+        latitude:          jitter(location.lat),
+        longitude:         jitter(location.lon),
         profile_completed: true,
         verified:          true,
       }, adminToken);
 
-      // Upload the randomuser.me photo as their profile image
-      await uploadPhoto(record.id, ru.picture.large, adminToken);
+      const imgCount = await uploadPhotos(record.id, ru.picture.large, climbingPool, adminToken);
 
       created++;
       process.stdout.write(
-        `\r[${created + failed}/${results.length}] ✓ ${name.padEnd(22)} ${grade.value.padEnd(5)} ${grade.general_level.padEnd(12)} ${location.city}`
+        `\r[${created + failed}/${results.length}] ✓ ${name.padEnd(22)} ${grade.value.padEnd(5)} ${location.city.padEnd(14)} 📷${imgCount}`
       );
 
-      // Throttle slightly to be kind to both APIs
-      await sleep(80);
+      await sleep(150);
 
     } catch (err) {
       failed++;
@@ -335,7 +439,7 @@ async function main() {
   console.log(`─────────────────────────────────`);
   console.log(`\nBot accounts use email: bot.*@takeapp.internal`);
   console.log(`Password for all bots:  TakeBot2024!`);
-  console.log(`\nTo delete all bots later, filter by email ~ "takeapp.internal" in PocketBase admin.`);
+  console.log(`\nTo delete all bots: filter by email ~ "takeapp.internal" in PocketBase admin.`);
 }
 
 main().catch(err => {

@@ -10,6 +10,7 @@ import {
     StyleSheet,
     View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ChatMenuModalProps {
   visible: boolean;
@@ -28,6 +29,7 @@ export const ChatMenuModal: React.FC<ChatMenuModalProps> = ({
 }) => {
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
+  const insets = useSafeAreaInsets();
 
   const handleDelete = () => {
     Alert.alert(
@@ -59,7 +61,7 @@ export const ChatMenuModal: React.FC<ChatMenuModalProps> = ({
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <View style={styles.menuContainer}>
+        <View style={[styles.menuContainer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
           <Text style={styles.menuTitle}>Options</Text>
 
           <Pressable

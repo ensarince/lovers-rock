@@ -11,6 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Climber } from '../types/climber';
 
 const { width: W } = Dimensions.get('window');
@@ -39,6 +40,7 @@ export const MatchAnimation: React.FC<MatchAnimationProps> = ({
   onMessage,
 }) => {
   const [showContent, setShowContent] = useState(false);
+  const insets = useSafeAreaInsets();
 
   // Overlay
   const overlayOpacity = useRef(new Animated.Value(0)).current;
@@ -208,7 +210,7 @@ export const MatchAnimation: React.FC<MatchAnimationProps> = ({
 
   return (
     <Modal visible={visible} transparent animationType="none">
-      <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
+      <Animated.View style={[styles.overlay, { opacity: overlayOpacity, paddingBottom: Math.max(insets.bottom + 24, 64) }]}>
         <LinearGradient
           colors={['#0c0010', '#1c0025', '#110018', '#0a000e']}
           locations={[0, 0.4, 0.7, 1]}
@@ -310,7 +312,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: 90,
-    paddingBottom: 64,
     paddingHorizontal: 28,
   },
 

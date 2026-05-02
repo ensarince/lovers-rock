@@ -16,6 +16,7 @@ import {
   ScrollView,
   StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width, height } = Dimensions.get('window');
 
@@ -41,6 +42,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
   const { darkMode } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
+  const insets = useSafeAreaInsets();
   const [distance, setDistance] = useState<number | null>(null);
   const [showBlockReportMenu, setShowBlockReportMenu] = useState(false);
 
@@ -147,7 +149,7 @@ export const MatchDetailModal: React.FC<MatchDetailModalProps> = ({
         </ScrollView>
 
         {/* Action Buttons */}
-        <View style={styles.actionsContainer}>
+        <View style={[styles.actionsContainer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
           <Pressable
             style={styles.messageButton}
             onPress={() => onMessage(match)}

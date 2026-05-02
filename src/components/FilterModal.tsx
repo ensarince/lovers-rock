@@ -14,6 +14,7 @@ import {
   TextInput,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RangeSlider from 'react-native-fast-range-slider';
 
 const getStyleImage = (style: ClimbingStyle) => {
@@ -33,7 +34,7 @@ export interface DiscoverFilters {
   genders?: Gender[];
   maxAge?: number;
   minAge?: number;
-  maxDistance?: number; // Maximum distance in kilometers (0-50)
+  maxDistance?: number; // Maximum distance in kilometers (0-200)
   gym?: string; // Gym name filter
 }
 
@@ -74,6 +75,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
   const { darkMode } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
+  const insets = useSafeAreaInsets();
   const [isSliderInteracting, setIsSliderInteracting] = useState(false);
 
   const [minDifficulty, setMinDifficulty] = useState<number>(() => {
@@ -95,8 +97,8 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     (currentFilters.genders as Gender[]) || []
   );
   const [minAge, setMinAge] = useState(currentFilters.minAge || 18);
-  const [maxAge, setMaxAge] = useState(currentFilters.maxAge || 80);
-  const [maxDistance, setMaxDistance] = useState(currentFilters.maxDistance || 50);
+  const [maxAge, setMaxAge] = useState(currentFilters.maxAge || 60);
+  const [maxDistance, setMaxDistance] = useState(currentFilters.maxDistance || 200);
   const [gymFilter, setGymFilter] = useState(currentFilters.gym || '');
 
   const toggleStyle = (style: string) => {
@@ -122,8 +124,8 @@ export const FilterModal: React.FC<FilterModalProps> = ({
       styles: selectedStyles.length > 0 ? selectedStyles : undefined,
       genders: selectedGenders.length > 0 ? selectedGenders : undefined,
       minAge: minAge !== 18 ? minAge : undefined,
-      maxAge: maxAge !== 80 ? maxAge : undefined,
-      maxDistance: maxDistance !== 50 ? maxDistance : undefined,
+      maxAge: maxAge !== 60 ? maxAge : undefined,
+      maxDistance: maxDistance !== 200 ? maxDistance : undefined,
       gym: gymFilter.trim().length > 0 ? gymFilter.trim() : undefined,
     });
     onClose();
@@ -135,8 +137,8 @@ export const FilterModal: React.FC<FilterModalProps> = ({
     setSelectedStyles([]);
     setSelectedGenders([]);
     setMinAge(18);
-    setMaxAge(80);
-    setMaxDistance(50);
+    setMaxAge(60);
+    setMaxDistance(200);
     setGymFilter('');
     onApplyFilters({});
     onClose();
@@ -215,7 +217,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
               <View style={styles.rangeSliderContainer}>
                 <RangeSlider
                   min={18}
-                  max={100}
+                  max={60}
                   initialMinValue={minAge}
                   initialMaxValue={maxAge}
                   step={1}
@@ -253,7 +255,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
               <View style={styles.rangeSliderContainer}>
                 <RangeSlider
                   min={0}
-                  max={50}
+                  max={200}
                   initialMinValue={0}
                   initialMaxValue={maxDistance}
                   step={1}
@@ -282,7 +284,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
               {/* Distance labels */}
               <View style={styles.distanceLabels}>
                 <Text style={styles.distanceLabel}>0 km</Text>
-                <Text style={styles.distanceLabel}>50 km</Text>
+                <Text style={styles.distanceLabel}>200 km</Text>
               </View>
             </View>
 
@@ -366,7 +368,7 @@ export const FilterModal: React.FC<FilterModalProps> = ({
           </ScrollView>
 
           {/* Footer Buttons */}
-          <View style={styles.footer}>
+          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) + 6 }]}>
             <Pressable
               style={styles.resetButton}
               onPress={handleReset}>

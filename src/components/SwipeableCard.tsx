@@ -83,9 +83,9 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
       onStartShouldSetPanResponder: (evt, gestureState) => {
         return false; // Don't claim touch at start, let Pressable handle taps
       },
-      onMoveShouldSetPanResponder: (evt, { dy, dx }) => {
-        // Only activate pan responder if movement is significant (>10px)
-        return Math.abs(dx) > 10 || Math.abs(dy) > 10;
+      onMoveShouldSetPanResponder: (evt, { dx, dy }) => {
+        // Only claim for clearly horizontal swipes — prevents stealing nav button taps
+        return Math.abs(dx) > 20 && Math.abs(dx) > Math.abs(dy) * 2;
       },
       onPanResponderMove: Animated.event([null, { dx: pan.x }], {
         useNativeDriver: false,
@@ -161,19 +161,19 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
           pan.getLayout(),
           styles.cardShadow, 
         ]}>
-        <Pressable 
-          onPress={onPress}
+        <Pressable
           delayLongPress={500}
           onLongPress={() => setShowBlockReportMenu(true)}
-          hitSlop={10}
           style={styles.card}>
+          {/* swipeNavEnabled=false: tap zones handle image nav, card PanResponder handles swipes */}
           <ImageCarousel
             images={climber.images || []}
             userId={climber.id}
             expandable={true}
             height={"100%"}
             darkMode={darkMode}
-            showIndicators={true}
+            showIndicators={false}
+            swipeNavEnabled={false}
           />
 
           {/* Top gradient overlay */}
@@ -206,12 +206,20 @@ export const SwipeableCard: React.FC<SwipeableCardProps> = ({
 
           {/* Info panel — fixed height, never covers carousel dots */}
           <View style={styles.contentPanel}>
-            {/* Name row */}
+            {/* Name row — ⓘ button opens bio detail (only tappable element on the card) */}
             <View style={styles.nameRow}>
               <Text style={styles.name} numberOfLines={1}>
                 {climber.name}
               </Text>
               <Text style={styles.age}>{climber.age}</Text>
+              {onPress && (
+                <Pressable
+                  onPress={(e) => { e.stopPropagation(); onPress(); }}
+                  hitSlop={10}
+                  style={styles.infoButton}>
+                  <Ionicons name="information-circle-outline" size={22} color="rgba(255,255,255,0.85)" />
+                </Pressable>
+              )}
             </View>
 
             {/* Gym + distance row */}
@@ -396,8 +404,12 @@ const styles = StyleSheet.create({
   },
   nameRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 10,
+    alignItems: 'center',
+    gap: 8,
+  },
+  infoButton: {
+    marginLeft: 'auto',
+    padding: 2,
   },
   name: {
     fontSize: 26,

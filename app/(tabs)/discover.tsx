@@ -545,8 +545,7 @@ export default function DiscoverScreen() {
 
   // Show full bio when card is tapped
   const showFullBio = (climber: Climber) => {
-    // Only show modal if bio is actually long (more than ~150 chars or would wrap to 4+ lines)
-    if (climber.bio && climber.bio.length > 150) {
+    if (climber.bio) {
       setBioDetailClimber(climber);
     }
   };
