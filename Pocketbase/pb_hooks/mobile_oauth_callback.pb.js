@@ -36,7 +36,7 @@ routerAdd('GET', '/api/mobile-oauth-callback', function(e) {
         return e.html(200,
             '<!DOCTYPE html><html><head><title>Signing in...</title>' +
             '<script>window.location=' + JSON.stringify(deepLink) + ';<\/script>' +
-            '</head><body>Redirecting to Lovers Rock...</body></html>'
+            '</head><body>Redirecting to Take!...</body></html>'
         );
     } catch(err) {
         return e.json(500, { error: 'Internal error' });

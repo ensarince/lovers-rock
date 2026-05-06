@@ -31,7 +31,7 @@ PocketBase's `authWithOAuth2` with `urlCallback` relies on SSE to deliver the au
 5. Custom Tab detects `loversrock://` → auto-closes → `result.url` has the code
 6. `authWithOAuth2Code('google', code, codeVerifier, relayUri)` exchanges directly
 
-**Google Cloud Console:** Authorized redirect URI = `https://lovers-rock-production.up.railway.app/api/mobile-oauth-callback`
+**Google Cloud Console:** Authorized redirect URI = `https://take-climbing.up.railway.app/api/mobile-oauth-callback`
 
 ---
 
@@ -40,7 +40,7 @@ PocketBase's `authWithOAuth2` with `urlCallback` relies on SSE to deliver the au
 1. Railway → PocketBase service → wait for deploy
 2. Go to `/_/` → create superuser
 3. Collections → `users` → Settings → Auth providers → enable Google (paste Client ID + Secret)
-4. Google OAuth config: redirect URI = `https://lovers-rock-production.up.railway.app/api/mobile-oauth-callback`
+4. Google OAuth config: redirect URI = `https://take-climbing.up.railway.app/api/mobile-oauth-callback`
 
 **TODO: Add a persistent volume** to avoid losing config on every redeploy.
 Railway → PocketBase service → Storage → Add Volume → mount path: `/pb/pb_data`

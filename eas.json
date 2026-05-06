@@ -11,13 +11,13 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_IP": "https://lovers-rock-production.up.railway.app"
+        "EXPO_PUBLIC_IP": "https://take-climbing.up.railway.app"
       }
     },
     "production": {
       "autoIncrement": true,
-      "env": {
-        "EXPO_PUBLIC_IP": "https://lovers-rock-production.up.railway.app"
+      "env": {  
+        "EXPO_PUBLIC_IP": "https://take-climbing.up.railway.app"
       }
     }
   },
