@@ -1,7 +1,7 @@
 import { authService } from '@/src/services/authService';
 import { createDefaultGrade } from '@/src/services/gradeService';
 import { locationService } from '@/src/services/locationService';
-import { NotificationService } from '@/src/services/notificationService';
+import { NotificationService, registerPushToken } from '@/src/services/notificationService';
 import { preferenceService } from '@/src/services/preferenceService';
 import { initReportService } from '@/src/services/reportService';
 import { Climber } from '@/src/types/climber';
@@ -90,21 +90,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   /**
    * Setup notification service for the user
    */
-  const setupNotifications = async (userId: string, pb: PocketBase) => {
+  const setupNotifications = async (userId: string, pb: PocketBase, authToken: string) => {
     try {
       notificationService = new NotificationService(pb, userId);
 
-      // Request notification permissions
       const permissionGranted = await notificationService.requestPermissions();
+      if (permissionGranted) {
+        await registerPushToken(userId, authToken);
+      }
       if (process.env.EXPO_DEV_MODE) {
         console.log('Notification permissions granted:', permissionGranted);
       }
 
-      // Setup real-time listeners
       await notificationService.setupRealtimeListeners();
-      if (process.env.EXPO_DEV_MODE) {
-        console.log('Real-time notification listeners set up');
-      }
     } catch (error) {
       console.error('Error setting up notifications:', error);
     }
@@ -190,7 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           // Setup notifications for restored user
           const pb = new PocketBase(getPocketBaseUrl());
           pb.authStore.save(storedToken, parsedUser);
-          await setupNotifications(parsedUser.id, pb);
+          await setupNotifications(parsedUser.id, pb, storedToken);
           
           // Refresh user data from PocketBase to ensure latest profile_completed status
           try {
@@ -237,7 +235,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           if (currentUser && currentToken) {
             const pb = new PocketBase(getPocketBaseUrl());
             pb.authStore.save(currentToken, currentUser);
-            await setupNotifications(currentUser.id, pb);
+            await setupNotifications(currentUser.id, pb, currentToken);
           }
           
           // Reset preferences and sync for existing user
@@ -274,13 +272,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Setup notifications for logged-in user
       const pb = new PocketBase(getPocketBaseUrl());
       pb.authStore.save(authData.token, authData.record);
-      await setupNotifications(authData.record.id, pb);
-      
+      await setupNotifications(authData.record.id, pb, authData.token);
+
       // Reset preferences and sync for the new user
       preferenceService.reset();
       await preferenceService.syncPreferences(authData.token, authData.record.id);
       setPreferencesSynced(true);
-      
+
       // Location tracking will be started in the discover screen after 3 seconds
       
       // Fetch fresh user data
@@ -371,7 +369,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const pb = new PocketBase(getPocketBaseUrl());
       pb.authStore.save(authData.token, authData.record);
-      await setupNotifications(authData.record.id, pb);
+      await setupNotifications(authData.record.id, pb, authData.token);
 
       // Reset preferences and sync for the new user
       preferenceService.reset();

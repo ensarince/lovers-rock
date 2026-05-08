@@ -230,3 +230,23 @@ export const notificationService = new NotificationService(
   new PocketBase(getPocketBaseUrl()),
   ''
 );
+
+export async function registerPushToken(userId: string, authToken: string): Promise<void> {
+  if (!Notifications) return;
+  try {
+    const tokenData = await Notifications.getExpoPushTokenAsync({
+      projectId: 'fea56759-fdfc-46dd-a45c-5b61ff8af166',
+    });
+    const pushToken: string = tokenData.data;
+    await fetch(`${getPocketBaseUrl()}/api/collections/users/records/${userId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ push_token: pushToken }),
+    });
+  } catch {
+    // simulator / web / permission denied — ignore
+  }
+}
