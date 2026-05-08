@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Impressum — Take!</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" type="image/jpeg" href="/assets/logo.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #111827;
+      --surface: #1E2A3A;
+      --teal:    #34D3CF;
+      --red:     #FF2E63;
+      --text:    #F3F5F8;
+      --muted:   #AEB7C4;
+      --border:  rgba(255,255,255,0.08);
+    }
+
+    html { font-size: 16px; scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', system-ui, sans-serif;
+      line-height: 1.7;
+    }
+
+    nav.topbar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(17,24,39,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 24px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    nav.topbar a { color: var(--teal); text-decoration: none; font-size: 14px; font-weight: 500; }
+    nav.topbar a:hover { text-decoration: underline; }
+    nav.topbar span { color: var(--muted); font-size: 14px; }
+
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 60px 24px 80px;
+    }
+
+    h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2rem, 5vw, 2.8rem);
+      font-weight: 600;
+      color: var(--teal);
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 48px;
+    }
+
+    section { margin-bottom: 40px; }
+
+    h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    p { color: var(--text); margin-bottom: 8px; }
+
+    a { color: var(--teal); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    footer.footer {
+      text-align: center;
+      padding: 24px;
+      color: var(--muted);
+      font-size: 13px;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="topbar">
+    <a href="/">← Back to home</a>
+    <span>/</span>
+    <span>Impressum</span>
+  </nav>
+
+  <main>
+    <h1>Impressum</h1>
+    <p class="subtitle">Angaben gemäß § 5 TMG</p>
+
+    <section>
+      <h2>Verantwortlich</h2>
+      <p><strong>Ensar Ince</strong></p>
+      <p>Blumenstraβe 29</p>
+      <p>66111 Saarbrücken</p>
+      <p>Germany</p>
+    </section>
+
+    <section>
+      <h2>Kontakt</h2>
+      <p>E-Mail: <a href="mailto:takeclimbingapp@gmail.com">takeclimbingapp@gmail.com</a></p>
+    </section>
+
+    <section>
+      <h2>Hinweis</h2>
+      <p>Take! ist ein privates Freizeitprojekt. Es werden keine Waren oder Dienstleistungen gegen Entgelt angeboten. Freiwillige Unterstützungsbeiträge über „Buy Me a Coffee" begründen kein Vertragsverhältnis.</p>
+    </section>
+
+    <section>
+      <h2>Haftung für Inhalte</h2>
+      <p>Als Diensteanbieter sind wir gemäß § 7 Abs. 1 TMG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8–10 TMG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen.</p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    © 2025 Take! · <a href="/">Back to home</a> · <a href="/privacy.html">Privacy Policy</a>
+  </footer>
+
+</body>
+</html>
