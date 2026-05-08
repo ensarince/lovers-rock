@@ -483,8 +483,18 @@ a { color: inherit; text-decoration: none; }
 .phone-frame--step-sm { width: 148px; }
 
 @media (max-width: 600px) {
-  .phone-frame--step-sm { width: 108px; }
-  .step-phones-row { gap: 8px; }
+  .phone-frame--step-sm { width: 108px; flex-shrink: 0; }
+  .step-phones-row {
+    gap: 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+    /* hide scrollbar */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .step-phones-row::-webkit-scrollbar { display: none; }
+  .phone-frame--step { width: 160px; max-width: 100%; }
 }
 
 /* ── Download ────────────────────────────────────────────────────────────── */
@@ -653,6 +663,7 @@ a { color: inherit; text-decoration: none; }
     gap: 0 16px;
   }
   .step-number { font-size: 34px; }
+  .step-content { overflow: hidden; }
   .phone-frame--step { width: 180px; }
 
   .support-card { padding: 48px 24px; }
