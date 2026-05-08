@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — Take!</title>
+  <meta name="description" content="Privacy Policy for the Take! climbing app." />
+  <link rel="icon" type="image/jpeg" href="/assets/logo.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #111827;
+      --surface: #1E2A3A;
+      --teal:    #34D3CF;
+      --red:     #FF2E63;
+      --text:    #F3F5F8;
+      --muted:   #AEB7C4;
+      --border:  rgba(255,255,255,0.08);
+    }
+
+    html { font-size: 16px; scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-weight: 400;
+      line-height: 1.75;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Nav ── */
+    .navbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 32px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(17,24,39,0.95);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .nav-logo {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+    .nav-back {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--teal);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.2s;
+    }
+    .nav-back:hover { opacity: 0.75; }
+
+    /* ── Layout ── */
+    .page {
+      max-width: 760px;
+      margin-inline: auto;
+      padding: 64px 24px 100px;
+    }
+
+    .page-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(36px, 5vw, 52px);
+      font-weight: 600;
+      line-height: 1.1;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+
+    .meta {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 56px;
+    }
+
+    /* ── Content ── */
+    section {
+      margin-bottom: 48px;
+    }
+
+    h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 26px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    p {
+      font-size: 15px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    p:last-child { margin-bottom: 0; }
+
+    ul {
+      list-style: none;
+      margin-bottom: 14px;
+    }
+
+    ul li {
+      font-size: 15px;
+      color: var(--muted);
+      padding: 5px 0 5px 20px;
+      position: relative;
+    }
+
+    ul li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: var(--teal);
+      font-weight: 600;
+    }
+
+    a {
+      color: var(--teal);
+      text-decoration: none;
+    }
+    a:hover { text-decoration: underline; }
+
+    strong { color: var(--text); font-weight: 600; }
+
+    /* ── Highlight box ── */
+    .highlight {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--teal);
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-bottom: 14px;
+    }
+    .highlight p { margin-bottom: 0; }
+
+    /* ── Footer ── */
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px;
+      text-align: center;
+    }
+    .footer p {
+      font-size: 13px;
+      color: rgba(174,183,196,0.4);
+      margin: 0;
+    }
+    .footer a { color: var(--teal); }
+
+    @media (max-width: 600px) {
+      .navbar { padding: 14px 20px; }
+      .page { padding: 40px 20px 72px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="/" class="nav-brand">
+      <img src="/assets/logo.jpg" alt="Take!" class="nav-logo" />
+      Take!
+    </a>
+    <a href="/" class="nav-back">
+      ← Back to home
+    </a>
+  </nav>
+
+  <main class="page">
+
+    <div class="page-label">Legal</div>
+    <h1>Privacy Policy</h1>
+    <p class="meta">Last updated: May 2025</p>
+
+    <div class="highlight">
+      <p>Take! is a free app built by an individual developer. We take your privacy seriously and only collect what we need to make the app work. We do not sell your data to anyone.</p>
+    </div>
+
+    <section>
+      <h2>1. Who We Are</h2>
+      <p>Take! ("the App") is a climbing community app for finding climbing partners and romantic connections. It is developed and operated independently. If you have any questions about this policy, contact us at <a href="mailto:takeclimbingapp@gmail.com">takeclimbingapp@gmail.com</a>.</p>
+    </section>
+
+    <section>
+      <h2>2. Information We Collect</h2>
+      <p>When you create an account and use Take!, we collect the following:</p>
+      <ul>
+        <li><strong>Account information:</strong> your email address, name, age, and gender</li>
+        <li><strong>Profile information:</strong> bio, home gym, climbing grade, climbing styles, and intent (dating, partner, or both)</li>
+        <li><strong>Photos:</strong> up to 3 images you upload to your profile</li>
+        <li><strong>Location:</strong> approximate GPS coordinates, rounded to 3 decimal places (~100m precision), used to calculate distance to other users</li>
+        <li><strong>Usage data:</strong> likes, matches, messages, blocks, and reports you create within the app</li>
+      </ul>
+      <p>If you sign in with Google, we receive your email address and name from Google as part of the authentication process. We do not receive your Google password.</p>
+    </section>
+
+    <section>
+      <h2>3. How We Use Your Information</h2>
+      <p>We use the data we collect to:</p>
+      <ul>
+        <li>Create and manage your account</li>
+        <li>Show your profile to other users and show you theirs</li>
+        <li>Calculate distances between users to power location-based filtering</li>
+        <li>Enable matching, messaging, and partner requests</li>
+        <li>Process blocks and reports to keep the community safe</li>
+        <li>Send you notifications about matches and messages (if you enable them)</li>
+      </ul>
+      <p>We do not use your data for advertising, profiling, or selling to third parties.</p>
+    </section>
+
+    <section>
+      <h2>4. Location Data</h2>
+      <p>The app requests access to your device location to show you nearby climbers. Location is updated periodically while the app is in use. We store only a rounded version of your coordinates (3 decimal places) — precise enough to compute distances, not precise enough to pinpoint your address.</p>
+      <p>Your exact coordinates are never shown to other users. Other users only see a distance in kilometres (e.g., "12 km away").</p>
+      <p>You can revoke location permission at any time in your device settings. Without location permission, distance filtering will not work.</p>
+    </section>
+
+    <section>
+      <h2>5. Photos</h2>
+      <p>Photos you upload are stored on our server and displayed to other users as part of your profile. We do not use your photos for any purpose other than displaying your profile. You can delete your photos at any time from within the app.</p>
+    </section>
+
+    <section>
+      <h2>6. Data Sharing</h2>
+      <p>We do not sell, rent, or trade your personal information. We share data only in the following limited cases:</p>
+      <ul>
+        <li><strong>Other users:</strong> your public profile (name, age, photos, grade, styles, bio, home gym, distance) is visible to other users of the app. Your email address is never shown to other users.</li>
+        <li><strong>Google OAuth:</strong> if you sign in with Google, authentication is handled by Google. Their privacy policy applies: <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">policies.google.com/privacy</a></li>
+        <li><strong>Infrastructure:</strong> the app backend runs on PocketBase hosted on Railway. Data is stored on Railway's servers. Railway's privacy policy applies to server-level data handling.</li>
+        <li><strong>Legal obligations:</strong> we may disclose information if required by law or to protect the safety of users.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>7. Data Retention</h2>
+      <p>Your data is retained as long as your account is active. If you delete your account, your profile, photos, messages, and match history are permanently deleted from our servers. Backups may retain data for up to 30 days after deletion.</p>
+      <p>Declined user records are automatically expired after 1 month so that users can reappear in your discovery feed.</p>
+    </section>
+
+    <section>
+      <h2>8. Your Rights</h2>
+      <p>You have the right to:</p>
+      <ul>
+        <li>Access the personal data we hold about you</li>
+        <li>Correct inaccurate data via your profile settings</li>
+        <li>Delete your account and all associated data</li>
+        <li>Withdraw location permission at any time via device settings</li>
+        <li>Block or report other users at any time</li>
+      </ul>
+      <p>To delete your account or request a copy of your data, contact us at <a href="mailto:takeclimbingapp@gmail.com">takeclimbingapp@gmail.com</a>.</p>
+    </section>
+
+    <section>
+      <h2>9. Children's Privacy</h2>
+      <p>Take! is intended for users aged 18 and over. We do not knowingly collect information from anyone under 18. If you believe a minor has created an account, please contact us and we will delete it promptly.</p>
+    </section>
+
+    <section>
+      <h2>10. Security</h2>
+      <p>We use industry-standard practices to protect your data, including encrypted connections (HTTPS) for all data in transit. No system is 100% secure, but we work to keep your information safe.</p>
+    </section>
+
+    <section>
+      <h2>11. Changes to This Policy</h2>
+      <p>We may update this policy as the app evolves. If we make significant changes, we will notify users through the app. The "last updated" date at the top of this page will always reflect the current version.</p>
+    </section>
+
+    <section>
+      <h2>12. Contact</h2>
+      <p>If you have questions, concerns, or requests about your data, reach out at any time:</p>
+      <p><a href="mailto:takeclimbingapp@gmail.com">takeclimbingapp@gmail.com</a></p>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p>© 2025 Take! · <a href="/">Back to home</a></p>
+  </footer>
+
+</body>
+</html>

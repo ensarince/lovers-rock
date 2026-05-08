@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Take! — Find Your Climbing Partner</title>
+  <meta name="description" content="Take! connects climbers looking for romance, friendship, or a belay partner. Match by grade, style, and location." />
+  <meta property="og:title" content="Take! — Find Your Climbing Partner" />
+  <meta property="og:description" content="Match by grade, style, and location. The climbing community dating & partnership app." />
+  <meta property="og:image" content="/assets/logo.jpg" />
+  <link rel="icon" type="image/jpeg" href="/assets/logo.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+
+  <!-- ── Navbar ── -->
+  <nav class="navbar" id="navbar">
+    <a href="#" class="nav-brand">
+      <img src="/assets/logo.jpg" alt="Take! logo" class="nav-logo" />
+      <span class="nav-wordmark">Take!</span>
+    </a>
+    <a href="#download" class="btn btn-nav">Get the App</a>
+  </nav>
+
+  <!-- ── Hero ── -->
+  <section class="hero" id="hero">
+    <canvas class="rope-canvas" id="ropeCanvas"></canvas>
+    <div class="hero-inner">
+      <img src="/assets/logo.jpg" alt="Take!" class="hero-logo reveal" />
+      <h1 class="hero-headline reveal">
+        Find your partner<br />
+        <em>on the wall — and off it.</em>
+      </h1>
+      <p class="hero-sub reveal">
+        Take! connects climbers looking for romance,<br class="br-desktop" />
+        friendship, or a belay partner. Match by grade, style, and location.
+      </p>
+      <div class="hero-ctas reveal">
+        <a href="#download" class="btn btn-primary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3.18 23.76A1.5 1.5 0 0 0 5 23.63l11.55-6.67-3.28-3.27-10.09 10.07zm17.44-11.23L17.1 10.5l-5.1 5.1 3.29 3.29 5.33-3.08a1.5 1.5 0 0 0 0-2.58zM.5 1.29A1.5 1.5 0 0 0 0 2.4v19.2a1.5 1.5 0 0 0 .5 1.11l.08.07 10.76-10.76v-.25L.58 1.22.5 1.29zm14.47 8.14L3.18.24A1.5 1.5 0 0 0 1 .37L11.84 11.2l3.13-3.77z"/></svg>
+          Download on Google Play
+        </a>
+        <a href="#support" class="btn btn-secondary">Support the Project ☕</a>
+      </div>
+    </div>
+    <div class="hero-scroll-hint">
+      <span>Scroll</span>
+      <div class="scroll-line"></div>
+    </div>
+  </section>
+
+  <!-- ── App Showcase ── -->
+  <section class="section showcase" id="showcase">
+    <div class="container">
+      <div class="section-label reveal">The App</div>
+      <h2 class="section-title reveal">Everything you need,<br /><em>in your pocket.</em></h2>
+    </div>
+    <div class="phones-track">
+      <div class="phones-inner">
+
+        <div class="phone-wrap reveal">
+          <div class="phone-label">Sign In</div>
+          <div class="phone-frame">
+            <img src="/src/login.jpeg" alt="Login screen" loading="lazy" />
+          </div>
+        </div>
+
+        <div class="phone-wrap reveal">
+          <div class="phone-label">Dating Mode</div>
+          <div class="phone-frame phone-frame--accent-red">
+            <img src="/src/discovery%20dating.jpeg" alt="Dating discovery" loading="lazy" />
+          </div>
+        </div>
+
+        <div class="phone-wrap reveal">
+          <div class="phone-label">Partner Mode</div>
+          <div class="phone-frame phone-frame--accent-teal">
+            <img src="/src/discovery%20partner%20finding.jpeg" alt="Partner discovery" loading="lazy" />
+          </div>
+        </div>
+
+        <div class="phone-wrap reveal">
+          <div class="phone-label">Chat</div>
+          <div class="phone-frame">
+            <img src="/src/chat.png" alt="Chat screen" loading="lazy" />
+          </div>
+        </div>
+
+        <div class="phone-wrap reveal">
+          <div class="phone-label">Your Profile</div>
+          <div class="phone-frame">
+            <img src="/src/profile.png" alt="Profile screen" loading="lazy" />
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Features ── -->
+  <section class="section features" id="features">
+    <div class="container">
+      <div class="section-label reveal">What We Offer</div>
+      <h2 class="section-title reveal">Built for climbers,<br /><em>by a climber.</em></h2>
+      <div class="features-grid">
+
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap">
+            <span class="feature-emoji">🧗</span>
+          </div>
+          <h3>Dual Intent</h3>
+          <p>Swipe for dates <em>or</em> climbing partners. You decide what you're looking for — or both at once.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap">
+            <span class="feature-emoji">📍</span>
+          </div>
+          <h3>Location-Based</h3>
+          <p>Find climbers near your gym or crag. Filter by distance up to 200 km, grade, and style.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap">
+            <span class="feature-emoji">❤️</span>
+          </div>
+          <h3>Mutual Matches</h3>
+          <p>Like someone back and it's a match. Start a conversation when both of you are ready.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap feature-icon-img">
+            <img src="/assets/boulder.png" alt="Bouldering" class="feature-climbing-icon" />
+            <img src="/assets/sport.png" alt="Sport climbing" class="feature-climbing-icon" />
+          </div>
+          <h3>All Styles Welcome</h3>
+          <p>Bouldering, sport, trad, gym, outdoor — find someone who climbs exactly like you do.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap">
+            <span class="feature-emoji">🔒</span>
+          </div>
+          <h3>Safe & Private</h3>
+          <p>Block, report, and control who sees your profile. Your safety comes first.</p>
+        </div>
+
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap">
+            <span class="feature-emoji">✉️</span>
+          </div>
+          <h3>Real-time Chat</h3>
+          <p>Message your matches instantly with live delivery. No refresh needed.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Editorial Band ── -->
+  <div class="editorial-band">
+    <div class="editorial-overlay"></div>
+    <div class="editorial-content reveal">
+      <p class="editorial-quote">Every great climb starts with<br />finding the right partner.</p>
+    </div>
+  </div>
+
+  <!-- ── How It Works ── -->
+  <section class="section how-it-works" id="how">
+    <div class="container">
+      <div class="section-label reveal">The Process</div>
+      <h2 class="section-title reveal">Three moves<br /><em>to the summit.</em></h2>
+      <div class="steps">
+
+        <div class="step reveal">
+          <div class="step-number">01</div>
+          <div class="step-connector"></div>
+          <div class="step-content">
+            <h3>Create your profile</h3>
+            <p>Add your grade, climbing styles, and what you're looking for — dating, a climbing partner, or both.</p>
+            <div class="step-phones-row">
+              <div class="phone-frame phone-frame--step-sm">
+                <img src="/src/onboarding1.jpeg" alt="Choose intent" loading="lazy" />
+              </div>
+              <div class="phone-frame phone-frame--step-sm">
+                <img src="/src/onboarding2.jpeg" alt="Upload photos and details" loading="lazy" />
+              </div>
+              <div class="phone-frame phone-frame--step-sm">
+                <img src="/src/onboarding3.jpeg" alt="Climbing style and grade" loading="lazy" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="step reveal">
+          <div class="step-number">02</div>
+          <div class="step-connector"></div>
+          <div class="step-content">
+            <h3>Discover climbers</h3>
+            <p>Swipe through profiles filtered by distance and discipline. Switch between Dating and Partner modes anytime.</p>
+            <div class="phone-frame phone-frame--step phone-frame--accent-red">
+              <img src="/src/discovery%20dating.jpeg" alt="Discover screen" loading="lazy" />
+            </div>
+          </div>
+        </div>
+
+        <div class="step reveal">
+          <div class="step-number">03</div>
+          <div class="step-connector step-connector--last"></div>
+          <div class="step-content">
+            <h3>Connect &amp; Climb</h3>
+            <p>Match, chat, and hit the wall together. Whether it's a first date or a belaying partnership — it starts here.</p>
+            <div class="phone-frame phone-frame--step">
+              <img src="/src/chat.png" alt="Chat screen" loading="lazy" />
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Download ── -->
+  <section class="section download" id="download">
+    <div class="container">
+      <div class="download-inner reveal">
+        <div class="download-text">
+          <div class="section-label">Available Now</div>
+          <h2 class="section-title">Start your climb<br /><em>today.</em></h2>
+          <p class="download-sub">Free to download. No subscriptions. No paywalls.</p>
+          <p class="download-ios">iOS coming soon.</p>
+        </div>
+        <div class="download-badge-wrap">
+          <a
+            href="https://play.google.com/store/apps"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="play-badge"
+            aria-label="Get it on Google Play"
+          >
+            <svg class="play-badge-icon" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3.18 23.76A1.5 1.5 0 0 0 5 23.63l11.55-6.67-3.28-3.27-10.09 10.07zm17.44-11.23L17.1 10.5l-5.1 5.1 3.29 3.29 5.33-3.08a1.5 1.5 0 0 0 0-2.58zM.5 1.29A1.5 1.5 0 0 0 0 2.4v19.2a1.5 1.5 0 0 0 .5 1.11l.08.07 10.76-10.76v-.25L.58 1.22.5 1.29zm14.47 8.14L3.18.24A1.5 1.5 0 0 0 1 .37L11.84 11.2l3.13-3.77z"/>
+            </svg>
+            <div class="play-badge-text">
+              <span class="play-badge-small">GET IT ON</span>
+              <span class="play-badge-large">Google Play</span>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Support ── -->
+  <section class="section support" id="support">
+    <div class="support-bg-overlay"></div>
+    <div class="container" style="position:relative;z-index:1;">
+      <div class="support-card reveal">
+        <div class="support-coffee">☕</div>
+        <h2 class="support-title">Enjoying Take!?</h2>
+        <p class="support-body">
+          This app is completely free. If it helped you find a climbing partner<br class="br-desktop" />
+          (or more&nbsp;😉), consider buying me a coffee to keep it running.
+        </p>
+        <a
+          href="https://www.buymeacoffee.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn btn-coffee"
+        >
+          Buy Me a Coffee ☕
+        </a>
+        <p class="support-note">Every coffee keeps the server on for another week.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ── -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-inner">
+        <a href="#" class="footer-brand">
+          <img src="/assets/logo.jpg" alt="Take!" class="footer-logo" />
+          <span>Take!</span>
+        </a>
+        <p class="footer-made">Made with ❤️ for the climbing community</p>
+        <nav class="footer-links">
+          <a href="/privacy.html">Privacy Policy</a>
+          <a href="mailto:takeclimbingapp@gmail.com">Contact</a>
+        </nav>
+        <p class="footer-copy">© 2025 Take! All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
