@@ -85,7 +85,7 @@ export default function ChatScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
   const [isPartnerTyping, setIsPartnerTyping] = useState(false);
-  const { user, token, darkMode } = useAuth();
+  const { user, token, darkMode, refreshUnreadMessageCount } = useAuth();
   const [blocked, setBlocked] = useState(false);
   const [climberData, setClimberData] = useState<any>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
@@ -321,6 +321,7 @@ export default function ChatScreen() {
             if (action === 'create' && message.sender_id !== user.id) {
               try {
                 await messageService.markMessagesAsRead(climberId as string, user.id);
+                await refreshUnreadMessageCount();
               } catch (error) {
                 if (process.env.EXPO_DEV_MODE) console.error('Failed to mark realtime message as read:', error);
               }
@@ -361,6 +362,7 @@ export default function ChatScreen() {
 
       // Mark messages from the other user as read
       await messageService.markMessagesAsRead(climberId as string, user.id);
+      await refreshUnreadMessageCount();
 
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: false });

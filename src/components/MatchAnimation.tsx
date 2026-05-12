@@ -23,7 +23,7 @@ const BURST_RADIUS = 100;
 const particles = PARTICLE_ANGLES.map((angle) => ({
   tx: Math.cos(angle) * BURST_RADIUS,
   ty: Math.sin(angle) * BURST_RADIUS,
-  color: i => ['#FF2E63', '#ff6b8a', '#ffffff', '#ffd6e0', '#ff4d79'][i % 5],
+  color: (i: number) => ['#FF2E63', '#ff6b8a', '#ffffff', '#ffd6e0', '#ff4d79'][i % 5],
 }));
 
 interface MatchAnimationProps {

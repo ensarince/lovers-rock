@@ -16,7 +16,26 @@
       "Bash(git commit -m ':*)",
       "Bash(git push:*)",
       "Bash(node:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git commit -m ' *)",
+      "Bash(git checkout *)",
+      "Bash(git commit -m 'feat: app rename to Take!, floating orb animations on login, single logo *)",
+      "Bash(git reset *)",
+      "Bash(git commit *)",
+      "Bash(git remote *)",
+      "Bash(echo \"exit:$?\")",
+      "Bash(xargs grep *)",
+      "PowerShell($env:POCKETBASE_URL=\"https://take-climbing.up.railway.app\"; $env:ADMIN_EMAIL=\"takeclimbingapp@gmail.com\"; $env:ADMIN_PASSWORD=\"8PTPgSTUgY6YWdm\"; $env:BOT_COUNT=\"150\"; node scripts/seed_bots.js)",
+      "Bash(npm run *)",
+      "Bash(eas build *)",
+      "Bash(Get-Content \"C:\\\\Users\\\\Ensar\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-Ensar-Desktop-privat-lovers-rock\\\\d5422e3f-5caa-49ad-86a0-4420a126b907\\\\tasks\\\\bkr2h57fk.output\" -Wait)",
+      "Bash(Select-String --line-buffered \".\")",
+      "Bash(Copy-Item \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\assets\\\\images\\\\boulder.png\" \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\website\\\\public\\\\assets\\\\boulder.png\")",
+      "Bash(Copy-Item \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\assets\\\\images\\\\sport.png\" \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\website\\\\public\\\\assets\\\\sport.png\")",
+      "Bash(Copy-Item \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\assets\\\\images\\\\trad.png\" \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\website\\\\public\\\\assets\\\\trad.png\")",
+      "Bash(Copy-Item \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\assets\\\\images\\\\gym.png\" \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\website\\\\public\\\\assets\\\\gym.png\")",
+      "Bash(Copy-Item \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\assets\\\\images\\\\outdoor.png\" \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\website\\\\public\\\\assets\\\\outdoor.png\")",
+      "Bash(git config *)"
     ]
   }
 }

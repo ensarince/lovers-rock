@@ -1,5 +1,6 @@
 import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import PocketBase from 'pocketbase';
+import { Platform } from 'react-native';
 
 // Import conditionally to avoid Expo Go issues on Android
 let Notifications: any = null;
@@ -54,6 +55,16 @@ export class NotificationService {
     }
 
     try {
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'default',
+          importance: Notifications.AndroidImportance?.MAX ?? 5,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#ec4899',
+          sound: 'default',
+        });
+      }
+
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
 
       let finalStatus = existingStatus;
@@ -87,6 +98,7 @@ export class NotificationService {
         content: {
           title,
           body,
+          priority: Notifications.AndroidNotificationPriority?.HIGH,
           sound: 'default',
           vibrate: [0, 250, 250, 250],
           data: data || {},

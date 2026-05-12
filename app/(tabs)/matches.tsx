@@ -566,13 +566,6 @@ export default function MatchesScreen() {
           <Text style={styles.subtitleMinimal}>
             Go discover climbers you like!
           </Text>
-          {!darkMode && (
-            <Image
-              source={decoration2}
-              style={styles.emptyDecoration}
-              resizeMode="contain"
-            />
-          )}
         </View>
       ) : (
         <FlatList

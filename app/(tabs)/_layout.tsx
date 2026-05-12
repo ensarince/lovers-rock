@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
 
 export default function TabLayout() {
-  const { darkMode, user } = useAuth();
+  const { darkMode, user, unreadMessageCount } = useAuth();
   const router = useRouter();
   const theme = darkMode ? themeDark : themeLight;
 
@@ -68,6 +68,7 @@ export default function TabLayout() {
         name="messages"
         options={{
           title: 'Messages',
+          tabBarBadge: unreadMessageCount > 0 ? unreadMessageCount : undefined,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'chatbubble' : 'chatbubble-outline'} color={color} size={24} />
           ),
@@ -86,7 +87,6 @@ export default function TabLayout() {
     </>
   );
 }
-
 
 
 

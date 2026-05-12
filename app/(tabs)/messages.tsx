@@ -1,6 +1,5 @@
 import { useAuth } from '@/src/context/AuthContext';
 import { SkeletonRow } from '@/src/components/SkeletonLoader';
-import { activeConversationPartnerId, notificationService } from '@/src/services/notificationService';
 import { getMatches } from '@/src/services/matchData';
 import { messageService } from '@/src/services/messageService';
 import { theme as themeDark } from '@/src/themeDark';
@@ -30,44 +29,10 @@ export default function MessagesScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [introModalVisible, setIntroModalVisible] = useState(!hasShownMessagesIntro);
-    const { user, token, darkMode } = useAuth();
+    const { user, token, darkMode, refreshUnreadMessageCount } = useAuth();
     const theme = darkMode ? themeDark : themeLight;
     const styles = createStyles(theme);
     const unreadConversations = conversations.filter((conversation) => conversation.unreadCount > 0).length;
-    const conversationsRef = useRef(conversations);
-
-    useEffect(() => {
-        conversationsRef.current = conversations;
-    }, [conversations]);
-
-    useEffect(() => {
-        if (!user?.id || !token) return;
-        let unsubscribeFn: (() => Promise<void>) | null = null;
-
-        let cancelled = false;
-        messageService.subscribeToIncomingMessages(user.id, (message) => {
-            if (activeConversationPartnerId === message.sender_id) return;
-            const senderName =
-                conversationsRef.current.find((c) => c.climber.id === message.sender_id)?.climber.name ??
-                'Someone';
-            notificationService.notifyNewMessage(senderName, message.content, message.sender_id);
-        }).then((unsub) => {
-            if (cancelled) {
-                unsub().catch(() => {});
-            } else {
-                unsubscribeFn = unsub;
-            }
-        }).catch(() => {});
-
-        return () => {
-            cancelled = true;
-            if (unsubscribeFn) {
-                unsubscribeFn().catch(() => {});
-                unsubscribeFn = null;
-            }
-        };
-    }, [user?.id, token]);
-
     React.useEffect(() => {
         if (introModalVisible) {
             hasShownMessagesIntro = true;
@@ -136,6 +101,7 @@ export default function MessagesScreen() {
             // Filter out conversations with no messages
             const filteredConversations = conversationsWithMessages.filter(conv => conv.lastMessage);
             setConversations(filteredConversations);
+            await refreshUnreadMessageCount();
         } catch (err) {
             if (process.env.EXPO_DEV_MODE) console.error('Failed to load conversations:', err);
         } finally {

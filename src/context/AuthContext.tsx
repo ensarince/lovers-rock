@@ -1,7 +1,8 @@
 import { authService } from '@/src/services/authService';
+import { messageService } from '@/src/services/messageService';
 import { createDefaultGrade } from '@/src/services/gradeService';
 import { locationService } from '@/src/services/locationService';
-import { NotificationService, registerPushToken } from '@/src/services/notificationService';
+import { activeConversationPartnerId, NotificationService, registerPushToken } from '@/src/services/notificationService';
 import { preferenceService } from '@/src/services/preferenceService';
 import { initReportService } from '@/src/services/reportService';
 import { Climber } from '@/src/types/climber';
@@ -9,7 +10,7 @@ import { getPocketBaseUrl, normalizeIntentValue } from '@/src/utils/helperFuncti
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import PocketBase from 'pocketbase';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 
 // Import conditionally to avoid Expo Go issues on Android
 let Notifications: any = null;
@@ -34,6 +35,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  unreadMessageCount: number;
+  refreshUnreadMessageCount: () => Promise<void>;
   logout: () => void;
 }
 
@@ -56,6 +59,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [preferencesSynced, setPreferencesSynced] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const incomingMessageUnsubscribeRef = useRef<(() => Promise<void>) | null>(null);
 
   // Initialize notification listeners when component mounts
   useEffect(() => {
@@ -87,6 +92,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  const refreshUnreadMessageCount = async (overrideUserId?: string, overrideToken?: string) => {
+    const targetUserId = overrideUserId || user?.id;
+    const targetToken = overrideToken || token;
+
+    if (!targetUserId || !targetToken) {
+      setUnreadMessageCount(0);
+      return;
+    }
+
+    try {
+      messageService.setToken(targetToken);
+      const unreadCount = await messageService.getUnreadCount(targetUserId);
+      setUnreadMessageCount(unreadCount);
+    } catch (error) {
+      if (process.env.EXPO_DEV_MODE) {
+        console.error('Failed to refresh unread message count:', error);
+      }
+    }
+  };
+
   /**
    * Setup notification service for the user
    */
@@ -103,6 +128,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       await notificationService.setupRealtimeListeners();
+
+      messageService.setToken(authToken);
+
+      if (incomingMessageUnsubscribeRef.current) {
+        await incomingMessageUnsubscribeRef.current().catch(() => {});
+        incomingMessageUnsubscribeRef.current = null;
+      }
+
+      incomingMessageUnsubscribeRef.current = await messageService.subscribeToIncomingMessages(
+        userId,
+        async (message) => {
+          if (activeConversationPartnerId !== message.sender_id) {
+            notificationService?.notifyNewMessage('New message', message.content, message.sender_id);
+          }
+
+          await refreshUnreadMessageCount(userId, authToken);
+        }
+      );
+
+      await refreshUnreadMessageCount(userId, authToken);
     } catch (error) {
       console.error('Error setting up notifications:', error);
     }
@@ -112,6 +157,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
    * Cleanup notification service
    */
   const cleanupNotifications = () => {
+    if (incomingMessageUnsubscribeRef.current) {
+      incomingMessageUnsubscribeRef.current().catch(() => {});
+      incomingMessageUnsubscribeRef.current = null;
+    }
+
     if (notificationService) {
       notificationService.cleanup();
       notificationService = null;
@@ -411,6 +461,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUser(null);
     setToken(null);
     setPreferencesSynced(false);
+    setUnreadMessageCount(0);
     await AsyncStorage.removeItem('user');
     await SecureStore.deleteItemAsync('token');
     // Reset preference service when logging out
@@ -431,6 +482,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         login,
         register,
         loginWithGoogle,
+        unreadMessageCount,
+        refreshUnreadMessageCount,
         logout,
       }}>
       {children}
