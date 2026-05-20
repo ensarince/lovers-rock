@@ -27,6 +27,7 @@ import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   Modal,
@@ -318,6 +319,16 @@ export default function MatchesScreen() {
         onBlock={() => {
           setMatches(matches.filter(m => m.climber.id !== item.climber.id));
           setBlockReportMenuOpen(null);
+        }}
+        onUnmatch={() => {
+          Alert.alert(
+            'Unmatch',
+            `Are you sure you want to unmatch with ${item.climber.name}?`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Unmatch', style: 'destructive', onPress: () => handleUnmatch(item.id) },
+            ]
+          );
         }}
         darkMode={darkMode}
       />
