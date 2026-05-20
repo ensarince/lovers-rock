@@ -5,6 +5,7 @@ import { SkeletonRow } from '@/src/components/SkeletonLoader';
 import { useAuth } from '@/src/context/AuthContext';
 import { getPublicProfiles } from '@/src/services/accountService';
 import { notificationService } from '@/src/services/notificationService';
+import { messageService } from '@/src/services/messageService';
 import { acceptPartnerRequest, declinePartnerRequest, getIncomingPartnerRequests, getMatches, unmatchUser } from '@/src/services/matchData';
 import {
   getActiveDeclinedUserIds,
@@ -107,6 +108,15 @@ export default function MatchesScreen() {
       }
       prevPartnerMatchIdsRef.current = new Set(currentPartnerMatches.map((m) => m.id));
       setMatches(allMatches);
+
+      // Background: update each match card with the real last message preview
+      messageService.setToken(token);
+      Promise.all(
+        allMatches.map(async (match) => {
+          const lastMsg = await messageService.getLastMessage(user!.id, match.climber.id);
+          return lastMsg ? { ...match, messagePreview: lastMsg.content } : match;
+        })
+      ).then((updated) => setMatches(updated)).catch(() => {});
 
       // Fetch incoming partner requests if partner intent enabled
       if (hasPartnerIntent) {

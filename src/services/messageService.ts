@@ -113,6 +113,18 @@ export class MessageService {
     return async () => { await unsubscribe(); };
   }
 
+  async getLastMessage(userId1: string, userId2: string): Promise<Message | null> {
+    try {
+      const records = await this.pb.collection('messages').getList(1, 1, {
+        filter: `((sender_id = "${safeId(userId1)}" && receiver_id = "${safeId(userId2)}") || (sender_id = "${safeId(userId2)}" && receiver_id = "${safeId(userId1)}"))`,
+        sort: '-created',
+      });
+      return records.items.length > 0 ? mapMessageRecord(records.items[0]) : null;
+    } catch {
+      return null;
+    }
+  }
+
   async getUnreadCount(userId: string): Promise<number> {
     const records = await this.pb.collection('messages').getList(1, 1, {
       filter: `receiver_id = "${safeId(userId)}" && read = false`

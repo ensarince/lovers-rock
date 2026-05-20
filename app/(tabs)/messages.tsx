@@ -98,9 +98,8 @@ export default function MessagesScreen() {
                 })
             );
 
-            // Filter out conversations with no messages
-            const filteredConversations = conversationsWithMessages.filter(conv => conv.lastMessage);
-            setConversations(filteredConversations);
+            // Show all matches — ones without messages get "Say hello" placeholder
+            setConversations(conversationsWithMessages);
             await refreshUnreadMessageCount();
         } catch (err) {
             if (process.env.EXPO_DEV_MODE) console.error('Failed to load conversations:', err);
@@ -193,7 +192,7 @@ export default function MessagesScreen() {
                     </View>
 
                     <Text style={[styles.lastMessage, showUnread && styles.lastMessageUnread]} numberOfLines={1}>
-                        {item.lastMessage?.content || 'No messages yet'}
+                        {item.lastMessage?.content || 'Say hello 👋'}
                     </Text>
                 </View>
 
@@ -231,9 +230,9 @@ export default function MessagesScreen() {
                 }}>
                     <Ionicons name="chatbubble-outline" size={34} color={theme.colors.textSecondary} />
                 </View>
-                <Text style={styles.title}>No conversations yet</Text>
+                <Text style={styles.title}>No matches yet</Text>
                 <Text style={styles.subtitle}>
-                    Match with someone and send the first message.
+                    Match with someone on the Discover tab to start chatting.
                 </Text>
             </View>
         );
