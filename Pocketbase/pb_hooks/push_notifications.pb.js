@@ -8,23 +8,6 @@ function isExpoPushToken(pushToken) {
     );
 }
 
-function getUnreadMessageCount(receiverId) {
-    try {
-        var unreadRecords = $app.findRecordsByFilter(
-            'messages',
-            'receiver_id = "' + receiverId + '" && read = false',
-            '',
-            1000,
-            0
-        );
-
-        return unreadRecords ? unreadRecords.length : 0;
-    } catch (err) {
-        console.error('[push] Failed to count unread messages:', err);
-        return 0;
-    }
-}
-
 function sendPush(pushToken, title, body, data, badgeCount) {
     if (!isExpoPushToken(pushToken)) return;
 
@@ -92,14 +75,13 @@ onRecordAfterCreateSuccess((e) => {
         var sender = $app.findRecordById('users', senderId);
         var senderName = String(sender.get('name') || 'Someone');
         var preview = content.length > 60 ? content.substring(0, 60) + '...' : content;
-        var unreadCount = getUnreadMessageCount(receiverId);
 
         sendPush(
             pushToken,
             senderName,
             preview || 'Sent you a message',
             { type: 'new_message', userId: senderId, userName: senderName, chatId: senderId },
-            unreadCount
+            0
         );
     } catch (err) {
         console.error('[push] messages hook error:', err);
