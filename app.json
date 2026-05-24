@@ -35,7 +35,8 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.POST_NOTIFICATIONS"
       ],
-      "package": "com.ensarince.loversrock"
+      "package": "com.takeclimbing.takeapp",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
