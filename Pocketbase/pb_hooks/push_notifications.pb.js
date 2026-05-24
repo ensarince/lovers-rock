@@ -28,6 +28,8 @@ function getUnreadMessageCount(receiverId) {
 function sendPush(pushToken, title, body, data, badgeCount) {
     if (!isExpoPushToken(pushToken)) return;
 
+    var tokenPreview = pushToken.substring(0, 30) + '...';
+
     try {
         var response = $http.send({
             url: 'https://exp.host/--/api/v2/push/send',
@@ -50,10 +52,26 @@ function sendPush(pushToken, title, body, data, badgeCount) {
         });
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
-            console.error('[push] Expo push send failed with status ' + response.statusCode);
+            console.error('[push] Expo push HTTP error ' + response.statusCode + ' for token ' + tokenPreview);
+            return;
+        }
+
+        // Parse Expo ticket response to detect FCM-level errors
+        try {
+            var respBody = JSON.parse(response.body);
+            var tickets = Array.isArray(respBody.data) ? respBody.data : (respBody.data ? [respBody.data] : []);
+            tickets.forEach(function(ticket) {
+                if (ticket.status === 'error') {
+                    console.error('[push] Expo ticket error for ' + tokenPreview + ': ' + ticket.message + ' | details: ' + JSON.stringify(ticket.details || {}));
+                } else if (ticket.id) {
+                    console.log('[push] Expo ticket OK id=' + ticket.id + ' token=' + tokenPreview);
+                }
+            });
+        } catch (parseErr) {
+            console.log('[push] Expo responded ' + response.statusCode + ' (could not parse body) for token ' + tokenPreview);
         }
     } catch (err) {
-        console.error('[push] Failed to send to ' + pushToken + ':', err);
+        console.error('[push] Failed to send to ' + tokenPreview + ':', err);
     }
 }
 
