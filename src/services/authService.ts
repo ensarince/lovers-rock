@@ -165,6 +165,15 @@ export const authService = {
       throw new Error(error.message || 'Google login failed');
     }
   },
+  // Send password reset email
+  async requestPasswordReset(email: string) {
+    try {
+      await pb.collection('users').requestPasswordReset(email);
+    } catch (error: any) {
+      throw new Error(error.message || 'Failed to send reset email');
+    }
+  },
+
   // Request email verification (sends verification email)
   async requestVerification(email: string) {
     try {

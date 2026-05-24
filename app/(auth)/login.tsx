@@ -197,6 +197,7 @@ export default function LoginScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
   const [verificationStep, setVerificationStep] = useState(false);
+  const [forgotStep, setForgotStep] = useState<'form' | 'sent' | null>(null);
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
   const handleLogin = async () => {
@@ -266,6 +267,20 @@ export default function LoginScreen() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Please enter your email address');
+      return;
+    }
+    try {
+      setError(null);
+      await authService.requestPasswordReset(email);
+      setForgotStep('sent');
+    } catch {
+      setForgotStep('sent'); // Don't reveal whether email exists
+    }
+  };
+
   const handleGoogleAuth = async () => {
     try {
       setError(null);
@@ -294,7 +309,69 @@ export default function LoginScreen() {
         <Text style={styles.tagline}>find your climbing partner</Text>
       </View>
 
-      {verificationStep ? (
+      {forgotStep ? (
+        // Forgot Password Screen
+        <View style={styles.formMinimal}>
+          <View style={styles.verificationIconRow}>
+            <Ionicons name={forgotStep === 'sent' ? 'mail-outline' : 'lock-open-outline'} size={36} color={theme.colors.accent} />
+          </View>
+          <Text style={styles.verificationTitleMinimal}>
+            {forgotStep === 'sent' ? 'Check Your Email' : 'Reset Password'}
+          </Text>
+          <Text style={styles.verificationSubtitleMinimal}>
+            {forgotStep === 'sent'
+              ? <>We sent a reset link to{'\n'}<Text style={styles.verificationEmail}>{email}</Text></>
+              : 'Enter your email and we\'ll send you a link to reset your password.'}
+          </Text>
+
+          {error && <ErrorText message={error} color={theme.colors.error} />}
+
+          {forgotStep === 'form' && (
+            <AnimatedInput
+              accentColor={theme.colors.accent}
+              surfaceColor={theme.colors.surface}
+              borderColor={theme.colors.border}
+              focused={focusedField === 'email'}
+            >
+              <TextInput
+                style={styles.inputMinimal}
+                placeholder="Email"
+                placeholderTextColor={theme.colors.textSecondary}
+                value={email}
+                onChangeText={setEmail}
+                editable={!isLoading}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                onFocus={() => setFocusedField('email')}
+                onBlur={() => setFocusedField(null)}
+              />
+            </AnimatedInput>
+          )}
+
+          {forgotStep === 'form' ? (
+            <ScaleButton
+              style={[styles.buttonMinimal, isLoading && styles.buttonDisabledMinimal]}
+              onPress={handleForgotPassword}
+              disabled={isLoading}>
+              {isLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonTextMinimal}>SEND RESET LINK</Text>
+              )}
+            </ScaleButton>
+          ) : (
+            <Text style={styles.verificationInfoMinimal}>
+              Click the link in the email to set a new password, then come back and sign in.
+            </Text>
+          )}
+
+          <Pressable onPress={() => { setForgotStep(null); setError(null); }}>
+            <Text style={[styles.footerMinimal, { marginTop: 12 }]}>
+              <Text style={styles.footerAccent}>Back to Sign In</Text>
+            </Text>
+          </Pressable>
+        </View>
+      ) : verificationStep ? (
         // Email Verification Screen
         <View style={styles.formMinimal}>
           <View style={styles.verificationIconRow}>
@@ -376,6 +453,14 @@ export default function LoginScreen() {
             </Pressable>
           </AnimatedInput>
 
+          {!isSignup && (
+            <Pressable onPress={() => { setForgotStep('form'); setError(null); }} style={{ alignSelf: 'flex-end' }}>
+              <Text style={[styles.footerMinimal, { marginTop: -4, fontSize: 13 }]}>
+                <Text style={styles.footerAccent}>Forgot Password?</Text>
+              </Text>
+            </Pressable>
+          )}
+
           {isSignup && (
             <AnimatedInput
               accentColor={theme.colors.accent}
@@ -418,7 +503,7 @@ export default function LoginScreen() {
         </View>
       )}
 
-      {!verificationStep && (
+      {!verificationStep && !forgotStep && (
         <>
           <View style={styles.dividerMinimal}>
             <View style={styles.lineMinimal} />
