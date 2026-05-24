@@ -2,7 +2,7 @@
 
 // Auto-set PocketBase APP_URL from Railway's injected env variable.
 // Runs on every startup so the URL stays correct if the Railway domain changes.
-onBeforeServe((e) => {
+onServe((e) => {
     const domain = $os.getenv("RAILWAY_PUBLIC_DOMAIN");
     if (!domain) return e.next(); // local dev — leave as-is
 
