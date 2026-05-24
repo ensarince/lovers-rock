@@ -11,7 +11,7 @@ onBeforeServe((e) => {
 
     if (settings.meta.appUrl !== appUrl) {
         settings.meta.appUrl = appUrl;
-        $app.saveSettings();
+        try { $app.save(settings); } catch (_) { $app.saveSettings(); }
         console.log("[app_url_config] APP_URL updated to: " + appUrl);
     }
 
