@@ -680,7 +680,7 @@ export default function DiscoverScreen() {
   }, []);
 
   const dismissIntro = () => {
-    dismissIntro();
+    setIntroModalVisible(false);
     AsyncStorage.setItem('intro_seen_discover', '1');
   };
 

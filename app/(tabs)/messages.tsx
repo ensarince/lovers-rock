@@ -42,7 +42,7 @@ export default function MessagesScreen() {
     }, [loading, conversations.length]);
 
     const dismissIntro = () => {
-        dismissIntro();
+        setIntroModalVisible(false);
         AsyncStorage.setItem('intro_seen_messages', '1');
     };
 

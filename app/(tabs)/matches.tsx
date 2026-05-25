@@ -84,7 +84,7 @@ export default function MatchesScreen() {
   }, [loading, matches.length, incomingRequests.length]);
 
   const dismissIntro = () => {
-    dismissIntro();
+    setIntroModalVisible(false);
     AsyncStorage.setItem('intro_seen_matches', '1');
   };
 
