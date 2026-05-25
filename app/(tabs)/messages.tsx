@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/src/context/AuthContext';
 import { SkeletonRow } from '@/src/components/SkeletonLoader';
 import { getMatches } from '@/src/services/matchData';
@@ -22,22 +23,28 @@ import {
     View,
 } from 'react-native';
 
-let hasShownMessagesIntro = false;
 
 export default function MessagesScreen() {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [introModalVisible, setIntroModalVisible] = useState(!hasShownMessagesIntro);
+    const [introModalVisible, setIntroModalVisible] = useState(false);
     const { user, token, darkMode, refreshUnreadMessageCount } = useAuth();
     const theme = darkMode ? themeDark : themeLight;
     const styles = createStyles(theme);
     const unreadConversations = conversations.filter((conversation) => conversation.unreadCount > 0).length;
     React.useEffect(() => {
-        if (introModalVisible) {
-            hasShownMessagesIntro = true;
-        }
-    }, [introModalVisible]);
+        if (loading) return;
+        if (conversations.length === 0) return;
+        AsyncStorage.getItem('intro_seen_messages').then(val => {
+            if (!val) setIntroModalVisible(true);
+        });
+    }, [loading, conversations.length]);
+
+    const dismissIntro = () => {
+        dismissIntro();
+        AsyncStorage.setItem('intro_seen_messages', '1');
+    };
 
     // Check intents
     const hasDatingIntent = user && intentIncludes(user.intent, 'date');
@@ -262,9 +269,9 @@ export default function MessagesScreen() {
                 animationType="fade"
                 presentationStyle="overFullScreen"
                 statusBarTranslucent
-                onRequestClose={() => setIntroModalVisible(false)}
+                onRequestClose={() => dismissIntro()}
             >
-                <Pressable style={styles.introOverlay} onPress={() => setIntroModalVisible(false)}>
+                <Pressable style={styles.introOverlay} onPress={() => dismissIntro()}>
                     <Pressable onPress={(e) => e.stopPropagation()}>
                         <LinearGradient
                             colors={
@@ -278,7 +285,7 @@ export default function MessagesScreen() {
                         >
                             <View style={styles.introHeader}>
                                 <Text style={styles.heroEyebrow}>Messages</Text>
-                                <Pressable onPress={() => setIntroModalVisible(false)} style={styles.introCloseButton}>
+                                <Pressable onPress={() => dismissIntro()} style={styles.introCloseButton}>
                                     <Ionicons name="close" size={20} color={theme.colors.text} />
                                 </Pressable>
                             </View>
@@ -286,7 +293,7 @@ export default function MessagesScreen() {
                             <Text style={styles.introBodyText}>
                                 Open any conversation to continue where you left off. This page stays clean once you close the intro.
                             </Text>
-                            <Pressable style={styles.introActionButton} onPress={() => setIntroModalVisible(false)}>
+                            <Pressable style={styles.introActionButton} onPress={() => dismissIntro()}>
                                 <Text style={styles.introActionText}>Open inbox</Text>
                             </Pressable>
                         </LinearGradient>

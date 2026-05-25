@@ -40,9 +40,7 @@ import {
   View
 } from 'react-native';
 import { getPublicProfiles } from '../../src/services/accountService';
-
-
-let hasShownDiscoverIntro = false;
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function DiscoverScreen() {
   // Dating mode state
@@ -81,7 +79,7 @@ export default function DiscoverScreen() {
 
   // Trigger for manual refresh of blocked users
   const [blockRefreshTrigger, setBlockRefreshTrigger] = useState(0);
-  const [introModalVisible, setIntroModalVisible] = useState(!hasShownDiscoverIntro);
+  const [introModalVisible, setIntroModalVisible] = useState(false);
   const [datingCardAreaHeight, setDatingCardAreaHeight] = useState(0);
 
   const { token, user, preferencesSynced, darkMode } = useAuth();
@@ -676,10 +674,15 @@ export default function DiscoverScreen() {
   };
 
   useEffect(() => {
-    if (introModalVisible) {
-      hasShownDiscoverIntro = true;
-    }
-  }, [introModalVisible]);
+    AsyncStorage.getItem('intro_seen_discover').then(val => {
+      if (!val) setIntroModalVisible(true);
+    });
+  }, []);
+
+  const dismissIntro = () => {
+    dismissIntro();
+    AsyncStorage.setItem('intro_seen_discover', '1');
+  };
 
   // Check if user has the required intent for the current mode
   const hasDatingIntent = user && intentIncludes(user.intent, 'date');
@@ -1018,9 +1021,9 @@ export default function DiscoverScreen() {
         animationType="fade"
         presentationStyle="overFullScreen"
         statusBarTranslucent
-        onRequestClose={() => setIntroModalVisible(false)}
+        onRequestClose={() => dismissIntro()}
       >
-        <Pressable style={styles.introOverlay} onPress={() => setIntroModalVisible(false)}>
+        <Pressable style={styles.introOverlay} onPress={() => dismissIntro()}>
           <Pressable onPress={(e) => e.stopPropagation()}>
             <LinearGradient
               colors={
@@ -1038,7 +1041,7 @@ export default function DiscoverScreen() {
             >
               <View style={styles.introHeader}>
                 <Text style={styles.heroEyebrow}>Discover</Text>
-                <Pressable onPress={() => setIntroModalVisible(false)} style={styles.introCloseButton}>
+                <Pressable onPress={() => dismissIntro()} style={styles.introCloseButton}>
                   <Ionicons name="close" size={20} color={theme.colors.text} />
                 </Pressable>
               </View>
@@ -1048,7 +1051,7 @@ export default function DiscoverScreen() {
               <Text style={styles.introBodyText}>
                 Use the search and filters for quick narrowing, then switch modes any time from the toggle above the feed.
               </Text>
-              <Pressable style={[styles.introActionButton, { backgroundColor: modeColors.accent }]} onPress={() => setIntroModalVisible(false)}>
+              <Pressable style={[styles.introActionButton, { backgroundColor: modeColors.accent }]} onPress={() => dismissIntro()}>
                 <Text style={styles.introActionText}>Start browsing</Text>
               </Pressable>
             </LinearGradient>

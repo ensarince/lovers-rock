@@ -2,6 +2,7 @@ import { BlockReportMenu } from '@/src/components/BlockReportMenu';
 import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import PartnerDetailModal from '@/src/components/PartnerDetailModal';
 import { SkeletonRow } from '@/src/components/SkeletonLoader';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/src/context/AuthContext';
 import { getPublicProfiles } from '@/src/services/accountService';
 import { notificationService } from '@/src/services/notificationService';
@@ -41,7 +42,6 @@ import {
 
 type FilterChip = 'all' | 'requests' | 'dating' | 'partner' | 'sessions';
 
-let hasShownMatchesIntro = false;
 
 export default function MatchesScreen() {
   const [matches, setMatches] = useState<Match[]>([]);
@@ -58,7 +58,7 @@ export default function MatchesScreen() {
   const [acceptingRequestIds, setAcceptingRequestIds] = useState<string[]>([]);
   const [decliningRequestIds, setDecliningRequestIds] = useState<string[]>([]);
   const [blockReportMenuOpen, setBlockReportMenuOpen] = useState<string | null>(null);
-  const [introModalVisible, setIntroModalVisible] = useState(!hasShownMatchesIntro);
+  const [introModalVisible, setIntroModalVisible] = useState(false);
   const { user, token, darkMode } = useAuth();
   const prevPartnerRequestIdsRef = useRef<Set<string> | null>(null);
   const prevPartnerMatchIdsRef = useRef<Set<string> | null>(null);
@@ -76,10 +76,17 @@ export default function MatchesScreen() {
   const totalConnections = datingMatches.length + partnerMatches.length + incomingRequests.length;
 
   useEffect(() => {
-    if (introModalVisible) {
-      hasShownMatchesIntro = true;
-    }
-  }, [introModalVisible]);
+    if (loading) return;
+    if (matches.length === 0 && incomingRequests.length === 0) return;
+    AsyncStorage.getItem('intro_seen_matches').then(val => {
+      if (!val) setIntroModalVisible(true);
+    });
+  }, [loading, matches.length, incomingRequests.length]);
+
+  const dismissIntro = () => {
+    dismissIntro();
+    AsyncStorage.setItem('intro_seen_matches', '1');
+  };
 
   const isProfileComplete = user &&
     user.name &&
@@ -632,9 +639,9 @@ export default function MatchesScreen() {
         animationType="fade"
         presentationStyle="overFullScreen"
         statusBarTranslucent
-        onRequestClose={() => setIntroModalVisible(false)}
+        onRequestClose={() => dismissIntro()}
       >
-        <Pressable style={styles.introOverlay} onPress={() => setIntroModalVisible(false)}>
+        <Pressable style={styles.introOverlay} onPress={() => dismissIntro()}>
           <Pressable onPress={(e) => e.stopPropagation()}>
             <LinearGradient
               colors={
@@ -648,7 +655,7 @@ export default function MatchesScreen() {
             >
               <View style={styles.introHeader}>
                 <Text style={styles.heroEyebrow}>Connections</Text>
-                <Pressable onPress={() => setIntroModalVisible(false)} style={styles.introCloseButton}>
+                <Pressable onPress={() => dismissIntro()} style={styles.introCloseButton}>
                   <Ionicons name="close" size={20} color={theme.colors.text} />
                 </Pressable>
               </View>
@@ -656,7 +663,7 @@ export default function MatchesScreen() {
               <Text style={styles.introBodyText}>
                 Filter between requests, dating, and climbing partner matches any time. This page stays focused on the list once you close this intro.
               </Text>
-              <Pressable style={styles.introActionButton} onPress={() => setIntroModalVisible(false)}>
+              <Pressable style={styles.introActionButton} onPress={() => dismissIntro()}>
                 <Text style={styles.introActionText}>Open matches</Text>
               </Pressable>
             </LinearGradient>
