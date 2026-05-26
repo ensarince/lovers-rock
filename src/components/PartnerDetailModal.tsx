@@ -122,7 +122,7 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                   )}
 
                   <View style={styles.infoGridItem}>
-                    <Ionicons name="play" size={15} color={theme.colors.accent} />
+                    <Ionicons name="layers" size={15} color={theme.colors.accent} />
                     <Text style={styles.infoGridLabel}>Styles</Text>
                     <Text style={styles.infoGridValue} numberOfLines={3}>
                       {Array.isArray(climber.climbing_styles) ? climber.climbing_styles.join(' · ') : 'Not specified'}
