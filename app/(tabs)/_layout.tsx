@@ -5,11 +5,14 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const { darkMode, user, unreadMessageCount } = useAuth();
   const router = useRouter();
   const theme = darkMode ? themeDark : themeLight;
+  const insets = useSafeAreaInsets();
+  const tabBarPaddingBottom = Math.max(insets.bottom - 6, 4);
 
   // Redirect to profile if profile is not completed, except when on profile screen
   useEffect(() => {
@@ -32,6 +35,8 @@ export default function TabLayout() {
           tabBarStyle: {
             backgroundColor: theme.colors.surface,
             borderTopColor: theme.colors.border,
+            paddingBottom: tabBarPaddingBottom,
+            height: 56 + tabBarPaddingBottom,
           },
           headerStyle: {
             backgroundColor: theme.colors.surface,

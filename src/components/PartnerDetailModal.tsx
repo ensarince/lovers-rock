@@ -8,6 +8,7 @@ import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -30,7 +31,6 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
   const [distance, setDistance] = useState<number | null>(null);
   const [showBlockReportMenu, setShowBlockReportMenu] = useState(false);
 
-  // Use server-computed distance from /api/nearby-profiles (no raw coords needed)
   useEffect(() => {
     if (climber?.distance_km !== null && climber?.distance_km !== undefined) {
       setDistance(climber.distance_km);
@@ -39,7 +39,6 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
     }
   }, [climber?.distance_km]);
 
-  // Check if climber is in outgoing partner likes
   React.useEffect(() => {
     let active = true;
 
@@ -52,21 +51,14 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
       try {
         const likes = await getOutgoingLikes(user.id, token, 'partner');
         const isLiked = likes.some((like) => like.to_user === climber.id);
-        if (active) {
-          setIsRequestSent(isLiked);
-        }
+        if (active) setIsRequestSent(isLiked);
       } catch {
-        if (active) {
-          setIsRequestSent(false);
-        }
+        if (active) setIsRequestSent(false);
       }
     };
 
     checkLike();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [climber, user?.id, token]);
 
   return (
@@ -75,92 +67,109 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
         <Pressable style={styles.modal} onPress={(e) => e.stopPropagation()}>
           {climber ? (
             <>
-              <View style={styles.topBar}>
-                <Text style={styles.topBarTitle}>{climber.name}</Text>
-                <Pressable onPress={onClose} style={styles.closeButtonTop}>
-                  <Ionicons name="close" size={28} color={theme.colors.accent} />
-                </Pressable>
-              </View>
-              <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Image hero with gradient + name overlay */}
+              <View style={styles.imageSection}>
                 <ImageCarousel
                   images={climber.images || []}
                   userId={climber.id}
                   expandable={true}
-                  height={250}
+                  height={300}
                   darkMode={darkMode}
                   showIndicators={true}
                 />
-                <View style={styles.headerSection}></View>
+                <View style={styles.imageGradientWrap} pointerEvents="none">
+                  <LinearGradient
+                    colors={['transparent', 'rgba(0,0,0,0.72)']}
+                    style={StyleSheet.absoluteFillObject}
+                  />
+                </View>
+                <View style={styles.imageTextOverlay} pointerEvents="none">
+                  <View style={styles.imageNameRow}>
+                    <Text style={styles.overlayName}>{climber.name}, {climber.age}</Text>
+                    {climber.grade?.value && (
+                      <View style={styles.overlayGradePill}>
+                        <Text style={styles.overlayGradeText}>{climber.grade.value}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                <Pressable onPress={onClose} style={styles.floatingClose}>
+                  <Ionicons name="close" size={18} color="#fff" />
+                </Pressable>
+              </View>
 
-              <View style={styles.infoSection}>
-                <View style={styles.infoRow}>
-                  <Ionicons name="location-sharp" size={16} color={theme.colors.accent} />
-                  <View style={styles.infoContent}>
-                    <Text style={styles.infoLabel}>Home Gym</Text>
-                    <Text style={styles.infoValue}>{climber.home_gym}</Text>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Info grid */}
+                <View style={styles.infoGrid}>
+                  <View style={styles.infoGridItem}>
+                    <Ionicons name="location-sharp" size={15} color={theme.colors.accent} />
+                    <Text style={styles.infoGridLabel}>Home Gym</Text>
+                    <Text style={styles.infoGridValue} numberOfLines={2}>{climber.home_gym}</Text>
+                  </View>
+
+                  <View style={styles.infoGridItem}>
+                    <Ionicons name="trophy" size={15} color={theme.colors.accent} />
+                    <Text style={styles.infoGridLabel}>Grade</Text>
+                    <Text style={styles.infoGridValue}>{formatGradeDisplay(climber.grade)}</Text>
+                  </View>
+
+                  {distance !== null && (
+                    <View style={styles.infoGridItem}>
+                      <Ionicons name="compass" size={15} color={theme.colors.accent} />
+                      <Text style={styles.infoGridLabel}>Distance</Text>
+                      <Text style={styles.infoGridValue}>{formatDistance(distance)} away</Text>
+                    </View>
+                  )}
+
+                  <View style={styles.infoGridItem}>
+                    <Ionicons name="play" size={15} color={theme.colors.accent} />
+                    <Text style={styles.infoGridLabel}>Styles</Text>
+                    <Text style={styles.infoGridValue} numberOfLines={3}>
+                      {Array.isArray(climber.climbing_styles) ? climber.climbing_styles.join(' · ') : 'Not specified'}
+                    </Text>
                   </View>
                 </View>
 
-                {distance !== null && (
-                  <View style={styles.infoRow}>
-                    <Ionicons name="compass" size={16} color={theme.colors.accent} />
-                    <View style={styles.infoContent}>
-                      <Text style={styles.infoLabel}>Distance</Text>
-                      <Text style={styles.infoValue}>{formatDistance(distance)} away</Text>
-                    </View>
+                {climber.bio && (
+                  <View style={styles.bioSection}>
+                    <Text style={styles.bioLabel}>About</Text>
+                    <Text style={styles.bioText}>{climber.bio}</Text>
                   </View>
                 )}
 
-                <View style={styles.infoRow}>
-                  <Ionicons name="trophy" size={16} color={theme.colors.accent} />
-                  <View style={styles.infoContent}>
-                    <Text style={styles.infoLabel}>Grade Level</Text>
-                    <Text style={styles.infoValue}>{formatGradeDisplay(climber.grade)}</Text>
+                {!viewOnly && (
+                  <View style={styles.buttonSection}>
+                    <Pressable
+                      style={[styles.requestButton, isRequestSent && styles.requestButtonSent]}
+                      onPress={async () => {
+                        onSendRequest(climber, isRequestSent);
+                        setIsRequestSent(!isRequestSent);
+                      }}
+                    >
+                      <Ionicons
+                        name={isRequestSent ? 'checkmark-circle' : 'people'}
+                        size={18}
+                        color="#fff"
+                        style={{ marginRight: 8 }}
+                      />
+                      <Text style={styles.requestButtonText}>
+                        {isRequestSent ? 'Request Sent' : 'Send Climbing Partner Request'}
+                      </Text>
+                    </Pressable>
                   </View>
-                </View>
+                )}
 
-                <View style={styles.infoRow}>
-                  <Ionicons name="play" size={16} color={theme.colors.accent} />
-                  <View style={styles.infoContent}>
-                    <Text style={styles.infoLabel}>Climbing Styles</Text>
-                    <Text style={styles.infoValue}>{Array.isArray(climber.climbing_styles) ? climber.climbing_styles.join(', ') : 'Not specified'}</Text>
-                  </View>
-                </View>
-              </View>
-
-              {climber.bio && (
-                <View style={styles.bioSection}>
-                  <Text style={styles.bioLabel}>About</Text>
-                  <Text style={styles.bioText}>{climber.bio}</Text>
-                </View>
-              )}
-
-              {!viewOnly && (
-                <View style={styles.buttonSection}>
-                  <Pressable
-                    style={[styles.requestButton, isRequestSent && styles.requestButtonSent]}
-                    onPress={async () => {
-                      onSendRequest(climber, isRequestSent);
-                      // Immediately toggle the button state for instant feedback
-                      setIsRequestSent(!isRequestSent);
-                    }}
-                  >
-                    <Text style={styles.requestButtonText}>{isRequestSent ? 'Request Sent' : 'Send Climbing Partner Request'}</Text>
-                  </Pressable>
-                </View>
-              )}
-
-              <BlockReportMenu
-                visible={showBlockReportMenu}
-                userId={climber.id}
-                userName={climber.name}
-                onClose={() => setShowBlockReportMenu(false)}
-                onBlock={() => {
-                  onBlock?.();
-                  onClose();
-                }}
-                darkMode={darkMode}
-              />
+                <BlockReportMenu
+                  visible={showBlockReportMenu}
+                  userId={climber.id}
+                  userName={climber.name}
+                  onClose={() => setShowBlockReportMenu(false)}
+                  onBlock={() => {
+                    onBlock?.();
+                    onClose();
+                  }}
+                  darkMode={darkMode}
+                />
               </ScrollView>
             </>
           ) : (
@@ -176,112 +185,147 @@ const createStyles = (theme: typeof themeLight) =>
   StyleSheet.create({
     overlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.3)',
-      justifyContent: 'center',
-      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      justifyContent: 'flex-end',
     },
     modal: {
       backgroundColor: theme.colors.surface,
-      borderRadius: 16,
-      padding: 0,
-      width: '85%',
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      overflow: 'hidden',
       maxHeight: '90%',
+    },
+    imageSection: {
+      position: 'relative',
       overflow: 'hidden',
     },
-    topBar: {
+    imageGradientWrap: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: 110,
+    },
+    imageTextOverlay: {
+      position: 'absolute',
+      bottom: 16,
+      left: 18,
+      right: 18,
+    },
+    imageNameRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.colors.border,
-      backgroundColor: theme.colors.surface,
-    },
-    topBarTitle: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: theme.colors.text,
-      flex: 1,
-    },
-    closeButtonTop: {
-      padding: 8,
-      marginRight: -8,
-    },
-    headerSection: {
-      display: 'none',
-    },
-    title: {
-      fontSize: 22,
-      fontWeight: '700',
-      color: theme.colors.text,
-      textAlign: 'center',
-    },
-    infoSection: {
-      paddingHorizontal: 20,
-      paddingTop: 12,
-      paddingBottom: 12,
       gap: 10,
     },
-    infoRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 10,
-    },
-    infoContent: {
+    overlayName: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: '#fff',
       flex: 1,
-      gap: 1,
+      letterSpacing: -0.3,
     },
-    infoLabel: {
-      fontSize: 11,
-      fontWeight: '600',
-      color: theme.colors.textSecondary,
-      textTransform: 'uppercase',
+    overlayGradePill: {
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 999,
+      backgroundColor: 'rgba(52,211,207,0.90)',
+    },
+    overlayGradeText: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: '#fff',
       letterSpacing: 0.3,
     },
-    infoValue: {
-      fontSize: 15,
-      fontWeight: '500',
+    floatingClose: {
+      position: 'absolute',
+      top: 14,
+      right: 14,
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.20)',
+    },
+    infoGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      paddingHorizontal: 14,
+      paddingTop: 16,
+      paddingBottom: 8,
+      gap: 10,
+    },
+    infoGridItem: {
+      flex: 1,
+      minWidth: '42%',
+      backgroundColor: theme.colors.background,
+      borderRadius: 14,
+      padding: 13,
+      gap: 3,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    infoGridLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: theme.colors.textSecondary,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      marginTop: 5,
+    },
+    infoGridValue: {
+      fontSize: 14,
+      fontWeight: '600',
       color: theme.colors.text,
+      lineHeight: 20,
     },
     bioSection: {
-      paddingHorizontal: 20,
-      paddingBottom: 12,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
-      paddingTop: 12,
+      marginHorizontal: 14,
+      marginBottom: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      backgroundColor: theme.colors.background,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
     bioLabel: {
-      fontSize: 11,
-      fontWeight: '600',
+      fontSize: 10,
+      fontWeight: '700',
       color: theme.colors.textSecondary,
       textTransform: 'uppercase',
-      letterSpacing: 0.3,
+      letterSpacing: 0.8,
       marginBottom: 6,
     },
     bioText: {
       fontSize: 14,
       color: theme.colors.text,
-      lineHeight: 20,
+      lineHeight: 21,
     },
     buttonSection: {
-      paddingHorizontal: 20,
-      paddingTop: 12,
-      paddingBottom: 16,
-      gap: 8,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.border,
+      paddingHorizontal: 14,
+      paddingTop: 8,
+      paddingBottom: 28,
     },
     requestButton: {
-      backgroundColor: theme.colors.accent,
-      borderRadius: 8,
-      paddingVertical: 12,
+      backgroundColor: '#34D3CF',
+      borderRadius: 14,
+      paddingVertical: 15,
       paddingHorizontal: 22,
       alignItems: 'center',
       justifyContent: 'center',
+      flexDirection: 'row',
+      shadowColor: '#34D3CF',
+      shadowOpacity: 0.38,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 6,
     },
     requestButtonSent: {
       backgroundColor: theme.colors.success,
+      shadowColor: theme.colors.success,
     },
     requestButtonText: {
       color: '#fff',

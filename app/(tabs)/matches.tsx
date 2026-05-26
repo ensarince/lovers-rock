@@ -342,80 +342,102 @@ export default function MatchesScreen() {
     </Pressable>
   );
 
-  const renderRequest = ({ item }: { item: Climber }) => (
-    <Pressable style={styles.requestCardMinimal}>
-      <Pressable 
-        style={styles.imageContainer}
-        onPress={() => {
-          setSelectedRequest(item);
-          setRequestModalVisible(true);
-          setHoveredRequestImageId(null);
-        }}
-        onPressIn={() => setHoveredRequestImageId(item.id)}
-        onPressOut={() => setHoveredRequestImageId(null)}
-      >
-        <Image
-          source={{ uri: getFirstImageUrl(item.images, item.id) || `${getPocketBaseUrl()}/api/files/users/${item.id}/${item.avatar}?thumb=100x100` }}
-          style={styles.matchImageMinimal}
-        />
-        {hoveredRequestImageId === item.id && (
-          <View style={styles.viewProfileOverlay}>
-            <Ionicons name="eye" size={20} color="#fff" style={{ marginRight: 4 }} />
-            <Text style={styles.viewProfileText}>View Profile</Text>
+  const renderRequest = ({ item }: { item: Climber }) => {
+    const imageUri = getFirstImageUrl(item.images, item.id) || `${getPocketBaseUrl()}/api/files/users/${item.id}/${item.avatar}?thumb=100x100`;
+    const isAccepting = acceptingRequestIds.includes(item.id);
+    const isDeclining = decliningRequestIds.includes(item.id);
+    const disabled = isAccepting || isDeclining;
+    const gradeLabel = item.grade?.value || item.grade?.general_level;
+
+    return (
+      <View style={styles.requestCard}>
+        <Pressable
+          style={styles.requestCardImageWrap}
+          onPress={() => {
+            setSelectedRequest(item);
+            setRequestModalVisible(true);
+          }}
+        >
+          <Image
+            source={{ uri: imageUri }}
+            style={StyleSheet.absoluteFillObject}
+            resizeMode="cover"
+          />
+          <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+            <LinearGradient
+              colors={['rgba(0,0,0,0.0)', 'rgba(0,0,0,0.18)', 'rgba(0,0,0,0.82)']}
+              style={StyleSheet.absoluteFillObject}
+            />
           </View>
-        )}
-      </Pressable>
 
-      <View style={styles.matchInfoMinimal}>
-        <Text style={styles.matchNameMinimal}>
-          {item.name}, {item.age}
-        </Text>
-        <Text style={styles.matchGymMinimal}>{item.home_gym}</Text>
-        <Text style={styles.requestBadge}>Wants to climb</Text>
-      </View>
+          <View style={styles.requestCardTopRow}>
+            <View style={styles.requestCardBadge}>
+              <Text style={styles.requestCardBadgeText}>PARTNER REQUEST</Text>
+            </View>
+            <Pressable onPress={() => setBlockReportMenuOpen(item.id)} style={styles.requestCardMenuBtn}>
+              <Ionicons name="ellipsis-vertical" size={16} color="rgba(255,255,255,0.85)" />
+            </Pressable>
+          </View>
 
-      <View style={styles.requestActions}>
-        <View style={styles.requestButtonsContainer}>
+          <View style={styles.requestCardImageBottom}>
+            <View style={styles.requestCardNameRow}>
+              <Text style={styles.requestCardName}>{item.name}, {item.age}</Text>
+              {gradeLabel && (
+                <View style={styles.requestCardGradeBadge}>
+                  <Text style={styles.requestCardGradeText}>{gradeLabel}</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.requestCardGym} numberOfLines={1}>{item.home_gym}</Text>
+            {Array.isArray(item.climbing_styles) && item.climbing_styles.length > 0 && (
+              <View style={styles.requestCardStylesRow}>
+                {item.climbing_styles.slice(0, 3).map((s) => (
+                  <View key={s} style={styles.requestCardStyleChip}>
+                    <Text style={styles.requestCardStyleText}>{s}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        </Pressable>
+
+        <View style={styles.requestCardActions}>
           <Pressable
-            style={styles.acceptButton}
+            style={[styles.requestCardAcceptBtn, disabled && { opacity: 0.55 }]}
             onPress={() => handleAcceptRequest(item)}
-            disabled={acceptingRequestIds.includes(item.id) || decliningRequestIds.includes(item.id)}
+            disabled={disabled}
           >
-            <Text style={styles.acceptButtonText}>
-              {acceptingRequestIds.includes(item.id) ? 'Accepting...' : 'Accept'}
+            <Ionicons name="checkmark" size={15} color="#fff" />
+            <Text style={styles.requestCardAcceptText}>
+              {isAccepting ? 'Accepting…' : 'Accept'}
             </Text>
           </Pressable>
-          
           <Pressable
-            style={styles.declineButton}
+            style={[styles.requestCardDeclineBtn, disabled && { opacity: 0.55 }]}
             onPress={() => handleDeclineRequest(item)}
-            disabled={acceptingRequestIds.includes(item.id) || decliningRequestIds.includes(item.id)}
+            disabled={disabled}
           >
-            <Text style={styles.declineButtonText}>
-              {decliningRequestIds.includes(item.id) ? 'Declining...' : 'Decline'}
+            <Ionicons name="close" size={15} color={theme.colors.textSecondary} />
+            <Text style={styles.requestCardDeclineText}>
+              {isDeclining ? 'Declining…' : 'Decline'}
             </Text>
           </Pressable>
         </View>
-        <Pressable
-          onPress={() => setBlockReportMenuOpen(item.id)}
-          style={styles.menuIconContainerSmall}>
-          <Ionicons name="ellipsis-vertical" size={18} color={theme.colors.textSecondary} />
-        </Pressable>
-      </View>
 
-      <BlockReportMenu
-        visible={blockReportMenuOpen === item.id}
-        userId={item.id}
-        userName={item.name}
-        onClose={() => setBlockReportMenuOpen(null)}
-        onBlock={() => {
-          setIncomingRequests(incomingRequests.filter(r => r.id !== item.id));
-          setBlockReportMenuOpen(null);
-        }}
-        darkMode={darkMode}
-      />
-    </Pressable>
-  );
+        <BlockReportMenu
+          visible={blockReportMenuOpen === item.id}
+          userId={item.id}
+          userName={item.name}
+          onClose={() => setBlockReportMenuOpen(null)}
+          onBlock={() => {
+            setIncomingRequests(incomingRequests.filter(r => r.id !== item.id));
+            setBlockReportMenuOpen(null);
+          }}
+          darkMode={darkMode}
+        />
+      </View>
+    );
+  };
 
   const renderDatingLikedHint = () => (
     <Pressable style={styles.datingLikedHintCard}>
@@ -1127,5 +1149,159 @@ const createStyles = (theme: typeof themeLight) =>
       height: 80,
       marginTop: 28,
       opacity: 0.45,
+    },
+    // ─── Partner request card (full-bleed redesign) ───────────────
+    requestCard: {
+      marginHorizontal: 14,
+      marginVertical: 6,
+      borderRadius: 20,
+      overflow: 'hidden',
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: 'rgba(52,211,207,0.28)',
+      shadowColor: '#34D3CF',
+      shadowOpacity: 0.18,
+      shadowRadius: 18,
+      shadowOffset: { width: 0, height: 6 },
+      elevation: 8,
+    },
+    requestCardImageWrap: {
+      height: 200,
+      overflow: 'hidden',
+    },
+    requestCardTopRow: {
+      position: 'absolute',
+      top: 12,
+      left: 12,
+      right: 12,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    requestCardBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 999,
+      backgroundColor: 'rgba(52,211,207,0.80)',
+      borderWidth: 1,
+      borderColor: 'rgba(52,211,207,0.55)',
+    },
+    requestCardBadgeText: {
+      fontSize: 9,
+      fontWeight: '800',
+      color: '#fff',
+      letterSpacing: 1.2,
+    },
+    requestCardMenuBtn: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: 'rgba(0,0,0,0.38)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    requestCardImageBottom: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: 14,
+      paddingBottom: 14,
+      paddingTop: 6,
+    },
+    requestCardNameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 3,
+    },
+    requestCardName: {
+      fontSize: 20,
+      fontWeight: '800',
+      color: '#fff',
+      flex: 1,
+      letterSpacing: -0.3,
+    },
+    requestCardGradeBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 3,
+      borderRadius: 999,
+      backgroundColor: 'rgba(52,211,207,0.88)',
+    },
+    requestCardGradeText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: '#fff',
+      letterSpacing: 0.3,
+    },
+    requestCardGym: {
+      fontSize: 12,
+      color: 'rgba(255,255,255,0.72)',
+      marginBottom: 7,
+      fontWeight: '500',
+    },
+    requestCardStylesRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 5,
+    },
+    requestCardStyleChip: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      backgroundColor: 'rgba(255,255,255,0.15)',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.22)',
+    },
+    requestCardStyleText: {
+      fontSize: 10,
+      color: 'rgba(255,255,255,0.88)',
+      fontWeight: '600',
+      letterSpacing: 0.2,
+    },
+    requestCardActions: {
+      flexDirection: 'row',
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      gap: 10,
+      backgroundColor: theme.colors.surface,
+    },
+    requestCardAcceptBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: '#34D3CF',
+      paddingVertical: 11,
+      borderRadius: 12,
+      shadowColor: '#34D3CF',
+      shadowOpacity: 0.38,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 4,
+    },
+    requestCardAcceptText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: '#fff',
+      letterSpacing: 0.3,
+    },
+    requestCardDeclineBtn: {
+      flex: 1,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 5,
+      backgroundColor: 'transparent',
+      paddingVertical: 11,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    requestCardDeclineText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.colors.textSecondary,
     },
   });
