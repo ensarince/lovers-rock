@@ -136,41 +136,42 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                     <Text style={styles.bioText}>{climber.bio}</Text>
                   </View>
                 )}
-
-                {!viewOnly && (
-                  <View style={styles.buttonSection}>
-                    <Pressable
-                      style={[styles.requestButton, isRequestSent && styles.requestButtonSent]}
-                      onPress={async () => {
-                        onSendRequest(climber, isRequestSent);
-                        setIsRequestSent(!isRequestSent);
-                      }}
-                    >
-                      <Ionicons
-                        name={isRequestSent ? 'checkmark-circle' : 'people'}
-                        size={18}
-                        color="#fff"
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text style={styles.requestButtonText}>
-                        {isRequestSent ? 'Request Sent' : 'Send Climbing Partner Request'}
-                      </Text>
-                    </Pressable>
-                  </View>
-                )}
-
-                <BlockReportMenu
-                  visible={showBlockReportMenu}
-                  userId={climber.id}
-                  userName={climber.name}
-                  onClose={() => setShowBlockReportMenu(false)}
-                  onBlock={() => {
-                    onBlock?.();
-                    onClose();
-                  }}
-                  darkMode={darkMode}
-                />
               </ScrollView>
+
+              {/* Fixed footer — always visible */}
+              {!viewOnly && (
+                <View style={styles.buttonSection}>
+                  <Pressable
+                    style={[styles.requestButton, isRequestSent && styles.requestButtonSent]}
+                    onPress={async () => {
+                      onSendRequest(climber, isRequestSent);
+                      setIsRequestSent(!isRequestSent);
+                    }}
+                  >
+                    <Ionicons
+                      name={isRequestSent ? 'checkmark-circle' : 'people'}
+                      size={18}
+                      color="#fff"
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text style={styles.requestButtonText}>
+                      {isRequestSent ? 'Request Sent' : 'Send Climbing Partner Request'}
+                    </Text>
+                  </Pressable>
+                </View>
+              )}
+
+              <BlockReportMenu
+                visible={showBlockReportMenu}
+                userId={climber.id}
+                userName={climber.name}
+                onClose={() => setShowBlockReportMenu(false)}
+                onBlock={() => {
+                  onBlock?.();
+                  onClose();
+                }}
+                darkMode={darkMode}
+              />
             </>
           ) : (
             <View />

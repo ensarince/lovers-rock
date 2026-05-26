@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
   counterContainer: {
     position: 'absolute',
     top: 16,
-    right: 16,
+    left: 16,
     backgroundColor: 'rgba(0,0,0,0.5)',
     paddingHorizontal: 12,
     paddingVertical: 6,
