@@ -11,6 +11,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface PartnerDetailModalProps {
   visible: boolean;
@@ -27,6 +28,7 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
   const { darkMode, user, token } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
+  const insets = useSafeAreaInsets();
   const [isRequestSent, setIsRequestSent] = React.useState(false);
   const [distance, setDistance] = useState<number | null>(null);
   const [showBlockReportMenu, setShowBlockReportMenu] = useState(false);
@@ -138,9 +140,9 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                 )}
               </ScrollView>
 
-              {/* Fixed footer — always visible */}
+              {/* Fixed footer — always visible, above system nav bar */}
               {!viewOnly && (
-                <View style={styles.buttonSection}>
+                <View style={[styles.buttonSection, { paddingBottom: Math.max(insets.bottom, 16) + 4 }]}>
                   <Pressable
                     style={[styles.requestButton, isRequestSent && styles.requestButtonSent]}
                     onPress={async () => {
