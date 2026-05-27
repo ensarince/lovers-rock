@@ -370,14 +370,9 @@ export default function MatchesScreen() {
             />
           </View>
 
-          <View style={styles.requestCardTopRow}>
-            <View style={styles.requestCardBadge}>
-              <Text style={styles.requestCardBadgeText}>PARTNER REQUEST</Text>
-            </View>
-            <Pressable onPress={() => setBlockReportMenuOpen(item.id)} style={styles.requestCardMenuBtn}>
-              <Ionicons name="ellipsis-vertical" size={16} color="rgba(255,255,255,0.85)" />
-            </Pressable>
-          </View>
+          <Pressable onPress={() => setBlockReportMenuOpen(item.id)} style={styles.requestCardMenuBtn}>
+            <Ionicons name="ellipsis-vertical" size={16} color="rgba(255,255,255,0.85)" />
+          </Pressable>
 
           <View style={styles.requestCardImageBottom}>
             <View style={styles.requestCardNameRow}>
