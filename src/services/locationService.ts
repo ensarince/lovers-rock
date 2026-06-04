@@ -16,7 +16,7 @@ class LocationService {
       this.hasLocationPermission = status === 'granted';
       return this.hasLocationPermission;
     } catch (error) {
-      console.error('📍 Location permission error:', error);
+      if (__DEV__) console.error('📍 Location permission error:', error);
       return false;
     }
   }
@@ -85,13 +85,13 @@ class LocationService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`📍 Location update failed: ${response.status}`, errorText);
+        if (__DEV__) console.error(`📍 Location update failed: ${response.status}`, errorText);
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('📍 Location update error:', error);
+      if (__DEV__) console.error('📍 Location update error:', error);
       return false;
     }
   }
@@ -115,9 +115,9 @@ class LocationService {
       location.coords.longitude
     );
     if (success) {
-      console.log('✅ Location saved to database');
+      if (__DEV__) console.log('✅ Location saved to database');
     } else {
-      console.log('❌ Failed to save location');
+      if (__DEV__) console.log('❌ Failed to save location');
     }
     return success;
   }

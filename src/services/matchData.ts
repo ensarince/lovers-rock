@@ -8,7 +8,6 @@ import {
   getActiveDeclinedUserIds,
   getBlockedAgainstUser,
   getBlockedByUser,
-  getIncomingDeclines,
   getIncomingLikes,
   getOutgoingDeclines,
   getOutgoingLikes,
@@ -93,7 +92,7 @@ export const acceptPartnerRequest = async (currentUserId: string, requesterId: s
     await createLike(currentUserId, requesterId, 'partner', token);
     await removeDecline(currentUserId, requesterId, 'partner', token);
   } catch (error) {
-    console.error('âŒ Accept operation failed:', error);
+    if (__DEV__) console.error('âŒ Accept operation failed:', error);
     throw error;
   }
 };
@@ -117,10 +116,10 @@ export const declinePartnerRequest = async (currentUserId: string, requesterId: 
     try {
       await removeLike(requesterId, currentUserId, 'partner', token);
     } catch (error) {
-      if (process.env.EXPO_DEV_MODE) console.warn('âš ï¸ Could not remove incoming partner like:', error);
+      if (__DEV__) console.warn('âš ï¸ Could not remove incoming partner like:', error);
     }
   } catch (error) {
-    console.error('âŒ Partner decline operation failed:', error);
+    if (__DEV__) console.error('âŒ Partner decline operation failed:', error);
     throw error;
   }
 };
@@ -144,10 +143,10 @@ export const declineDatingUser = async (currentUserId: string, declinedUserId: s
     try {
       await removeLike(declinedUserId, currentUserId, 'dating', token);
     } catch (error) {
-      if (process.env.EXPO_DEV_MODE) console.warn('âš ï¸ Could not remove incoming dating like:', error);
+      if (__DEV__) console.warn('âš ï¸ Could not remove incoming dating like:', error);
     }
   } catch (error) {
-    console.error('âŒ Dating decline operation failed:', error);
+    if (__DEV__) console.error('âŒ Dating decline operation failed:', error);
     throw error;
   }
 };
@@ -168,7 +167,6 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
       outgoingLikes,
       incomingLikes,
       outgoingDeclines,
-      incomingDeclines,
       blockedByMe,
       blockedAgainstMe,
       profiles,
@@ -176,7 +174,6 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
       getOutgoingLikes(currentUserId, token),
       getIncomingLikes(currentUserId, token),
       getOutgoingDeclines(currentUserId, token),
-      getIncomingDeclines(currentUserId, token),
       getBlockedByUser(currentUserId, token),
       getBlockedAgainstUser(currentUserId, token),
       getPublicProfiles(token),
@@ -192,8 +189,6 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
 
     const declinedByMeDating = new Set(getActiveDeclinedUserIds(outgoingDeclines, 'dating', 'outgoing'));
     const declinedByMePartner = new Set(getActiveDeclinedUserIds(outgoingDeclines, 'partner', 'outgoing'));
-    const declinedMeDating = new Set(getActiveDeclinedUserIds(incomingDeclines, 'dating', 'incoming'));
-    const declinedMePartner = new Set(getActiveDeclinedUserIds(incomingDeclines, 'partner', 'incoming'));
 
     const matchesMap: Record<string, Match> = {};
 
@@ -215,7 +210,7 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
       outgoingDating.forEach((userId) => {
         if (!incomingDating.has(userId)) return;
         if (blockedIds.has(userId)) return;
-        if (declinedByMeDating.has(userId) || declinedMeDating.has(userId)) return;
+        if (declinedByMeDating.has(userId)) return;
         const user = profileMap.get(userId);
         if (!user) return;
         if (!intentIncludes(user.intent, 'date')) return;
@@ -227,7 +222,7 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
       outgoingPartner.forEach((userId) => {
         if (!incomingPartner.has(userId)) return;
         if (blockedIds.has(userId)) return;
-        if (declinedByMePartner.has(userId) || declinedMePartner.has(userId)) return;
+        if (declinedByMePartner.has(userId)) return;
         const user = profileMap.get(userId);
         if (!user) return;
         if (!intentIncludes(user.intent, 'partner')) return;
@@ -237,7 +232,7 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
 
     return Object.values(matchesMap);
   } catch (error) {
-    console.error('Failed to fetch matches:', error);
+    if (__DEV__) console.error('Failed to fetch matches:', error);
     return [];
   }
 };
@@ -252,7 +247,7 @@ export const unmatchUser = async (currentUserId: string, targetUserId: string, m
       removeLike(targetUserId, currentUserId, matchType, token),
     ]);
   } catch (error) {
-    console.error('Failed to unmatch user:', error);
+    if (__DEV__) console.error('Failed to unmatch user:', error);
     throw error;
   }
 };
