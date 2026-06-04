@@ -7,7 +7,7 @@ import { getOutgoingLikes } from '@/src/services/socialGraphService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -96,7 +96,7 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                   </View>
                 </View>
                 <Pressable onPress={onClose} style={styles.floatingClose}>
-                  <Ionicons name="close" size={18} color="#fff" />
+                  <MaterialCommunityIcons name="close" size={18} color="#fff" />
                 </Pressable>
               </View>
 
@@ -104,27 +104,27 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                 {/* Info grid */}
                 <View style={styles.infoGrid}>
                   <View style={styles.infoGridItem}>
-                    <Ionicons name="location-sharp" size={15} color={theme.colors.accent} />
+                    <MaterialCommunityIcons name="map-marker" size={16} color={theme.colors.accent} />
                     <Text style={styles.infoGridLabel}>Home Gym</Text>
                     <Text style={styles.infoGridValue} numberOfLines={2}>{climber.home_gym}</Text>
                   </View>
 
                   <View style={styles.infoGridItem}>
-                    <Ionicons name="trophy" size={15} color={theme.colors.accent} />
+                    <MaterialCommunityIcons name="trophy-outline" size={16} color={theme.colors.accent} />
                     <Text style={styles.infoGridLabel}>Grade</Text>
                     <Text style={styles.infoGridValue}>{formatGradeDisplay(climber.grade)}</Text>
                   </View>
 
                   {distance !== null && (
                     <View style={styles.infoGridItem}>
-                      <Ionicons name="compass" size={15} color={theme.colors.accent} />
+                      <MaterialCommunityIcons name="compass-outline" size={16} color={theme.colors.accent} />
                       <Text style={styles.infoGridLabel}>Distance</Text>
                       <Text style={styles.infoGridValue}>{formatDistance(distance)} away</Text>
                     </View>
                   )}
 
                   <View style={styles.infoGridItem}>
-                    <Text style={{ fontSize: 15 }}>🧗</Text>
+                    <MaterialCommunityIcons name="layers-triple-outline" size={16} color={theme.colors.accent} />
                     <Text style={styles.infoGridLabel}>Styles</Text>
                     <Text style={styles.infoGridValue} numberOfLines={3}>
                       {Array.isArray(climber.climbing_styles) ? climber.climbing_styles.join(' · ') : 'Not specified'}
@@ -150,9 +150,9 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                       setIsRequestSent(!isRequestSent);
                     }}
                   >
-                    <Ionicons
-                      name={isRequestSent ? 'checkmark-circle' : 'people'}
-                      size={18}
+                    <MaterialCommunityIcons
+                      name={isRequestSent ? 'check-circle-outline' : 'account-multiple-plus-outline'}
+                      size={20}
                       color="#fff"
                       style={{ marginRight: 8 }}
                     />

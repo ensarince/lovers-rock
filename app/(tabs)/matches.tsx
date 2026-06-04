@@ -21,7 +21,7 @@ import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
 import { Match } from '@/src/types/match';
 import { getFirstImageUrl, getPocketBaseUrl, intentIncludes } from '@/src/utils/helperFunctions';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -315,7 +315,7 @@ export default function MatchesScreen() {
       <Pressable
         onPress={() => setBlockReportMenuOpen(item.climber.id)}
         style={styles.menuIconContainer}>
-        <Ionicons name="ellipsis-vertical" size={20} color={theme.colors.textSecondary} />
+        <MaterialCommunityIcons name="dots-vertical" size={20} color={theme.colors.textSecondary} />
       </Pressable>
 
       <BlockReportMenu
@@ -371,7 +371,7 @@ export default function MatchesScreen() {
           </View>
 
           <Pressable onPress={() => setBlockReportMenuOpen(item.id)} style={styles.requestCardMenuBtn}>
-            <Ionicons name="ellipsis-vertical" size={16} color="rgba(255,255,255,0.85)" />
+            <MaterialCommunityIcons name="dots-vertical" size={16} color="rgba(255,255,255,0.85)" />
           </Pressable>
 
           <View style={styles.requestCardImageBottom}>
@@ -402,7 +402,7 @@ export default function MatchesScreen() {
             onPress={() => handleAcceptRequest(item)}
             disabled={disabled}
           >
-            <Ionicons name="checkmark" size={15} color="#fff" />
+            <MaterialCommunityIcons name="check" size={16} color="#fff" />
             <Text style={styles.requestCardAcceptText}>
               {isAccepting ? 'Accepting…' : 'Accept'}
             </Text>
@@ -412,7 +412,7 @@ export default function MatchesScreen() {
             onPress={() => handleDeclineRequest(item)}
             disabled={disabled}
           >
-            <Ionicons name="close" size={15} color={theme.colors.textSecondary} />
+            <MaterialCommunityIcons name="close" size={16} color={theme.colors.textSecondary} />
             <Text style={styles.requestCardDeclineText}>
               {isDeclining ? 'Declining…' : 'Decline'}
             </Text>
@@ -446,7 +446,7 @@ export default function MatchesScreen() {
         <Text style={styles.datingLikedHintSubtext}>Swipe discover to find them</Text>
       </View>
 
-      <Ionicons name="sparkles" size={24} color="#D4AF37" />
+      <MaterialCommunityIcons name="shimmer" size={24} color="#D4AF37" />
     </Pressable>
   );
 
@@ -495,7 +495,7 @@ export default function MatchesScreen() {
           borderWidth: 1, borderColor: theme.colors.accent + '30',
           justifyContent: 'center', alignItems: 'center',
         }}>
-          <Ionicons name="alert-circle" size={36} color={theme.colors.accent} />
+          <MaterialCommunityIcons name="alert-circle-outline" size={36} color={theme.colors.accent} />
         </View>
         <Text style={styles.emptyTitle}>Complete your profile</Text>
         <Text style={styles.emptySubtitle}>
@@ -515,7 +515,7 @@ export default function MatchesScreen() {
           borderWidth: 1, borderColor: theme.colors.border,
           justifyContent: 'center', alignItems: 'center',
         }}>
-          <Ionicons name="alert-circle" size={32} color={theme.colors.textSecondary} />
+          <MaterialCommunityIcons name="alert-circle-outline" size={32} color={theme.colors.textSecondary} />
         </View>
         <Text style={styles.titleMinimal}>No intents enabled</Text>
         <Text style={styles.subtitleMinimal}>
@@ -535,7 +535,7 @@ export default function MatchesScreen() {
           borderWidth: 1, borderColor: theme.colors.border,
           justifyContent: 'center', alignItems: 'center',
         }}>
-          <Ionicons name="heart-outline" size={32} color={theme.colors.textSecondary} />
+          <MaterialCommunityIcons name="heart-outline" size={32} color={theme.colors.textSecondary} />
         </View>
         <Text style={styles.titleMinimal}>No matches yet</Text>
         <Text style={styles.subtitleMinimal}>
@@ -605,7 +605,7 @@ export default function MatchesScreen() {
             borderWidth: 1, borderColor: theme.colors.border,
             justifyContent: 'center', alignItems: 'center',
           }}>
-            <Ionicons name="heart-outline" size={32} color={theme.colors.textSecondary} />
+            <MaterialCommunityIcons name="heart-outline" size={32} color={theme.colors.textSecondary} />
           </View>
           <Text style={styles.titleMinimal}>No {activeFilter === 'requests' ? 'requests' : activeFilter === 'dating' ? 'dating matches' : activeFilter === 'partner' ? 'climbing partner matches' : 'matches'} yet</Text>
           <Text style={styles.subtitleMinimal}>
@@ -673,7 +673,7 @@ export default function MatchesScreen() {
               <View style={styles.introHeader}>
                 <Text style={styles.heroEyebrow}>Connections</Text>
                 <Pressable onPress={() => dismissIntro()} style={styles.introCloseButton}>
-                  <Ionicons name="close" size={20} color={theme.colors.text} />
+                  <MaterialCommunityIcons name="close" size={20} color={theme.colors.text} />
                 </Pressable>
               </View>
               <Text style={styles.heroTitle}>Your people, all in one place</Text>

@@ -1,7 +1,7 @@
 import { useAuth } from '@/src/context/AuthContext';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
-import Ionicons from '@expo/vector-icons/Ionicons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Tabs, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
@@ -52,10 +52,10 @@ export default function TabLayout() {
         options={{
           title: 'Discover',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? 'search' : 'search-outline'}
+            <MaterialCommunityIcons
+              name={focused ? 'compass' : 'compass-outline'}
               color={color}
-              size={24}
+              size={26}
             />
           ),
         }}
@@ -65,7 +65,7 @@ export default function TabLayout() {
         options={{
           title: 'Matches',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'heart' : 'heart-outline'} color={color} size={24} />
+            <MaterialCommunityIcons name={focused ? 'heart' : 'heart-outline'} color={color} size={26} />
           ),
         }}
       />
@@ -75,7 +75,7 @@ export default function TabLayout() {
           title: 'Messages',
           tabBarBadge: unreadMessageCount > 0 ? unreadMessageCount : undefined,
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'chatbubble' : 'chatbubble-outline'} color={color} size={24} />
+            <MaterialCommunityIcons name={focused ? 'message' : 'message-outline'} color={color} size={26} />
           ),
         }}
       />
@@ -84,7 +84,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} color={color} size={24} />
+            <MaterialCommunityIcons name={focused ? 'account' : 'account-outline'} color={color} size={26} />
           ),
         }}
       />
