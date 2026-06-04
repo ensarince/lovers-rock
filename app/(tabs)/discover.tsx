@@ -23,13 +23,12 @@ import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
 import { getPocketBaseUrl, intentIncludes } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
-  Image,
   ImageBackground,
   LayoutChangeEvent,
   Modal,
@@ -40,7 +39,6 @@ import {
   View
 } from 'react-native';
 import { getPublicProfiles } from '../../src/services/accountService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function DiscoverScreen() {
   // Dating mode state
@@ -879,9 +877,6 @@ export default function DiscoverScreen() {
                         <View style={styles.partnerInfo}>
                           <View style={styles.partnerHeaderRow}>
                             <Text style={styles.partnerNameOnImage}>{item.name}</Text>
-                            <View style={styles.partnerChipOnImage}>
-                              <Text style={styles.partnerChipTextOnImage}>Climbing Partner</Text>
-                            </View>
                           </View>
                           <Text style={styles.partnerDetailOnImage}>{item.home_gym}</Text>
                           <Text style={styles.partnerDetailOnImage}>

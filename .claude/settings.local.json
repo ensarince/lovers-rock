@@ -35,7 +35,9 @@
       "Bash(Copy-Item \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\assets\\\\images\\\\trad.png\" \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\website\\\\public\\\\assets\\\\trad.png\")",
       "Bash(Copy-Item \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\assets\\\\images\\\\gym.png\" \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\website\\\\public\\\\assets\\\\gym.png\")",
       "Bash(Copy-Item \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\assets\\\\images\\\\outdoor.png\" \"C:\\\\Users\\\\Ensar\\\\Desktop\\\\privat\\\\lovers-rock\\\\website\\\\public\\\\assets\\\\outdoor.png\")",
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "Bash(git rm *)",
+      "Bash(eas credentials *)"
     ]
   }
 }

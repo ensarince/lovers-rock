@@ -1,6 +1,8 @@
 import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import { createBlock, getBlockedAgainstUser, getBlockedByUser, removeBlock } from '@/src/services/socialGraphService';
 
+const safeId = (id: string): string => String(id).replace(/[^a-zA-Z0-9]/g, '');
+
 export type ReportReason = 'harassment' | 'inappropriate_photos' | 'spam' | 'fake_profile' | 'other';
 export type ReportStatus = 'pending' | 'reviewed' | 'resolved';
 
@@ -31,7 +33,7 @@ class ReportService {
       const blockedByMe = await this.getBlockedUsersByMe(userId, token);
       return { blocked_users: blockedByMe };
     } catch (error: any) {
-      console.error('Block user error:', error);
+      if (__DEV__) console.error('Block user error:', error);
       throw error;
     }
   }
@@ -43,7 +45,7 @@ class ReportService {
     try {
       await removeBlock(userId, blockedUserId, token);
     } catch (error: any) {
-      console.error('Unblock user error:', error);
+      if (__DEV__) console.error('Unblock user error:', error);
       throw error;
     }
   }
@@ -87,7 +89,7 @@ class ReportService {
       const report = await response.json();
       return report as Report;
     } catch (error: any) {
-      console.error('Report user error:', error);
+      if (__DEV__) console.error('Report user error:', error);
       throw error;
     }
   }
@@ -107,7 +109,7 @@ class ReportService {
         ...blockedAgainstMe.map((record) => record.from_user),
       ])).filter(Boolean);
     } catch (error: any) {
-      console.error('Get blocked users error:', error);
+      if (__DEV__) console.error('Get blocked users error:', error);
       return [];
     }
   }
@@ -120,7 +122,7 @@ class ReportService {
       const blockedByMe = await getBlockedByUser(userId, token);
       return blockedByMe.map((record) => record.to_user).filter(Boolean);
     } catch (error: any) {
-      console.error('Get blocked users by me error:', error);
+      if (__DEV__) console.error('Get blocked users by me error:', error);
       return [];
     }
   }
@@ -145,7 +147,7 @@ class ReportService {
       const POCKETBASE_URL = getPocketBaseUrl();
 
       const response = await fetch(
-        `${POCKETBASE_URL}/api/collections/reports/records?filter=(from_user='${userId}')`,
+        `${POCKETBASE_URL}/api/collections/reports/records?filter=(from_user='${safeId(userId)}')`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -160,7 +162,7 @@ class ReportService {
       const data = await response.json();
       return data.items || [];
     } catch (error: any) {
-      console.error('Get reports error:', error);
+      if (__DEV__) console.error('Get reports error:', error);
       return [];
     }
   }

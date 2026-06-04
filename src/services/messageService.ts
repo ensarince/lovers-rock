@@ -147,22 +147,26 @@ export class MessageService {
     await Promise.all(deletePromises);
   }
 
-  async updateMessageReaction(messageId: string, userId: string, reaction: string | null): Promise<void> {
+  async updateMessageReaction(messageId: string, _userId: string, reaction: string | null): Promise<void> {
+    // Always use the authenticated user's own ID as the reaction key — never
+    // trust the caller-supplied userId, which could be forged to attribute
+    // a reaction to another user.
+    const authUserId = this.pb.authStore.record?.id;
+    if (!authUserId) throw new Error('Not authenticated');
+
     try {
       const record = await this.pb.collection('messages').getOne(messageId);
       const reactions = record.reactions || {};
 
       if (reaction === null || reaction === '') {
-        // Remove reaction
-        delete reactions[userId];
+        delete reactions[authUserId];
       } else {
-        // Add/update reaction
-        reactions[userId] = reaction;
+        reactions[authUserId] = reaction;
       }
 
       await this.pb.collection('messages').update(messageId, { reactions });
     } catch (error) {
-      if (process.env.EXPO_DEV_MODE) console.error('Failed to update message reaction:', error);
+      if (__DEV__) console.error('Failed to update message reaction:', error);
       throw error;
     }
   }

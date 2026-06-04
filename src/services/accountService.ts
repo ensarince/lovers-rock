@@ -91,11 +91,12 @@ export async function getPublicProfiles(token: string): Promise<Climber[]> {
   })) as Climber[];
 }
 
-// Fetch a single user by ID
+// Fetch a single user by ID — always uses public_profiles to avoid
+// exposing email, raw coordinates, or blocked_users from the users collection.
 export async function getUserById(userId: string, token: string): Promise<Climber | null> {
   try {
     const response = await fetch(
-      `${POCKETBASE_URL}/api/collections/users/records/${userId}`,
+      `${POCKETBASE_URL}/api/collections/public_profiles/records/${userId}`,
       {
         method: 'GET',
         headers: {
@@ -106,46 +107,22 @@ export async function getUserById(userId: string, token: string): Promise<Climbe
     );
 
     if (!response.ok) {
-      // Fallback to public_profiles if users collection is locked down
-      const publicResponse = await fetch(
-        `${POCKETBASE_URL}/api/collections/public_profiles/records/${userId}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!publicResponse.ok) {
-        console.error('Failed to fetch user:', userId, response.status);
-        return null;
-      }
-
-      const userData = await publicResponse.json();
-      return {
-        ...userData,
-        email: userData.email || '',
-        grade: parseGrade(userData.grade),
-        blocked_users: Array.isArray(userData.blocked_users) ? userData.blocked_users : [],
-        intent: Array.isArray(userData.intent)
-          ? userData.intent.map((value: string) => normalizeIntentValue(value)).filter(Boolean)
-          : [],
-      } as Climber;
+      if (__DEV__) console.error('Failed to fetch user:', userId, response.status);
+      return null;
     }
 
     const userData = await response.json();
     return {
       ...userData,
+      email: '',
       grade: parseGrade(userData.grade),
-      blocked_users: Array.isArray(userData.blocked_users) ? userData.blocked_users : [],
+      blocked_users: [],
       intent: Array.isArray(userData.intent)
         ? userData.intent.map((value: string) => normalizeIntentValue(value)).filter(Boolean)
         : [],
     } as Climber;
   } catch (error: any) {
-    console.error('Error fetching user:', userId, error);
+    if (__DEV__) console.error('Error fetching user:', userId, error);
     return null;
   }
 }

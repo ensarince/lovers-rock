@@ -63,6 +63,9 @@ onRecordAfterCreateSuccess((e) => {
 
 // New like -> partner request + match notifications
 onRecordAfterCreateSuccess((e) => {
+    function safeId(val) {
+        return String(val || '').replace(/[^a-zA-Z0-9]/g, '');
+    }
     function validToken(t) {
         return t && (t.indexOf('ExponentPushToken[') === 0 || t.indexOf('ExpoPushToken[') === 0);
     }
@@ -116,7 +119,7 @@ onRecordAfterCreateSuccess((e) => {
         try {
             var results = $app.findRecordsByFilter(
                 'likes',
-                'from_user = "' + toUser + '" && to_user = "' + fromUser + '" && intent = "' + intent + '"',
+                'from_user = "' + safeId(toUser) + '" && to_user = "' + safeId(fromUser) + '" && intent = "' + safeId(intent) + '"',
                 '-created', 1, 0
             );
             if (results && results.length > 0) reciprocal = results[0];

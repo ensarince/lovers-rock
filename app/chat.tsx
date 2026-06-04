@@ -144,7 +144,7 @@ export default function ChatScreen() {
   useEffect(() => {
     if (!climberId || !token) return;
     const POCKETBASE_URL = getPocketBaseUrl();
-    fetch(`${POCKETBASE_URL}/api/collections/users/records/${climberId}`, {
+    fetch(`${POCKETBASE_URL}/api/collections/public_profiles/records/${climberId}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.ok ? r.json() : null)

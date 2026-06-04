@@ -91,9 +91,12 @@ routerAdd('GET', '/api/mobile-verify-email', function(e) {
     }
 
     try {
-        // Call PocketBase's own confirm-verification API internally
+        // Call PocketBase's own confirm-verification API internally.
+        // Use the PORT env var (set by Railway) so this works regardless of
+        // which port PocketBase is bound to — avoids the hardcoded 8080 bug.
+        var pbPort = String($os.getenv('PORT') || '8090');
         var result = $http.send({
-            url: 'http://127.0.0.1:8080/api/collections/users/confirm-verification',
+            url: 'http://127.0.0.1:' + pbPort + '/api/collections/users/confirm-verification',
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token: token }),

@@ -20,20 +20,20 @@ export function deliverOAuthDeepLink(url: string): boolean {
 
 // Verify PocketBase connection on startup
 const verifyConnection = async () => {
-  if (process.env.EXPO_DEV_MODE) console.log('🔍 Attempting to connect to:', POCKETBASE_URL);
+  if (__DEV__) console.log('🔍 Attempting to connect to:', POCKETBASE_URL);
   try {
-    if (process.env.EXPO_DEV_MODE) console.log('📡 Sending fetch request...');
+    if (__DEV__) console.log('📡 Sending fetch request...');
     const response = await fetch(`${POCKETBASE_URL}/api/health`, {
       method: 'GET',
     });
-    if (process.env.EXPO_DEV_MODE) console.log('📊 Response received:', response.status, response.statusText);
+    if (__DEV__) console.log('📊 Response received:', response.status, response.statusText);
     if (response.ok) {
-      if (process.env.EXPO_DEV_MODE) console.log('✓ Connected to PocketBase');
+      if (__DEV__) console.log('✓ Connected to PocketBase');
     } else {
-      if (process.env.EXPO_DEV_MODE) console.warn('⚠ PocketBase responded with status:', response.status);
+      if (__DEV__) console.warn('⚠ PocketBase responded with status:', response.status);
     }
   } catch (error: any) {
-    if (process.env.EXPO_DEV_MODE) {
+    if (__DEV__) {
       console.error('✗ Fetch failed');
       console.error('Error type:', error.constructor.name);
       console.error('Error message:', error.message);
@@ -68,11 +68,11 @@ export const authService = {
       const authData = await pb
         .collection('users')
         .authWithPassword(email, password);
-      if (process.env.EXPO_DEV_MODE) console.log('✓ Login successful');
+      if (__DEV__) console.log('✓ Login successful');
       return authData;
     } catch (error: any) {
-      if (process.env.EXPO_DEV_MODE) console.error('❌ Login error:', error);
-      if (process.env.EXPO_DEV_MODE) console.error('Error response:', error.response);
+      if (__DEV__) console.error('❌ Login error:', error);
+      if (__DEV__) console.error('Error response:', error.response);
       throw new Error(error.message || 'Invalid email or password');
     }
   },
@@ -177,11 +177,11 @@ export const authService = {
   // Request email verification (sends verification email)
   async requestVerification(email: string) {
     try {
-      if (process.env.EXPO_DEV_MODE) console.log('📧 Requesting verification for:', email);
+      if (__DEV__) console.log('📧 Requesting verification for:', email);
       await pb.collection('users').requestVerification(email);
-      if (process.env.EXPO_DEV_MODE) console.log('✓ Verification email requested');
+      if (__DEV__) console.log('✓ Verification email requested');
     } catch (error: any) {
-      if (process.env.EXPO_DEV_MODE) {
+      if (__DEV__) {
         console.error('❌ Verification request error:', error);
         console.error('Error message:', error.message);
         console.error('Error details:', error.response || error);
@@ -193,11 +193,11 @@ export const authService = {
   // Confirm email verification with token
   async confirmVerification(token: string) {
     try {
-      if (process.env.EXPO_DEV_MODE) console.log('🔐 Confirming verification with token');
+      if (__DEV__) console.log('🔐 Confirming verification with token');
       await pb.collection('users').confirmVerification(token);
-      if (process.env.EXPO_DEV_MODE) console.log('✓ Email verified successfully');
+      if (__DEV__) console.log('✓ Email verified successfully');
     } catch (error: any) {
-      if (process.env.EXPO_DEV_MODE) {
+      if (__DEV__) {
         console.error('❌ Verification confirm error:', error);
         console.error('Error message:', error.message);
       }
