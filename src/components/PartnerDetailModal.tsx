@@ -7,7 +7,7 @@ import { getOutgoingLikes } from '@/src/services/socialGraphService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
-import { CheckCircle, Compass, Layers, MapPin, Trophy, UserPlus, X } from 'lucide-react-native';
+import { CheckCircle, Compass, MapPin, Mountain, Trophy, UserPlus, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -124,7 +124,7 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                   )}
 
                   <View style={styles.infoGridItem}>
-                    <Layers size={16} color={theme.colors.accent} strokeWidth={1.75} />
+                    <Mountain size={16} color={theme.colors.accent} strokeWidth={1.75} />
                     <Text style={styles.infoGridLabel}>Styles</Text>
                     <Text style={styles.infoGridValue} numberOfLines={3}>
                       {Array.isArray(climber.climbing_styles) ? climber.climbing_styles.join(' · ') : 'Not specified'}
