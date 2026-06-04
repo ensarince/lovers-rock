@@ -5,6 +5,11 @@ const POCKETBASE_URL = getPocketBaseUrl();
 // Strip non-alphanumeric chars to prevent filter injection — PocketBase IDs are alphanumeric only
 const safeId = (id: string): string => String(id).replace(/[^a-zA-Z0-9]/g, '');
 
+// Whitelist intent values — rejects anything that isn't a known literal,
+// preventing filter injection via tampered server-returned intent fields
+const safeIntent = (intent: string): 'dating' | 'partner' =>
+  intent === 'partner' ? 'partner' : 'dating';
+
 type IntentType = 'dating' | 'partner';
 
 export interface LikeRecord {
@@ -83,7 +88,7 @@ export const getOutgoingLikes = async (
 ): Promise<LikeRecord[]> => {
   const filter = buildFilter([
     `from_user = "${safeId(userId)}"`,
-    intent ? `intent = "${intent}"` : null,
+    intent ? `intent = "${safeIntent(intent)}"` : null,
   ]);
   return fetchAllRecords<LikeRecord>('likes', token, filter);
 };
@@ -95,7 +100,7 @@ export const getIncomingLikes = async (
 ): Promise<LikeRecord[]> => {
   const filter = buildFilter([
     `to_user = "${safeId(userId)}"`,
-    intent ? `intent = "${intent}"` : null,
+    intent ? `intent = "${safeIntent(intent)}"` : null,
   ]);
   return fetchAllRecords<LikeRecord>('likes', token, filter);
 };
@@ -109,7 +114,7 @@ export const createLike = async (
   const filter = buildFilter([
     `from_user = "${safeId(fromUserId)}"`,
     `to_user = "${safeId(toUserId)}"`,
-    `intent = "${intent}"`,
+    `intent = "${safeIntent(intent)}"`,
   ]);
 
   const existing = await fetchAllRecords<LikeRecord>('likes', token, filter);
@@ -143,7 +148,7 @@ export const removeLike = async (
   const filter = buildFilter([
     `from_user = "${safeId(fromUserId)}"`,
     `to_user = "${safeId(toUserId)}"`,
-    `intent = "${intent}"`,
+    `intent = "${safeIntent(intent)}"`,
   ]);
 
   const records = await fetchAllRecords<LikeRecord>('likes', token, filter);
@@ -168,7 +173,7 @@ export const getOutgoingDeclines = async (
 ): Promise<DeclineRecord[]> => {
   const filter = buildFilter([
     `from_user = "${safeId(userId)}"`,
-    intent ? `intent = "${intent}"` : null,
+    intent ? `intent = "${safeIntent(intent)}"` : null,
   ]);
   return fetchAllRecords<DeclineRecord>('declines', token, filter);
 };
@@ -180,7 +185,7 @@ export const getIncomingDeclines = async (
 ): Promise<DeclineRecord[]> => {
   const filter = buildFilter([
     `to_user = "${safeId(userId)}"`,
-    intent ? `intent = "${intent}"` : null,
+    intent ? `intent = "${safeIntent(intent)}"` : null,
   ]);
   return fetchAllRecords<DeclineRecord>('declines', token, filter);
 };
@@ -194,7 +199,7 @@ export const createDecline = async (
   const filter = buildFilter([
     `from_user = "${safeId(fromUserId)}"`,
     `to_user = "${safeId(toUserId)}"`,
-    `intent = "${intent}"`,
+    `intent = "${safeIntent(intent)}"`,
   ]);
 
   const existing = await fetchAllRecords<DeclineRecord>('declines', token, filter);
@@ -229,7 +234,7 @@ export const removeDecline = async (
   const filter = buildFilter([
     `from_user = "${safeId(fromUserId)}"`,
     `to_user = "${safeId(toUserId)}"`,
-    `intent = "${intent}"`,
+    `intent = "${safeIntent(intent)}"`,
   ]);
 
   const records = await fetchAllRecords<DeclineRecord>('declines', token, filter);
@@ -347,7 +352,7 @@ export const hasIncomingLike = async (
   const filter = buildFilter([
     `from_user = "${safeId(fromUserId)}"`,
     `to_user = "${safeId(currentUserId)}"`,
-    `intent = "${intent}"`,
+    `intent = "${safeIntent(intent)}"`,
   ]);
 
   const records = await fetchAllRecords<LikeRecord>('likes', token, filter);

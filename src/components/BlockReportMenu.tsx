@@ -51,6 +51,10 @@ export const BlockReportMenu: React.FC<BlockReportMenuProps> = ({
       Alert.alert('Error', 'Authentication required');
       return;
     }
+    if (userId === user.id) {
+      Alert.alert('Error', 'You cannot block yourself.');
+      return;
+    }
 
     try {
       const reportService = getReportService();
@@ -73,6 +77,10 @@ export const BlockReportMenu: React.FC<BlockReportMenuProps> = ({
   const handleReportSubmit = async () => {
     if (!user?.id || !token) {
       Alert.alert('Error', 'Authentication required');
+      return;
+    }
+    if (userId === user.id) {
+      Alert.alert('Error', 'You cannot report yourself.');
       return;
     }
 

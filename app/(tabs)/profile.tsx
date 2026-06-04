@@ -323,7 +323,13 @@ export default function ProfileScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      const newUri = result.assets[0].uri;
+      const asset = result.assets[0];
+      const MAX_BYTES = 10 * 1024 * 1024;
+      if (asset.fileSize && asset.fileSize > MAX_BYTES) {
+        Alert.alert('Image too large', 'Please choose an image under 10 MB.');
+        return;
+      }
+      const newUri = asset.uri;
       setImageSlots((prev) => {
         const next = [...prev];
         next[index] = { kind: 'new', value: newUri };
