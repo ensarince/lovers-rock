@@ -21,7 +21,7 @@ import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
 import { Match } from '@/src/types/match';
 import { getFirstImageUrl, getPocketBaseUrl, intentIncludes } from '@/src/utils/helperFunctions';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { AlertCircle, Check, Heart, MoreVertical, Sparkles, X } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -315,7 +315,7 @@ export default function MatchesScreen() {
       <Pressable
         onPress={() => setBlockReportMenuOpen(item.climber.id)}
         style={styles.menuIconContainer}>
-        <MaterialCommunityIcons name="dots-vertical" size={20} color={theme.colors.textSecondary} />
+        <MoreVertical size={20} color={theme.colors.textSecondary} strokeWidth={1.75} />
       </Pressable>
 
       <BlockReportMenu
@@ -371,7 +371,7 @@ export default function MatchesScreen() {
           </View>
 
           <Pressable onPress={() => setBlockReportMenuOpen(item.id)} style={styles.requestCardMenuBtn}>
-            <MaterialCommunityIcons name="dots-vertical" size={16} color="rgba(255,255,255,0.85)" />
+            <MoreVertical size={16} color="rgba(255,255,255,0.85)" strokeWidth={1.75} />
           </Pressable>
 
           <View style={styles.requestCardImageBottom}>
@@ -402,7 +402,7 @@ export default function MatchesScreen() {
             onPress={() => handleAcceptRequest(item)}
             disabled={disabled}
           >
-            <MaterialCommunityIcons name="check" size={16} color="#fff" />
+            <Check size={16} color="#fff" strokeWidth={2.5} />
             <Text style={styles.requestCardAcceptText}>
               {isAccepting ? 'Accepting…' : 'Accept'}
             </Text>
@@ -412,7 +412,7 @@ export default function MatchesScreen() {
             onPress={() => handleDeclineRequest(item)}
             disabled={disabled}
           >
-            <MaterialCommunityIcons name="close" size={16} color={theme.colors.textSecondary} />
+            <X size={16} color={theme.colors.textSecondary} strokeWidth={2.5} />
             <Text style={styles.requestCardDeclineText}>
               {isDeclining ? 'Declining…' : 'Decline'}
             </Text>
@@ -446,7 +446,7 @@ export default function MatchesScreen() {
         <Text style={styles.datingLikedHintSubtext}>Swipe discover to find them</Text>
       </View>
 
-      <MaterialCommunityIcons name="shimmer" size={24} color="#D4AF37" />
+      <Sparkles size={24} color="#D4AF37" strokeWidth={1.75} />
     </Pressable>
   );
 
@@ -495,7 +495,7 @@ export default function MatchesScreen() {
           borderWidth: 1, borderColor: theme.colors.accent + '30',
           justifyContent: 'center', alignItems: 'center',
         }}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={36} color={theme.colors.accent} />
+          <AlertCircle size={36} color={theme.colors.accent} strokeWidth={1.5} />
         </View>
         <Text style={styles.emptyTitle}>Complete your profile</Text>
         <Text style={styles.emptySubtitle}>
@@ -515,7 +515,7 @@ export default function MatchesScreen() {
           borderWidth: 1, borderColor: theme.colors.border,
           justifyContent: 'center', alignItems: 'center',
         }}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={32} color={theme.colors.textSecondary} />
+          <AlertCircle size={32} color={theme.colors.textSecondary} strokeWidth={1.5} />
         </View>
         <Text style={styles.titleMinimal}>No intents enabled</Text>
         <Text style={styles.subtitleMinimal}>
@@ -535,7 +535,7 @@ export default function MatchesScreen() {
           borderWidth: 1, borderColor: theme.colors.border,
           justifyContent: 'center', alignItems: 'center',
         }}>
-          <MaterialCommunityIcons name="heart-outline" size={32} color={theme.colors.textSecondary} />
+          <Heart size={32} color={theme.colors.textSecondary} strokeWidth={1.5} />
         </View>
         <Text style={styles.titleMinimal}>No matches yet</Text>
         <Text style={styles.subtitleMinimal}>
@@ -605,7 +605,7 @@ export default function MatchesScreen() {
             borderWidth: 1, borderColor: theme.colors.border,
             justifyContent: 'center', alignItems: 'center',
           }}>
-            <MaterialCommunityIcons name="heart-outline" size={32} color={theme.colors.textSecondary} />
+            <Heart size={32} color={theme.colors.textSecondary} strokeWidth={1.5} />
           </View>
           <Text style={styles.titleMinimal}>No {activeFilter === 'requests' ? 'requests' : activeFilter === 'dating' ? 'dating matches' : activeFilter === 'partner' ? 'climbing partner matches' : 'matches'} yet</Text>
           <Text style={styles.subtitleMinimal}>
@@ -673,7 +673,7 @@ export default function MatchesScreen() {
               <View style={styles.introHeader}>
                 <Text style={styles.heroEyebrow}>Connections</Text>
                 <Pressable onPress={() => dismissIntro()} style={styles.introCloseButton}>
-                  <MaterialCommunityIcons name="close" size={20} color={theme.colors.text} />
+                  <X size={20} color={theme.colors.text} strokeWidth={2} />
                 </Pressable>
               </View>
               <Text style={styles.heroTitle}>Your people, all in one place</Text>

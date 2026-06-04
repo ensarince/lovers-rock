@@ -7,7 +7,7 @@ import { getOutgoingLikes } from '@/src/services/socialGraphService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
 import { Climber } from '@/src/types/climber';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { CheckCircle, Compass, Layers, MapPin, Trophy, UserPlus, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -96,7 +96,7 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                   </View>
                 </View>
                 <Pressable onPress={onClose} style={styles.floatingClose}>
-                  <MaterialCommunityIcons name="close" size={18} color="#fff" />
+                  <X size={18} color="#fff" strokeWidth={2.5} />
                 </Pressable>
               </View>
 
@@ -104,27 +104,27 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                 {/* Info grid */}
                 <View style={styles.infoGrid}>
                   <View style={styles.infoGridItem}>
-                    <MaterialCommunityIcons name="map-marker" size={16} color={theme.colors.accent} />
+                    <MapPin size={16} color={theme.colors.accent} strokeWidth={1.75} />
                     <Text style={styles.infoGridLabel}>Home Gym</Text>
                     <Text style={styles.infoGridValue} numberOfLines={2}>{climber.home_gym}</Text>
                   </View>
 
                   <View style={styles.infoGridItem}>
-                    <MaterialCommunityIcons name="trophy-outline" size={16} color={theme.colors.accent} />
+                    <Trophy size={16} color={theme.colors.accent} strokeWidth={1.75} />
                     <Text style={styles.infoGridLabel}>Grade</Text>
                     <Text style={styles.infoGridValue}>{formatGradeDisplay(climber.grade)}</Text>
                   </View>
 
                   {distance !== null && (
                     <View style={styles.infoGridItem}>
-                      <MaterialCommunityIcons name="compass-outline" size={16} color={theme.colors.accent} />
+                      <Compass size={16} color={theme.colors.accent} strokeWidth={1.75} />
                       <Text style={styles.infoGridLabel}>Distance</Text>
                       <Text style={styles.infoGridValue}>{formatDistance(distance)} away</Text>
                     </View>
                   )}
 
                   <View style={styles.infoGridItem}>
-                    <MaterialCommunityIcons name="layers-triple-outline" size={16} color={theme.colors.accent} />
+                    <Layers size={16} color={theme.colors.accent} strokeWidth={1.75} />
                     <Text style={styles.infoGridLabel}>Styles</Text>
                     <Text style={styles.infoGridValue} numberOfLines={3}>
                       {Array.isArray(climber.climbing_styles) ? climber.climbing_styles.join(' · ') : 'Not specified'}
@@ -150,12 +150,10 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                       setIsRequestSent(!isRequestSent);
                     }}
                   >
-                    <MaterialCommunityIcons
-                      name={isRequestSent ? 'check-circle-outline' : 'account-multiple-plus-outline'}
-                      size={20}
-                      color="#fff"
-                      style={{ marginRight: 8 }}
-                    />
+                    {isRequestSent
+                      ? <CheckCircle size={20} color="#fff" strokeWidth={2} style={{ marginRight: 8 }} />
+                      : <UserPlus size={20} color="#fff" strokeWidth={2} style={{ marginRight: 8 }} />
+                    }
                     <Text style={styles.requestButtonText}>
                       {isRequestSent ? 'Request Sent' : 'Send Climbing Partner Request'}
                     </Text>

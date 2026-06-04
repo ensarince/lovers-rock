@@ -1,7 +1,7 @@
 import { useAuth } from '@/src/context/AuthContext';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { Compass, Heart, MessageCircle, User } from 'lucide-react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
@@ -52,11 +52,7 @@ export default function TabLayout() {
         options={{
           title: 'Discover',
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons
-              name={focused ? 'compass' : 'compass-outline'}
-              color={color}
-              size={26}
-            />
+            <Compass size={24} color={color} fill={focused ? color : 'none'} strokeWidth={1.5} />
           ),
         }}
       />
@@ -65,7 +61,7 @@ export default function TabLayout() {
         options={{
           title: 'Matches',
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons name={focused ? 'heart' : 'heart-outline'} color={color} size={26} />
+            <Heart size={24} color={color} fill={focused ? color : 'none'} strokeWidth={1.5} />
           ),
         }}
       />
@@ -75,7 +71,7 @@ export default function TabLayout() {
           title: 'Messages',
           tabBarBadge: unreadMessageCount > 0 ? unreadMessageCount : undefined,
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons name={focused ? 'message' : 'message-outline'} color={color} size={26} />
+            <MessageCircle size={24} color={color} fill={focused ? color : 'none'} strokeWidth={1.5} />
           ),
         }}
       />
@@ -84,7 +80,7 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons name={focused ? 'account' : 'account-outline'} color={color} size={26} />
+            <User size={24} color={color} fill={focused ? color : 'none'} strokeWidth={1.5} />
           ),
         }}
       />
