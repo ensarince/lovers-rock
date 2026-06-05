@@ -52,7 +52,7 @@ export default function TabLayout() {
         options={{
           title: 'Discover',
           tabBarIcon: ({ color, focused }) => (
-            <Compass size={24} color={color} fill={focused ? color : 'none'} strokeWidth={1.5} />
+            <Compass size={24} color={color} strokeWidth={focused ? 2.5 : 1.5} />
           ),
         }}
       />

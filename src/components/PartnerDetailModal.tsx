@@ -100,7 +100,7 @@ export default function PartnerDetailModal({ visible, climber, onClose, onSendRe
                 </Pressable>
               </View>
 
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) }}>
                 {/* Info grid */}
                 <View style={styles.infoGrid}>
                   <View style={styles.infoGridItem}>
