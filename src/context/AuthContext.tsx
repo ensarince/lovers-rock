@@ -214,6 +214,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       last_location_update: record.last_location_update || undefined,
       profile_completed: record.profile_completed || false,
       blocked_users: Array.isArray(record.blocked_users) ? record.blocked_users : [],
+      interested_in: record.interested_in || 'everyone',
     };
   };
 

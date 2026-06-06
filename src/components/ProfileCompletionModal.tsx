@@ -4,7 +4,7 @@ import { GradePicker } from '@/src/components/GradePicker';
 import { createDefaultGrade } from '@/src/services/gradeService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
-import { Climber, ClimbingGrade, ClimbingStyle, Gender } from '@/src/types/climber';
+import { Climber, ClimbingGrade, ClimbingStyle, Gender, InterestedIn } from '@/src/types/climber';
 import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
@@ -67,8 +67,9 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
     const [images, setImages] = useState<string[]>(user?.images || []);
     const [newPhotos, setNewPhotos] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
-    const [step, setStep] = useState<0 | 1>(0);
+    const [step, setStep] = useState<0 | 1 | 2>(0);
     const [selectedIntent, setSelectedIntent] = useState<Array<'date' | 'partner'>>([]);
+    const [interestedIn, setInterestedIn] = useState<InterestedIn | undefined>(undefined);
 
     useEffect(() => {
         if (user) {
@@ -85,6 +86,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
         if (visible) {
             setStep(0);
             setSelectedIntent([]);
+            setInterestedIn(undefined);
         }
     }, [user, visible]);
 
@@ -192,6 +194,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
             formData.append('grade', JSON.stringify(grade));
             formData.append('profile_completed', 'true');
             formData.append('intent', JSON.stringify(selectedIntent.length > 0 ? selectedIntent : ['date', 'partner']));
+            formData.append('interested_in', interestedIn || 'everyone');
 
             // Add new image files - only upload files, not JSON
             newPhotos.forEach((photoUri, index) => {
@@ -295,6 +298,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                 intent: Array.isArray(updatedRecord.intent) && updatedRecord.intent.length > 0
                     ? updatedRecord.intent
                     : selectedIntent.length > 0 ? selectedIntent : ['date', 'partner'],
+                interested_in: (interestedIn || 'everyone') as InterestedIn,
             };
 
             onComplete(updatedClimber);
@@ -392,8 +396,75 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                     <View style={styles.intentButtonContainer}>
                         <Pressable
                             style={[styles.saveButton, selectedIntent.length === 0 && styles.saveButtonDisabled]}
-                            onPress={() => setStep(1)}
+                            onPress={() => selectedIntent.includes('date') ? setStep(1) : setStep(2)}
                             disabled={selectedIntent.length === 0}
+                        >
+                            <Text style={styles.saveButtonText}>Continue</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </Modal>
+        );
+    }
+
+    if (step === 1) {
+        const PREFERENCE_OPTIONS: { value: InterestedIn; label: string; emoji: string }[] = [
+            { value: 'men', label: 'Men', emoji: '👨' },
+            { value: 'women', label: 'Women', emoji: '👩' },
+            { value: 'everyone', label: 'Everyone', emoji: '🌍' },
+        ];
+
+        return (
+            <Modal visible={visible} animationType="fade" transparent={false} hardwareAccelerated>
+                <View style={styles.container}>
+                    <ScrollView
+                        style={{ flex: 1 }}
+                        contentContainerStyle={styles.intentScrollContent}
+                        showsVerticalScrollIndicator={false}
+                    >
+                        <Text style={styles.intentWelcome}>Dating Preference</Text>
+                        <Text style={styles.intentQuestion}>Who are you interested in?</Text>
+                        <Text style={styles.intentSubtitle}>This filters who you see in dating mode</Text>
+
+                        <View style={styles.intentCards}>
+                            {PREFERENCE_OPTIONS.map((opt) => {
+                                const isActive = interestedIn === opt.value;
+                                return (
+                                    <Pressable
+                                        key={opt.value}
+                                        style={[styles.intentCard, isActive && styles.intentCardActive]}
+                                        onPress={() => setInterestedIn(opt.value)}
+                                    >
+                                        <Text style={{ fontSize: 32 }}>{opt.emoji}</Text>
+                                        <Text style={[styles.intentCardTitle, isActive && styles.intentCardTextActive]}>
+                                            {opt.label}
+                                        </Text>
+                                    </Pressable>
+                                );
+                            })}
+                        </View>
+
+                        <View style={styles.intentHintBox}>
+                            <View style={{ marginRight: 6 }}>
+                                <Ionicons name="information-circle-outline" size={16} color={theme.colors.textSecondary} />
+                            </View>
+                            <Text style={styles.intentHintText}>
+                                Partner mode always shows everyone regardless of this setting. You can change this anytime in your profile.
+                            </Text>
+                        </View>
+                    </ScrollView>
+
+                    <View style={[styles.intentButtonContainer, { flexDirection: 'row', gap: 10 }]}>
+                        <Pressable
+                            style={[styles.saveButton, { flex: 1, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border }]}
+                            onPress={() => setStep(0)}
+                        >
+                            <Text style={[styles.saveButtonText, { color: theme.colors.text }]}>Back</Text>
+                        </Pressable>
+                        <Pressable
+                            style={[styles.saveButton, { flex: 2 }, !interestedIn && styles.saveButtonDisabled]}
+                            onPress={() => setStep(2)}
+                            disabled={!interestedIn}
                         >
                             <Text style={styles.saveButtonText}>Continue</Text>
                         </Pressable>

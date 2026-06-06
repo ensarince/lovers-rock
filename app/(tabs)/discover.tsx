@@ -196,12 +196,20 @@ export default function DiscoverScreen() {
 
         const isActivelyDeclined = (userId: string): boolean => declinedDatingIds.has(userId);
 
+        const genderMatchesPref = (gender: string | undefined, pref: string | undefined): boolean => {
+          if (!pref || pref === 'everyone') return true;
+          if (pref === 'men') return gender === 'male';
+          if (pref === 'women') return gender === 'female';
+          return true;
+        };
+
         // 1. Only users with 'date' intent
         // 2. Exclude self
         // 3. Exclude blocked users (by me or who blocked me)
         // 4. Exclude declined users (if decline is still active)
         // 5. Only users with complete profiles
         // 6. Only verified users
+        // 7. Gender preference filter (dating mode only)
         const filtered = data.filter(
           (c) =>
             c.id !== user?.id &&
@@ -210,6 +218,7 @@ export default function DiscoverScreen() {
             !isPartnerMatch(c.id) &&
             c.verified === true &&
             intentIncludes(c.intent, 'date') &&
+            genderMatchesPref(c.gender, user?.interested_in) &&
             c.name !== '' &&
             typeof c.age === 'number' &&
             c.grade &&

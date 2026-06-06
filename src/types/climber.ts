@@ -7,6 +7,8 @@ export type ClimbingStyle = 'bouldering' | 'sport' | 'trad' | 'gym' | 'outdoor';
 
 export type Gender = 'male' | 'female' | 'non_binary' | 'prefer_not_to_say';
 
+export type InterestedIn = 'men' | 'women' | 'everyone';
+
 export interface ClimbingGrade {
   system: GradeSystem;           // 'french', 'uiaa'
   value: string;                 // 'V5', '7A', '6a+', 'VI', etc.
@@ -40,4 +42,5 @@ export interface Climber {
   distance_km?: number | null; // Server-computed distance (returned by /api/nearby-profiles)
   profile_completed?: boolean; // Whether user has completed profile setup
   blocked_users?: string[]; // Blocked user IDs
+  interested_in?: InterestedIn;
 }

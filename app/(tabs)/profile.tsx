@@ -8,7 +8,7 @@ import { createDefaultGrade, formatGradeDisplay } from '@/src/services/gradeServ
 import { getReportService } from '@/src/services/reportService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
-import { Climber, ClimbingGrade, ClimbingStyle, Gender } from '@/src/types/climber';
+import { Climber, ClimbingGrade, ClimbingStyle, Gender, InterestedIn } from '@/src/types/climber';
 import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -93,6 +93,7 @@ export default function ProfileScreen() {
   const [homeGym, setHomeGym] = useState(typedUser?.home_gym || '');
   // intent: array of 'partner' | 'date'
   const [intent, setIntent] = useState<string[]>(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
+  const [interestedIn, setInterestedIn] = useState<InterestedIn>(typedUser?.interested_in || 'everyone');
   // Image state for edit mode
   const [images, setImages] = useState(typedUser?.images || []);
   const [avatar, setAvatar] = useState(typedUser?.avatar || '');
@@ -119,6 +120,7 @@ export default function ProfileScreen() {
     setImages(typedUser?.images || []);
     setAvatar(typedUser?.avatar || '');
     setIntent(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
+    setInterestedIn(typedUser?.interested_in || 'everyone');
   }, [user]);
 
   const handleLogout = async () => {
@@ -276,6 +278,31 @@ export default function ProfileScreen() {
     }
   };
 
+  const handleInterestedInChange = async (value: InterestedIn) => {
+    const previous = interestedIn;
+    setInterestedIn(value);
+    try {
+      const POCKETBASE_URL = getPocketBaseUrl();
+      const response = await fetch(
+        `${POCKETBASE_URL}/api/collections/users/records/${user?.id}`,
+        {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ interested_in: value }),
+        }
+      );
+      if (!response.ok) throw new Error('Save failed');
+      if (user) {
+        const updatedUser = { ...user, interested_in: value };
+        setUser(updatedUser as Climber);
+        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+    } catch {
+      setInterestedIn(previous);
+      Alert.alert('Error', 'Failed to update preference.');
+    }
+  };
+
   const buildImageSlots = (existingImages: string[]) => {
     const slots: Array<{ kind: 'existing' | 'new'; value: string } | null> = [null, null, null];
     existingImages.slice(0, 3).forEach((image, index) => {
@@ -380,6 +407,7 @@ export default function ProfileScreen() {
       formData.append('name', name);
       formData.append('bio', bio);
       formData.append('age', String(Number(age)));
+      formData.append('interested_in', interestedIn);
       if (gender) {
         formData.append('gender', gender);
       }
@@ -506,6 +534,7 @@ export default function ProfileScreen() {
               images: Array.isArray(latestUser.images) ? latestUser.images : [],
               intent: Array.isArray(latestUser.intent) ? latestUser.intent : [],
               profile_completed: latestUser.profile_completed || false,
+              interested_in: latestUser.interested_in || 'everyone',
             };
             setUser(mappedUser);
             await AsyncStorage.setItem('user', JSON.stringify(mappedUser));
@@ -719,6 +748,38 @@ export default function ProfileScreen() {
               </Pressable>
             ))}
           </View>
+        </View>
+
+        {/* Dating Preference Card */}
+        <View style={[styles.intentCard, { marginHorizontal: 24, marginBottom: 24 }]}>
+          <Text style={[styles.intentTitle, { color: theme.colors.text }]}>For dating, show me</Text>
+          <View style={{ flexDirection: 'row', gap: 10, justifyContent: 'center', backgroundColor: 'transparent' }}>
+            {([
+              { value: 'men', label: 'Men' },
+              { value: 'women', label: 'Women' },
+              { value: 'everyone', label: 'Everyone' },
+            ] as { value: InterestedIn; label: string }[]).map(opt => (
+              <Pressable
+                key={opt.value}
+                style={[
+                  styles.intentOptionCard,
+                  {
+                    backgroundColor: interestedIn === opt.value ? theme.colors.edit : theme.colors.surface,
+                    borderColor: interestedIn === opt.value ? theme.colors.edit : theme.colors.border,
+                    flex: 1,
+                  },
+                ]}
+                onPress={() => handleInterestedInChange(opt.value)}
+              >
+                <Text style={[styles.intentOptionText, { color: interestedIn === opt.value ? '#fff' : theme.colors.text }]}>
+                  {opt.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={{ fontSize: 11, color: theme.colors.textSecondary, textAlign: 'center', marginTop: 8, backgroundColor: 'transparent' }}>
+            Partner mode always shows everyone
+          </Text>
         </View>
 
         {/* Images Section in Edit Mode */}
