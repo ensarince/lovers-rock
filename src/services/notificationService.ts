@@ -119,7 +119,7 @@ export class NotificationService {
     // Real-time listeners are not supported in React Native
     // Instead, call sendLocalNotification() directly from your app logic
     // when you detect partner requests, matches, or messages
-    if (process.env.EXPO_DEV_MODE) {
+    if (__DEV__) {
       console.log('Real-time listeners not supported in React Native. Use polling or app logic to trigger notifications.');
     }
   }

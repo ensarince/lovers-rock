@@ -216,7 +216,7 @@ export default function ChatScreen() {
           handleTypingRecord
         );
       } catch (error) {
-        if (process.env.EXPO_DEV_MODE) console.error('Failed to subscribe to typing status:', error);
+        if (__DEV__) console.error('Failed to subscribe to typing status:', error);
       }
     };
 
@@ -227,7 +227,7 @@ export default function ChatScreen() {
       clearTypingTimeout();
       if (typingUnsubscribeRef.current) {
         typingUnsubscribeRef.current().catch((error) => {
-          if (process.env.EXPO_DEV_MODE) console.error('Failed to unsubscribe from typing status:', error);
+          if (__DEV__) console.error('Failed to unsubscribe from typing status:', error);
         });
         typingUnsubscribeRef.current = null;
       }
@@ -289,7 +289,7 @@ export default function ChatScreen() {
           const msgs = await messageService.getMessagesBetweenUsers(user.id, climberId as string);
           updateMessages(msgs);
         } catch (error) {
-          if (process.env.EXPO_DEV_MODE) console.error('Fallback polling error:', error);
+          if (__DEV__) console.error('Fallback polling error:', error);
         }
       }, 10000);
     };
@@ -323,7 +323,7 @@ export default function ChatScreen() {
                 await messageService.markMessagesAsRead(climberId as string, user.id);
                 await refreshUnreadMessageCount();
               } catch (error) {
-                if (process.env.EXPO_DEV_MODE) console.error('Failed to mark realtime message as read:', error);
+                if (__DEV__) console.error('Failed to mark realtime message as read:', error);
               }
             }
 
@@ -333,7 +333,7 @@ export default function ChatScreen() {
           }
         );
       } catch (error) {
-        if (process.env.EXPO_DEV_MODE) console.error('Realtime subscription failed, using fallback polling:', error);
+        if (__DEV__) console.error('Realtime subscription failed, using fallback polling:', error);
         startFallbackPolling();
       }
     };
@@ -345,7 +345,7 @@ export default function ChatScreen() {
       clearFallbackPolling();
       if (conversationUnsubscribeRef.current) {
         conversationUnsubscribeRef.current().catch((error) => {
-          if (process.env.EXPO_DEV_MODE) console.error('Failed to unsubscribe from conversation:', error);
+          if (__DEV__) console.error('Failed to unsubscribe from conversation:', error);
         });
         conversationUnsubscribeRef.current = null;
       }
@@ -368,7 +368,7 @@ export default function ChatScreen() {
         flatListRef.current?.scrollToEnd({ animated: false });
       }, 100);
     } catch (error) {
-      if (process.env.EXPO_DEV_MODE) console.error('Failed to load messages:', error);
+      if (__DEV__) console.error('Failed to load messages:', error);
     } finally {
       setLoading(false);
     }
@@ -407,13 +407,13 @@ export default function ChatScreen() {
       setNewMessage('');
       applyMessageUpdate(sentMessage);
       typingService.setTyping(user.id, climberId as string, false).catch((error) => {
-        if (process.env.EXPO_DEV_MODE) console.error('Failed to clear typing status after send:', error);
+        if (__DEV__) console.error('Failed to clear typing status after send:', error);
       });
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     } catch (error) {
-      if (process.env.EXPO_DEV_MODE) console.error('Failed to send message:', error);
+      if (__DEV__) console.error('Failed to send message:', error);
     } finally {
       setSending(false);
     }
@@ -480,7 +480,7 @@ export default function ChatScreen() {
       await messageService.updateMessageReaction(messageId, user.id, nextReaction);
     } catch (error) {
       setReactionForMessage(messageId, previousReaction || null, user.id);
-      if (process.env.EXPO_DEV_MODE) console.error('Failed to update reaction:', error);
+      if (__DEV__) console.error('Failed to update reaction:', error);
     } finally {
       setReactingToMessageIds((prev) => prev.filter((id) => id !== messageId));
     }
@@ -496,7 +496,7 @@ export default function ChatScreen() {
 
     if (trimmed.length === 0) {
       typingService.setTyping(user.id, climberId as string, false).catch((error) => {
-        if (process.env.EXPO_DEV_MODE) console.error('Failed to clear typing status:', error);
+        if (__DEV__) console.error('Failed to clear typing status:', error);
       });
       return;
     }
@@ -504,7 +504,7 @@ export default function ChatScreen() {
     if (now - lastTypingSentAtRef.current > 1500) {
       lastTypingSentAtRef.current = now;
       typingService.setTyping(user.id, climberId as string, true).catch((error) => {
-        if (process.env.EXPO_DEV_MODE) console.error('Failed to update typing status:', error);
+        if (__DEV__) console.error('Failed to update typing status:', error);
       });
     }
   };
@@ -521,7 +521,7 @@ export default function ChatScreen() {
       setMessages([]);
       router.back();
     } catch (error) {
-      if (process.env.EXPO_DEV_MODE) console.error('Failed to delete chat:', error);
+      if (__DEV__) console.error('Failed to delete chat:', error);
     }
   };
 
@@ -620,7 +620,7 @@ export default function ChatScreen() {
           onBlur={() => {
             if (user?.id && climberId) {
               typingService.setTyping(user.id, climberId as string, false).catch((error) => {
-                if (process.env.EXPO_DEV_MODE) console.error('Failed to clear typing status on blur:', error);
+                if (__DEV__) console.error('Failed to clear typing status on blur:', error);
               });
             }
           }}

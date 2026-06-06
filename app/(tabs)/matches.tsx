@@ -187,11 +187,11 @@ export default function MatchesScreen() {
             setDatingLikedHint(null);
           }
         } catch (e) {
-          if (process.env.EXPO_DEV_MODE) console.error('Error fetching dating likers:', e);
+          if (__DEV__) console.error('Error fetching dating likers:', e);
         }
       }
     } catch (err) {
-      if (process.env.EXPO_DEV_MODE) console.error('Failed to load matches:', err);
+      if (__DEV__) console.error('Failed to load matches:', err);
     } finally {
       setLoading(false);
     }
@@ -263,7 +263,7 @@ export default function MatchesScreen() {
       const updatedMatches = await getMatches(token!, user!.id);
       setMatches(updatedMatches);
     } catch (err) {
-      if (process.env.EXPO_DEV_MODE) console.error('Failed to accept request:', err);
+      if (__DEV__) console.error('Failed to accept request:', err);
     } finally {
       setAcceptingRequestIds(prev => prev.filter(id => id !== request.id));
     }
@@ -277,7 +277,7 @@ export default function MatchesScreen() {
       // Remove from the local requests list
       setIncomingRequests(prev => prev.filter(r => r.id !== request.id));
     } catch (err) {
-      if (process.env.EXPO_DEV_MODE) console.error('Failed to decline request:', err);
+      if (__DEV__) console.error('Failed to decline request:', err);
     } finally {
       setDecliningRequestIds(prev => prev.filter(id => id !== request.id));
     }

@@ -21,7 +21,7 @@ class PreferenceService {
   // Sync preferences with server
   async syncPreferences(token: string | null, userId: string): Promise<void> {
     if (!token) {
-      if (process.env.EXPO_DEV_MODE) console.log('âš ï¸ No token for syncing preferences');
+      if (__DEV__) console.log('âš ï¸ No token for syncing preferences');
       return;
     }
 
@@ -110,13 +110,13 @@ class PreferenceService {
         })),
       ];
     } catch (error) {
-      if (process.env.EXPO_DEV_MODE) console.error('âŒ Failed to sync preferences:', error);
+      if (__DEV__) console.error('âŒ Failed to sync preferences:', error);
     }
   }
 
   async accept(climber: Climber, token?: string | null, userId?: string, intent?: 'dating' | 'partner'): Promise<void> {
     if (!userId) {
-      if (process.env.EXPO_DEV_MODE) console.error('âŒ No userId provided to accept method!');
+      if (__DEV__) console.error('âŒ No userId provided to accept method!');
       return;
     }
 
@@ -154,7 +154,7 @@ class PreferenceService {
           await removeLike(userId, climber.id, 'dating', token);
         }
       } catch (error) {
-        if (process.env.EXPO_DEV_MODE) console.error('âŒ Failed to save preferences to server:', error);
+        if (__DEV__) console.error('âŒ Failed to save preferences to server:', error);
       }
     } else {
       console.warn('âš ï¸ Not saving to server - missing token or userId');

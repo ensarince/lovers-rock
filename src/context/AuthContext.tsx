@@ -18,7 +18,7 @@ try {
   Notifications = require('expo-notifications');
 } catch (error) {
   // expo-notifications not available in Expo Go
-  if (process.env.EXPO_DEV_MODE) {
+  if (__DEV__) {
     console.warn('expo-notifications not available:', error);
   }
 }
@@ -87,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const data = response.notification.request.content.data;
     // You can navigate based on notification type here if needed
     // For now, just log it
-    if (process.env.EXPO_DEV_MODE) {
+    if (__DEV__) {
       console.log('Notification tapped:', data);
     }
   };
@@ -106,7 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const unreadCount = await messageService.getUnreadCount(targetUserId);
       setUnreadMessageCount(unreadCount);
     } catch (error) {
-      if (process.env.EXPO_DEV_MODE) {
+      if (__DEV__) {
         console.error('Failed to refresh unread message count:', error);
       }
     }
@@ -123,7 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (permissionGranted) {
         await registerPushToken(userId, authToken);
       }
-      if (process.env.EXPO_DEV_MODE) {
+      if (__DEV__) {
         console.log('Notification permissions granted:', permissionGranted);
       }
 

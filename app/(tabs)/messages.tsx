@@ -93,7 +93,7 @@ export default function MessagesScreen() {
                             matchType: (match.type as 'dating' | 'partner') || 'dating'
                         };
                     } catch (error) {
-                        if (process.env.EXPO_DEV_MODE) console.error('Error loading messages for match:', match.id, error);
+                        if (__DEV__) console.error('Error loading messages for match:', match.id, error);
                         return {
                             matchId: match.id,
                             climber: match.climber,
@@ -109,7 +109,7 @@ export default function MessagesScreen() {
             setConversations(conversationsWithMessages);
             await refreshUnreadMessageCount();
         } catch (err) {
-            if (process.env.EXPO_DEV_MODE) console.error('Failed to load conversations:', err);
+            if (__DEV__) console.error('Failed to load conversations:', err);
         } finally {
             setLoading(false);
         }

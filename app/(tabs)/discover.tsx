@@ -229,7 +229,7 @@ export default function DiscoverScreen() {
             c.profile_completed === true
         );
         
-        if (process.env.EXPO_DEV_MODE) {
+        if (__DEV__) {
           const blockedButShown = data.filter(c => blockedUserIds.includes(c.id) && intentIncludes(c.intent, 'date'));
           if (blockedButShown.length > 0) {
             console.warn('❌ BLOCKED USERS STILL IN DATING DATA:', blockedButShown.map(c => `${c.name} (${c.id})`));
@@ -320,7 +320,7 @@ export default function DiscoverScreen() {
                  c.verified === true &&
                  intentIncludes(c.intent, 'partner')
         );
-        if (process.env.EXPO_DEV_MODE) {
+        if (__DEV__) {
           const blockedButShown = data.filter(c => blockedUserIds.includes(c.id) && intentIncludes(c.intent, 'partner'));
           if (blockedButShown.length > 0) {
             console.warn('❌ BLOCKED USERS STILL IN PARTNER DATA:', blockedButShown.map(c => `${c.name} (${c.id})`));
@@ -579,18 +579,18 @@ export default function DiscoverScreen() {
         return Array.from(new Set([...prev, climber.id]));
       });
     } catch (e) {
-      if (process.env.EXPO_DEV_MODE) console.log('Error in handleSendPartnerRequest', e);
+      if (__DEV__) console.log('Error in handleSendPartnerRequest', e);
     }
   };
 
 
   const handleAccept = async (climber: Climber) => {
     if (!user?.id) {
-      if (process.env.EXPO_DEV_MODE) console.error('❌ No user ID available for liking!');
+      if (__DEV__) console.error('❌ No user ID available for liking!');
       return;
     }
     if (!token) {
-      if (process.env.EXPO_DEV_MODE) console.error('❌ No token available for liking!');
+      if (__DEV__) console.error('❌ No token available for liking!');
       return;
     }
 
@@ -630,7 +630,7 @@ export default function DiscoverScreen() {
         notificationService.notifyNewDatingMatch(climber.name, climber.id);
       }
     } catch (error) {
-      if (process.env.EXPO_DEV_MODE) console.error('Error checking for match:', error);
+      if (__DEV__) console.error('Error checking for match:', error);
     }
 
     // Update filtered climbers to exclude the newly liked user
@@ -668,7 +668,7 @@ export default function DiscoverScreen() {
     // Trigger a refresh of blocked users to pick up any new blocks
     setBlockRefreshTrigger(prev => prev + 1);
 
-    if (process.env.EXPO_DEV_MODE) console.log('Rejected:', climber.name);
+    if (__DEV__) console.log('Rejected:', climber.name);
   };
 
   const currentClimber = filteredClimbers.length > 0 ? filteredClimbers[currentIndex] : null;

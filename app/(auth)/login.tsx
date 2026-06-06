@@ -216,39 +216,39 @@ export default function LoginScreen() {
 
   const handleSignup = async () => {    
     if (!email || !password || !confirmPassword) {
-      if (process.env.EXPO_DEV_MODE) console.log('❌ Missing fields:', { email: !!email, password: !!password, confirmPassword: !!confirmPassword });
+      if (__DEV__) console.log('❌ Missing fields:', { email: !!email, password: !!password, confirmPassword: !!confirmPassword });
       setError('Please fill in all fields');
       return;
     }
 
     if (password !== confirmPassword) {
-      if (process.env.EXPO_DEV_MODE) console.log('❌ Passwords do not match');
+      if (__DEV__) console.log('❌ Passwords do not match');
       setError('Passwords do not match');
       return;
     }
 
     if (password.length < 6) {
-      if (process.env.EXPO_DEV_MODE) console.log('❌ Password too short');
+      if (__DEV__) console.log('❌ Password too short');
       setError('Password must be at least 6 characters');
       return;
     }
 
     try {
-      if (process.env.EXPO_DEV_MODE) console.log('📝 Starting signup for:', email);
+      if (__DEV__) console.log('📝 Starting signup for:', email);
       setError(null);
       await register(email, password);
       
       try {
         await authService.requestVerification(email);
       } catch (verifyErr: any) {
-        if (process.env.EXPO_DEV_MODE) console.warn('⚠️ Verification email failed:', verifyErr.message);
+        if (__DEV__) console.warn('⚠️ Verification email failed:', verifyErr.message);
       }
       
       setVerificationStep(true);
       setPassword('');
       setConfirmPassword('');
     } catch (err: any) {
-      if (process.env.EXPO_DEV_MODE) console.error('❌ Signup error:', err.message);
+      if (__DEV__) console.error('❌ Signup error:', err.message);
       setError(err.message || 'Signup failed');
     }
   };
