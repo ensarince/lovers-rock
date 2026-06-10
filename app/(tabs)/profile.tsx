@@ -733,28 +733,31 @@ export default function ProfileScreen() {
           <View style={{
             flexDirection: 'row', gap: 12, justifyContent: 'center', flexWrap: 'wrap', backgroundColor: "transparent"
           }}>
-            {['partner', 'date'].map(opt => (
-              <Pressable
-                key={opt}
-                style={[
-                  styles.intentOptionCard,
-                  {
-                    backgroundColor: intent.includes(opt) ? theme.colors.accent : theme.colors.surface,
-                    borderColor: intent.includes(opt) ? theme.colors.accent : theme.colors.border,
-                  },
-                ]}
-                onPress={() => handleIntentChange(opt)}
-              >
-                <Text
+            {['partner', 'date'].map(opt => {
+              const intentColor = opt === 'partner' ? theme.colors.edit : theme.colors.accent;
+              return (
+                <Pressable
+                  key={opt}
                   style={[
-                    styles.intentOptionText,
-                    { color: intent.includes(opt) ? '#fff' : theme.colors.text },
+                    styles.intentOptionCard,
+                    {
+                      backgroundColor: intent.includes(opt) ? intentColor : theme.colors.surface,
+                      borderColor: intent.includes(opt) ? intentColor : theme.colors.border,
+                    },
                   ]}
+                  onPress={() => handleIntentChange(opt)}
                 >
-                  {opt === 'partner' ? '🧗 Climbing Partner' : '💕 Climbing Date'}
-                </Text>
-              </Pressable>
-            ))}
+                  <Text
+                    style={[
+                      styles.intentOptionText,
+                      { color: intent.includes(opt) ? '#fff' : theme.colors.text },
+                    ]}
+                  >
+                    {opt === 'partner' ? '🧗 Climbing Partner' : '💕 Climbing Date'}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
 
@@ -772,8 +775,8 @@ export default function ProfileScreen() {
                 style={[
                   styles.intentOptionCard,
                   {
-                    backgroundColor: interestedIn === opt.value ? theme.colors.edit : theme.colors.surface,
-                    borderColor: interestedIn === opt.value ? theme.colors.edit : theme.colors.border,
+                    backgroundColor: interestedIn === opt.value ? theme.colors.accent : theme.colors.surface,
+                    borderColor: interestedIn === opt.value ? theme.colors.accent : theme.colors.border,
                   },
                 ]}
                 onPress={() => handleInterestedInChange(opt.value)}

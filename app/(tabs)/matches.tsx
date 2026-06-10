@@ -570,12 +570,24 @@ export default function MatchesScreen() {
                     ? 'Dating'
                     : 'Climbing Partner';
 
+            const chipColor =
+              chip === 'partner' || chip === 'requests'
+                ? theme.colors.edit
+                : theme.colors.accent;
             return (
               <Pressable
                 key={chip}
                 style={[
                   styles.chip,
-                  activeFilter === chip && styles.chipActive
+                  activeFilter === chip && {
+                    backgroundColor: chipColor,
+                    borderColor: chipColor,
+                    shadowColor: chipColor,
+                    shadowOpacity: 0.30,
+                    shadowRadius: 8,
+                    shadowOffset: { width: 0, height: 2 },
+                    elevation: 4,
+                  },
                 ]}
                 onPress={() => setActiveFilter(chip)}
               >

@@ -353,10 +353,10 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                             </Pressable>
 
                             <Pressable
-                                style={[styles.intentCard, isPartnerOnly && styles.intentCardActive]}
+                                style={[styles.intentCard, isPartnerOnly && { backgroundColor: theme.colors.edit, borderColor: theme.colors.edit }]}
                                 onPress={() => setSelectedIntent(['partner'])}
                             >
-                                <Ionicons name="people" size={32} color={isPartnerOnly ? '#fff' : theme.colors.accent} />
+                                <Ionicons name="people" size={32} color={isPartnerOnly ? '#fff' : theme.colors.edit} />
                                 <Text style={[styles.intentCardTitle, isPartnerOnly && styles.intentCardTextActive]}>
                                     Find a Climbing Partner
                                 </Text>
@@ -372,7 +372,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                                 <View style={styles.intentBothIcons}>
                                     <Ionicons name="heart" size={26} color={isBoth ? '#fff' : theme.colors.accent} />
                                     <View style={{ width: 10 }} />
-                                    <Ionicons name="people" size={26} color={isBoth ? '#fff' : theme.colors.accent} />
+                                    <Ionicons name="people" size={26} color={isBoth ? '#fff' : theme.colors.edit} />
                                 </View>
                                 <Text style={[styles.intentCardTitle, isBoth && styles.intentCardTextActive]}>
                                     Both
