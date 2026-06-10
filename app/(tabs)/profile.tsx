@@ -16,7 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   ActivityIndicator,
@@ -94,6 +94,7 @@ export default function ProfileScreen() {
   // intent: array of 'partner' | 'date'
   const [intent, setIntent] = useState<string[]>(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
   const [interestedIn, setInterestedIn] = useState<InterestedIn>(typedUser?.interested_in || 'everyone');
+  const interestedInAbortRef = useRef<AbortController | null>(null);
   // Image state for edit mode
   const [images, setImages] = useState(typedUser?.images || []);
   const [avatar, setAvatar] = useState(typedUser?.avatar || '');
@@ -279,6 +280,11 @@ export default function ProfileScreen() {
   };
 
   const handleInterestedInChange = async (value: InterestedIn) => {
+    // Cancel any in-flight request so rapid taps don't race
+    interestedInAbortRef.current?.abort();
+    const controller = new AbortController();
+    interestedInAbortRef.current = controller;
+
     const previous = interestedIn;
     setInterestedIn(value);
     try {
@@ -289,6 +295,7 @@ export default function ProfileScreen() {
           method: 'PATCH',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ interested_in: value }),
+          signal: controller.signal,
         }
       );
       if (!response.ok) throw new Error('Save failed');
@@ -297,7 +304,8 @@ export default function ProfileScreen() {
         setUser(updatedUser as Climber);
         await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       }
-    } catch {
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return; // superseded by a newer tap — ignore silently
       setInterestedIn(previous);
       Alert.alert('Error', 'Failed to update preference.');
     }

@@ -5,7 +5,7 @@
 //   Receiver  → may only set: read
 //   Sender    → may only set: reactions
 // Any attempt to modify content, sender_id, receiver_id, etc. is rejected.
-onRecordBeforeUpdateRequest((e) => {
+onRecordUpdateRequest((e) => {
     try {
         var authId = String((e.auth || {}).id || '');
         if (!authId) return e.next();
