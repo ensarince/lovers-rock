@@ -753,7 +753,7 @@ export default function ProfileScreen() {
         {/* Dating Preference Card */}
         <View style={[styles.intentCard, { marginHorizontal: 24, marginBottom: 24 }]}>
           <Text style={[styles.intentTitle, { color: theme.colors.text }]}>For dating, show me</Text>
-          <View style={{ flexDirection: 'row', gap: 10, justifyContent: 'center', backgroundColor: 'transparent' }}>
+          <View style={{ flexDirection: 'column', gap: 8, backgroundColor: 'transparent' }}>
             {([
               { value: 'men', label: 'Men' },
               { value: 'women', label: 'Women' },
@@ -766,7 +766,6 @@ export default function ProfileScreen() {
                   {
                     backgroundColor: interestedIn === opt.value ? theme.colors.edit : theme.colors.surface,
                     borderColor: interestedIn === opt.value ? theme.colors.edit : theme.colors.border,
-                    flex: 1,
                   },
                 ]}
                 onPress={() => handleInterestedInChange(opt.value)}
