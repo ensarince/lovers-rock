@@ -94,7 +94,8 @@ export default function ProfileScreen() {
   // intent: array of 'partner' | 'date'
   const [intent, setIntent] = useState<string[]>(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
   const [interestedIn, setInterestedIn] = useState<InterestedIn>(typedUser?.interested_in || 'everyone');
-  const interestedInAbortRef = useRef<AbortController | null>(null);
+  const interestedInDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intentDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Image state for edit mode
   const [images, setImages] = useState(typedUser?.images || []);
   const [avatar, setAvatar] = useState(typedUser?.avatar || '');
@@ -236,79 +237,63 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleIntentChange = async (selectedIntent: string) => {
-    try {
-      const newIntent: string[] = intent.includes(selectedIntent)
-        ? intent.filter(i => i !== selectedIntent)
-        : [...intent, selectedIntent];
+  const handleIntentChange = (selectedIntent: string) => {
+    const newIntent: string[] = intent.includes(selectedIntent)
+      ? intent.filter(i => i !== selectedIntent)
+      : [...intent, selectedIntent];
+    setIntent(newIntent);
 
-      setIntent(newIntent);
-
-      // Save to database immediately using fetch
-      const POCKETBASE_URL = getPocketBaseUrl();
-      const response = await fetch(
-        `${POCKETBASE_URL}/api/collections/users/records/${user?.id}`,
-        {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ intent: newIntent }),
+    if (intentDebounceRef.current) clearTimeout(intentDebounceRef.current);
+    intentDebounceRef.current = setTimeout(async () => {
+      try {
+        const POCKETBASE_URL = getPocketBaseUrl();
+        const response = await fetch(
+          `${POCKETBASE_URL}/api/collections/users/records/${user?.id}`,
+          {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ intent: newIntent }),
+          }
+        );
+        if (!response.ok) throw new Error();
+        if (user) {
+          const updatedUser: Climber = { ...user, intent: newIntent as ('partner' | 'date')[] };
+          setUser(updatedUser);
+          await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
         }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to update intent');
+      } catch {
+        setIntent(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
+        Alert.alert('Error', 'Failed to update intent.');
       }
-
-      if (user) {
-        const updatedUser: Climber = {
-          ...user,
-          intent: newIntent as ("partner" | "date")[],
-        };
-        setUser(updatedUser);
-        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
-      }
-    } catch (e: any) {
-      let errorMsg = 'Failed to update intent.';
-      if (e?.message) errorMsg += '\n' + e.message;
-      Alert.alert('Error', errorMsg);
-      // Revert on error
-      setIntent(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
-    }
+    }, 400);
   };
 
-  const handleInterestedInChange = async (value: InterestedIn) => {
-    // Cancel any in-flight request so rapid taps don't race
-    interestedInAbortRef.current?.abort();
-    const controller = new AbortController();
-    interestedInAbortRef.current = controller;
-
-    const previous = interestedIn;
+  const handleInterestedInChange = (value: InterestedIn) => {
     setInterestedIn(value);
-    try {
-      const POCKETBASE_URL = getPocketBaseUrl();
-      const response = await fetch(
-        `${POCKETBASE_URL}/api/collections/users/records/${user?.id}`,
-        {
-          method: 'PATCH',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ interested_in: value }),
-          signal: controller.signal,
+
+    if (interestedInDebounceRef.current) clearTimeout(interestedInDebounceRef.current);
+    interestedInDebounceRef.current = setTimeout(async () => {
+      try {
+        const POCKETBASE_URL = getPocketBaseUrl();
+        const response = await fetch(
+          `${POCKETBASE_URL}/api/collections/users/records/${user?.id}`,
+          {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ interested_in: value }),
+          }
+        );
+        if (!response.ok) throw new Error();
+        if (user) {
+          const updatedUser = { ...user, interested_in: value };
+          setUser(updatedUser as Climber);
+          await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
         }
-      );
-      if (!response.ok) throw new Error('Save failed');
-      if (user) {
-        const updatedUser = { ...user, interested_in: value };
-        setUser(updatedUser as Climber);
-        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      } catch {
+        setInterestedIn(typedUser?.interested_in || 'everyone');
+        Alert.alert('Error', 'Failed to update preference.');
       }
-    } catch (err: any) {
-      if (err?.name === 'AbortError') return; // superseded by a newer tap — ignore silently
-      setInterestedIn(previous);
-      Alert.alert('Error', 'Failed to update preference.');
-    }
+    }, 400);
   };
 
   const buildImageSlots = (existingImages: string[]) => {
