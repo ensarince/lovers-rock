@@ -28,12 +28,13 @@ routerAdd('GET', '/api/nearby-profiles', function(e) {
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         }
 
-        // Admin-level query — bypasses users listRule
+        // Admin-level query — bypasses users listRule.
+        // Hard cap of 500 prevents a single request from dumping the full user table.
         var records = $app.findRecordsByFilter(
             'users',
             'profile_completed = true && verified = true && id != "' + safeId + '"',
             '-created',
-            0,
+            500,
             0
         );
 
