@@ -298,14 +298,11 @@ export default function LoginScreen() {
       <View style={styles.headerMinimal}>
         <View style={styles.logoRing}>
           <Image
-            source={require('../../assets/images/logo.png')}
+            source={require('../../assets/images/logodark.png')}
             style={styles.logoImage}
             resizeMode="cover"
           />
         </View>
-        <Text style={styles.titleMinimal}>
-          Take<Text style={styles.titleAccent}>!</Text>
-        </Text>
         <Text style={styles.tagline}>find your climbing partner</Text>
       </View>
 
@@ -556,21 +553,21 @@ const createStyles = (theme: typeof themeLight) =>
     // ─── Header ───────────────────────────────────────────────────────────────
     headerMinimal: {
       alignItems: 'center',
-      marginBottom: 36,
+      marginBottom: 28,
       gap: 0,
       backgroundColor: 'transparent',
     },
     logoRing: {
-      width: 132,
-      height: 132,
-      borderRadius: 66,
+      width: 156,
+      height: 156,
+      borderRadius: 28,
       overflow: 'hidden',
-      marginBottom: 16,
-      shadowColor: theme.colors.accent,
-      shadowOpacity: 0.30,
-      shadowRadius: 20,
-      shadowOffset: { width: 0, height: 0 },
-      elevation: 8,
+      marginBottom: 18,
+      shadowColor: '#000',
+      shadowOpacity: 0.35,
+      shadowRadius: 24,
+      shadowOffset: { width: 0, height: 8 },
+      elevation: 10,
     },
     logoImage: {
       width: '100%',
