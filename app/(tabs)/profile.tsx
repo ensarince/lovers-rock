@@ -16,7 +16,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import {
@@ -97,6 +97,8 @@ export default function ProfileScreen() {
   const [interestedIn, setInterestedIn] = useState<InterestedIn>(typedUser?.interested_in || 'everyone');
   const [savingIntent, setSavingIntent] = useState(false);
   const [savingPreference, setSavingPreference] = useState(false);
+  const savingIntentRef = useRef(false);
+  const savingPreferenceRef = useRef(false);
   // Image state for edit mode
   const [images, setImages] = useState(typedUser?.images || []);
   const [avatar, setAvatar] = useState(typedUser?.avatar || '');
@@ -239,7 +241,8 @@ export default function ProfileScreen() {
   };
 
   const handleIntentChange = async (selectedIntent: string) => {
-    if (savingIntent) return;
+    if (savingIntentRef.current) return;
+    savingIntentRef.current = true;
 
     const newIntent: string[] = intent.includes(selectedIntent)
       ? intent.filter(i => i !== selectedIntent)
@@ -268,12 +271,14 @@ export default function ProfileScreen() {
       setIntent(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
       Alert.alert('Error', 'Failed to update intent.');
     } finally {
+      savingIntentRef.current = false;
       setSavingIntent(false);
     }
   };
 
   const handleInterestedInChange = async (value: InterestedIn) => {
-    if (savingPreference) return;
+    if (savingPreferenceRef.current) return;
+    savingPreferenceRef.current = true;
 
     setInterestedIn(value);
     setSavingPreference(true);
@@ -298,6 +303,7 @@ export default function ProfileScreen() {
       setInterestedIn(typedUser?.interested_in || 'everyone');
       Alert.alert('Error', 'Failed to update preference.');
     } finally {
+      savingPreferenceRef.current = false;
       setSavingPreference(false);
     }
   };

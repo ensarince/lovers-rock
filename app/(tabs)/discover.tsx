@@ -281,7 +281,7 @@ export default function DiscoverScreen() {
     if (token && user?.id) {
       loadDatingData();
     }
-  }, [token, user?.id, blockedUserIds]);
+  }, [token, user?.id, blockedUserIds, user?.interested_in]);
 
   // Load partner mode data - runs on load and when blocked list changes
   useEffect(() => {
