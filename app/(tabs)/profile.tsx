@@ -261,15 +261,18 @@ export default function ProfileScreen() {
           body: JSON.stringify({ intent: newIntent }),
         }
       );
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        const body = await response.text();
+        console.error(`[intent] PATCH failed ${response.status}:`, body);
+        throw new Error(`${response.status}`);
+      }
       if (user) {
         const updatedUser: Climber = { ...user, intent: newIntent as ('partner' | 'date')[] };
         setUser(updatedUser);
-        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+        AsyncStorage.setItem('user', JSON.stringify(updatedUser)).catch(() => {});
       }
     } catch {
       setIntent(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
-      Alert.alert('Error', 'Failed to update intent.');
     } finally {
       savingIntentRef.current = false;
       setSavingIntent(false);
@@ -293,15 +296,18 @@ export default function ProfileScreen() {
           body: JSON.stringify({ interested_in: value }),
         }
       );
-      if (!response.ok) throw new Error();
+      if (!response.ok) {
+        const body = await response.text();
+        console.error(`[preference] PATCH failed ${response.status}:`, body);
+        throw new Error(`${response.status}`);
+      }
       if (user) {
         const updatedUser = { ...user, interested_in: value };
         setUser(updatedUser as Climber);
-        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+        AsyncStorage.setItem('user', JSON.stringify(updatedUser)).catch(() => {});
       }
     } catch {
       setInterestedIn(typedUser?.interested_in || 'everyone');
-      Alert.alert('Error', 'Failed to update preference.');
     } finally {
       savingPreferenceRef.current = false;
       setSavingPreference(false);
