@@ -16,7 +16,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 
 import {
   ActivityIndicator,
@@ -94,8 +95,8 @@ export default function ProfileScreen() {
   // intent: array of 'partner' | 'date'
   const [intent, setIntent] = useState<string[]>(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
   const [interestedIn, setInterestedIn] = useState<InterestedIn>(typedUser?.interested_in || 'everyone');
-  const interestedInDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const intentDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [savingIntent, setSavingIntent] = useState(false);
+  const [savingPreference, setSavingPreference] = useState(false);
   // Image state for edit mode
   const [images, setImages] = useState(typedUser?.images || []);
   const [avatar, setAvatar] = useState(typedUser?.avatar || '');
@@ -237,63 +238,68 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleIntentChange = (selectedIntent: string) => {
+  const handleIntentChange = async (selectedIntent: string) => {
+    if (savingIntent) return;
+
     const newIntent: string[] = intent.includes(selectedIntent)
       ? intent.filter(i => i !== selectedIntent)
       : [...intent, selectedIntent];
-    setIntent(newIntent);
 
-    if (intentDebounceRef.current) clearTimeout(intentDebounceRef.current);
-    intentDebounceRef.current = setTimeout(async () => {
-      try {
-        const POCKETBASE_URL = getPocketBaseUrl();
-        const response = await fetch(
-          `${POCKETBASE_URL}/api/collections/users/records/${user?.id}`,
-          {
-            method: 'PATCH',
-            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ intent: newIntent }),
-          }
-        );
-        if (!response.ok) throw new Error();
-        if (user) {
-          const updatedUser: Climber = { ...user, intent: newIntent as ('partner' | 'date')[] };
-          setUser(updatedUser);
-          await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+    setIntent(newIntent);
+    setSavingIntent(true);
+
+    try {
+      const POCKETBASE_URL = getPocketBaseUrl();
+      const response = await fetch(
+        `${POCKETBASE_URL}/api/collections/users/records/${user?.id}`,
+        {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ intent: newIntent }),
         }
-      } catch {
-        setIntent(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
-        Alert.alert('Error', 'Failed to update intent.');
+      );
+      if (!response.ok) throw new Error();
+      if (user) {
+        const updatedUser: Climber = { ...user, intent: newIntent as ('partner' | 'date')[] };
+        setUser(updatedUser);
+        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       }
-    }, 400);
+    } catch {
+      setIntent(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
+      Alert.alert('Error', 'Failed to update intent.');
+    } finally {
+      setSavingIntent(false);
+    }
   };
 
-  const handleInterestedInChange = (value: InterestedIn) => {
-    setInterestedIn(value);
+  const handleInterestedInChange = async (value: InterestedIn) => {
+    if (savingPreference) return;
 
-    if (interestedInDebounceRef.current) clearTimeout(interestedInDebounceRef.current);
-    interestedInDebounceRef.current = setTimeout(async () => {
-      try {
-        const POCKETBASE_URL = getPocketBaseUrl();
-        const response = await fetch(
-          `${POCKETBASE_URL}/api/collections/users/records/${user?.id}`,
-          {
-            method: 'PATCH',
-            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ interested_in: value }),
-          }
-        );
-        if (!response.ok) throw new Error();
-        if (user) {
-          const updatedUser = { ...user, interested_in: value };
-          setUser(updatedUser as Climber);
-          await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+    setInterestedIn(value);
+    setSavingPreference(true);
+
+    try {
+      const POCKETBASE_URL = getPocketBaseUrl();
+      const response = await fetch(
+        `${POCKETBASE_URL}/api/collections/users/records/${user?.id}`,
+        {
+          method: 'PATCH',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ interested_in: value }),
         }
-      } catch {
-        setInterestedIn(typedUser?.interested_in || 'everyone');
-        Alert.alert('Error', 'Failed to update preference.');
+      );
+      if (!response.ok) throw new Error();
+      if (user) {
+        const updatedUser = { ...user, interested_in: value };
+        setUser(updatedUser as Climber);
+        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
       }
-    }, 400);
+    } catch {
+      setInterestedIn(typedUser?.interested_in || 'everyone');
+      Alert.alert('Error', 'Failed to update preference.');
+    } finally {
+      setSavingPreference(false);
+    }
   };
 
   const buildImageSlots = (existingImages: string[]) => {
@@ -714,7 +720,10 @@ export default function ProfileScreen() {
 
         {/* Intent Selection Card */}
         <View style={[styles.intentCard, { marginHorizontal: 24, marginBottom: 24 }]}>
-          <Text style={[styles.intentTitle, { color: theme.colors.text }]}>What are you looking for?</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'transparent', marginBottom: 12 }}>
+            <Text style={[styles.intentTitle, { color: theme.colors.text, marginBottom: 0 }]}>What are you looking for?</Text>
+            {savingIntent && <ActivityIndicator size="small" color={theme.colors.accent} />}
+          </View>
           <View style={{
             flexDirection: 'row', gap: 12, justifyContent: 'center', flexWrap: 'wrap', backgroundColor: "transparent"
           }}>
@@ -723,11 +732,13 @@ export default function ProfileScreen() {
               return (
                 <Pressable
                   key={opt}
+                  disabled={savingIntent}
                   style={[
                     styles.intentOptionCard,
                     {
                       backgroundColor: intent.includes(opt) ? intentColor : theme.colors.surface,
                       borderColor: intent.includes(opt) ? intentColor : theme.colors.border,
+                      opacity: savingIntent ? 0.6 : 1,
                     },
                   ]}
                   onPress={() => handleIntentChange(opt)}
@@ -746,36 +757,47 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Dating Preference Card */}
-        <View style={[styles.intentCard, { marginHorizontal: 24, marginBottom: 24 }]}>
-          <Text style={[styles.intentTitle, { color: theme.colors.text }]}>For dating, show me</Text>
-          <View style={{ flexDirection: 'column', gap: 8, backgroundColor: 'transparent' }}>
-            {([
-              { value: 'men', label: 'Men' },
-              { value: 'women', label: 'Women' },
-              { value: 'everyone', label: 'Everyone' },
-            ] as { value: InterestedIn; label: string }[]).map(opt => (
-              <Pressable
-                key={opt.value}
-                style={[
-                  styles.intentOptionCard,
-                  {
-                    backgroundColor: interestedIn === opt.value ? theme.colors.accent : theme.colors.surface,
-                    borderColor: interestedIn === opt.value ? theme.colors.accent : theme.colors.border,
-                  },
-                ]}
-                onPress={() => handleInterestedInChange(opt.value)}
-              >
-                <Text style={[styles.intentOptionText, { color: interestedIn === opt.value ? '#fff' : theme.colors.text }]}>
-                  {opt.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <Text style={{ fontSize: 11, color: theme.colors.textSecondary, textAlign: 'center', marginTop: 8, backgroundColor: 'transparent' }}>
-            Partner mode always shows everyone
-          </Text>
-        </View>
+        {/* Dating Preference Card — only shown when dating intent is active */}
+        {intent.includes('date') && (
+          <Animated.View
+            entering={FadeIn.duration(250)}
+            exiting={FadeOut.duration(200)}
+            style={[styles.intentCard, { marginHorizontal: 24, marginBottom: 24 }]}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'transparent', marginBottom: 12 }}>
+              <Text style={[styles.intentTitle, { color: theme.colors.text, marginBottom: 0 }]}>For dating, show me</Text>
+              {savingPreference && <ActivityIndicator size="small" color={theme.colors.accent} />}
+            </View>
+            <View style={{ flexDirection: 'column', gap: 8, backgroundColor: 'transparent' }}>
+              {([
+                { value: 'men', label: 'Men' },
+                { value: 'women', label: 'Women' },
+                { value: 'everyone', label: 'Everyone' },
+              ] as { value: InterestedIn; label: string }[]).map(opt => (
+                <Pressable
+                  key={opt.value}
+                  disabled={savingPreference}
+                  style={[
+                    styles.intentOptionCard,
+                    {
+                      backgroundColor: interestedIn === opt.value ? theme.colors.accent : theme.colors.surface,
+                      borderColor: interestedIn === opt.value ? theme.colors.accent : theme.colors.border,
+                      opacity: savingPreference ? 0.6 : 1,
+                    },
+                  ]}
+                  onPress={() => handleInterestedInChange(opt.value)}
+                >
+                  <Text style={[styles.intentOptionText, { color: interestedIn === opt.value ? '#fff' : theme.colors.text }]}>
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={{ fontSize: 11, color: theme.colors.textSecondary, textAlign: 'center', marginTop: 8, backgroundColor: 'transparent' }}>
+              Partner mode always shows everyone
+            </Text>
+          </Animated.View>
+        )}
 
         {/* Images Section in Edit Mode */}
         {editMode && (
