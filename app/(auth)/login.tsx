@@ -298,7 +298,9 @@ export default function LoginScreen() {
       <View style={styles.headerMinimal}>
         <View style={styles.logoRing}>
           <Image
-            source={require('../../assets/images/logodark.png')}
+            source={darkMode
+              ? require('../../assets/images/logodark.png')
+              : require('../../assets/images/logolight.png')}
             style={styles.logoImage}
             resizeMode="cover"
           />
