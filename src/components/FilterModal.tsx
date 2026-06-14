@@ -353,7 +353,10 @@ export const FilterModal: React.FC<FilterModalProps> = ({
                       {selectedStyles.includes(style) && (
                         <View style={styles.styleTextOverlay}>
                           <Text
-                            style={styles.styleButtonTextSelected}>
+                            style={styles.styleButtonTextSelected}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.6}>
                             {style.charAt(0).toUpperCase() + style.slice(1)}
                           </Text>
                         </View>
@@ -618,6 +621,7 @@ const createStyles = (theme: typeof themeLight) =>
       fontSize: 12,
       fontWeight: '700',
       textAlign: 'center',
+      paddingHorizontal: 4,
     },
     filterTag: {
       paddingVertical: 8,
