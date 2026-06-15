@@ -1,4 +1,4 @@
-# Build Log — Lovers Rock
+# Build Log — Take!
 
 ## Project Status
 App is near-complete. Core flows (auth, discover, matches, messages, chat, profile) are working.

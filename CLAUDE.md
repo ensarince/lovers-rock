@@ -1,4 +1,4 @@
-# Lovers Rock — Claude Context
+# Take — Claude Context
 
 ## Three Man Team
 

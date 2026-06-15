@@ -1,6 +1,6 @@
 import { Text, View } from '@/components/Themed';
-import { useAuth } from '@/src/context/AuthContext';
 import { GradePicker } from '@/src/components/GradePicker';
+import { useAuth } from '@/src/context/AuthContext';
 import { createDefaultGrade } from '@/src/services/gradeService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
@@ -334,7 +334,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                         contentContainerStyle={styles.intentScrollContent}
                         showsVerticalScrollIndicator={false}
                     >
-                        <Text style={styles.intentWelcome}>Welcome to Lovers Rock</Text>
+                        <Text style={styles.intentWelcome}>Welcome to Take!</Text>
                         <Text style={styles.intentQuestion}>What brings you here?</Text>
                         <Text style={styles.intentSubtitle}>Choose what you're looking for to get started</Text>
 

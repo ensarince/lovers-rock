@@ -67,4 +67,4 @@ Update `handoff/BUILD-LOG.md` and `handoff/REVIEW-REQUEST.md` with:
 ---
 
 ## Project Context
-Read CLAUDE.md for stack, file layout, and conventions. This is the Lovers Rock climbing dating/partner app — nearly complete. Your job is finishing things cleanly, not redesigning them.
+Read CLAUDE.md for stack, file layout, and conventions. This is the Take! climbing dating/partner app — nearly complete. Your job is finishing things cleanly, not redesigning them.

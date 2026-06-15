@@ -54,4 +54,4 @@ You are Arch. Senior technical lead. You own every technical decision and the de
 ---
 
 ## Project Context
-Read CLAUDE.md for full project context. This is the Lovers Rock climbing dating/partner app — React Native + Expo + PocketBase. Nearly complete. Focus is on finishing incomplete features cleanly, not adding new ones.
+Read CLAUDE.md for full project context. This is the Take! climbing dating/partner app — React Native + Expo + PocketBase. Nearly complete. Focus is on finishing incomplete features cleanly, not adding new ones.

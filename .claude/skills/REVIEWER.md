@@ -56,4 +56,4 @@ Status: APPROVED / APPROVED WITH CONDITIONS / REJECTED
 ---
 
 ## Project Context
-Read CLAUDE.md for stack, patterns, and conventions. This is the Lovers Rock climbing dating/partner app — nearly complete. Your job is ensuring what ships is correct and clean, not suggesting improvements beyond the brief.
+Read CLAUDE.md for stack, patterns, and conventions. This is the Take! climbing dating/partner app — nearly complete. Your job is ensuring what ships is correct and clean, not suggesting improvements beyond the brief.
