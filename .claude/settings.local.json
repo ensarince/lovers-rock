@@ -41,7 +41,8 @@
       "Bash(grep -n 'intent = \"\\\\${intent}\"' \"src/services/socialGraphService.ts\")",
       "Bash(sed -i 's/`intent = \"\\\\${intent}\"`/`intent = \"${safeIntent\\(intent\\)}\"`/g' \"src/services/socialGraphService.ts\")",
       "Bash(sed -i 's/intent ? `intent = \"\\\\${intent}\"` : null/intent ? `intent = \"${safeIntent\\(intent\\)}\"` : null/g' \"src/services/socialGraphService.ts\")",
-      "PowerShell(Set-Content *)"
+      "PowerShell(Set-Content *)",
+      "PowerShell(Copy-Item *)"
     ]
   }
 }
