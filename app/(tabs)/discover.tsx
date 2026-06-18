@@ -26,7 +26,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   FlatList,
   ImageBackground,
@@ -74,6 +75,9 @@ export default function DiscoverScreen() {
 
   // Track blocked users at component level
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+
+  // Incremented on focus to force partner data reload when returning from matches tab
+  const [partnerRefreshKey, setPartnerRefreshKey] = useState(0);
 
   // Trigger for manual refresh of blocked users
   const [blockRefreshTrigger, setBlockRefreshTrigger] = useState(0);
@@ -369,7 +373,14 @@ export default function DiscoverScreen() {
       }
     };
     if (token && user) loadPartnerData();
-  }, [token, user?.id, blockedUserIds]);
+  }, [token, user?.id, blockedUserIds, partnerRefreshKey]);
+
+  // Reload partner data whenever this tab comes back into focus (e.g. after accepting a request in matches)
+  useFocusEffect(
+    useCallback(() => {
+      setPartnerRefreshKey(k => k + 1);
+    }, [])
+  );
 
   // Filter climbers when preferences are synced (dating mode)
   useEffect(() => {

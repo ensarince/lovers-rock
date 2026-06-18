@@ -96,6 +96,7 @@ export default function ChatScreen() {
   const { climberName, climberId, climberAvatar, climberData: climberDataStr } = useLocalSearchParams();
   const router = useRouter();
   const flatListRef = useRef<FlatList>(null);
+  const inputRef = useRef<any>(null);
   const fallbackPollingIntervalRef = useRef<number | null>(null);
   const conversationUnsubscribeRef = useRef<null | (() => Promise<void>)>(null);
   const typingUnsubscribeRef = useRef<null | (() => Promise<void>)>(null);
@@ -405,6 +406,7 @@ export default function ChatScreen() {
       }
       const sentMessage = await messageService.sendMessage(user.id, climberId as string, newMessage);
       setNewMessage('');
+      inputRef.current?.clear();
       applyMessageUpdate(sentMessage);
       typingService.setTyping(user.id, climberId as string, false).catch((error) => {
         if (__DEV__) console.error('Failed to clear typing status after send:', error);
@@ -585,7 +587,6 @@ export default function ChatScreen() {
         keyExtractor={(item) => item.id}
         style={styles.messagesList}
         contentContainerStyle={styles.messagesContent}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -610,6 +611,7 @@ export default function ChatScreen() {
       {/* Input */}
       <View style={styles.inputContainer}>
         <TextInput
+          ref={inputRef}
           style={styles.input}
           value={newMessage}
           onChangeText={handleInputChange}

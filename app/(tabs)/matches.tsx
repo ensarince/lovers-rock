@@ -261,6 +261,12 @@ export default function MatchesScreen() {
       setIncomingRequests(prev => prev.filter(r => r.id !== request.id));
       // Refetch matches to include the new match
       const updatedMatches = await getMatches(token!, user!.id);
+      // Update prevPartnerMatchIdsRef so fetchData won't fire a spurious
+      // "request accepted" notification for the match we just created ourselves
+      const updatedPartnerMatchIds = new Set(
+        updatedMatches.filter(m => m.type === 'partner').map(m => m.id)
+      );
+      prevPartnerMatchIdsRef.current = updatedPartnerMatchIds;
       setMatches(updatedMatches);
     } catch (err) {
       if (__DEV__) console.error('Failed to accept request:', err);

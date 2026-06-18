@@ -22,6 +22,7 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Image,
   ImageBackground,
   Modal,
@@ -77,6 +78,7 @@ export default function ProfileScreen() {
   const [deleteConfirmationVisible, setDeleteConfirmationVisible] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [imageExpanded, setImageExpanded] = useState(false);
+  const [carouselIndex, setCarouselIndex] = useState(0);
   const [unblockingUserId, setUnblockingUserId] = useState<string | null>(null);
 
   // Profile fields
@@ -702,7 +704,7 @@ export default function ProfileScreen() {
         >
         <View style={styles.headerWithSettingsRow}>
           <View style={styles.headerMinimal}>
-            <Pressable onPress={() => editMode ? pickImage(0) : setImageExpanded(true)}>
+            <Pressable onPress={() => { if (editMode) { pickImage(0); } else { setCarouselIndex(0); setImageExpanded(true); } }}>
               {getAvatarUrl() ? (
                 <Image
                   source={{ uri: getAvatarUrl() }}
@@ -1137,23 +1139,64 @@ export default function ProfileScreen() {
       <Modal visible={imageExpanded} transparent animationType="fade">
         <View style={styles.expandedImageOverlay}>
           {(() => {
-            const fullResUrl = getFullResolutionAvatarUrl();
-            if (fullResUrl) {
+            const screenWidth = Dimensions.get('window').width;
+            const allUrls = slotsForDisplay
+              .filter((slot): slot is { kind: 'existing' | 'new'; value: string } => slot !== null)
+              .map((slot) => {
+                if (slot.kind === 'new') return slot.value;
+                const userId = typedUser?.id;
+                if (userId) {
+                  const baseUrl = getPocketBaseUrl();
+                  return `${baseUrl}/api/files/users/${userId}/${slot.value}`;
+                }
+                return '';
+              })
+              .filter(Boolean);
+
+            if (allUrls.length === 0) {
               return (
-                <Image
-                  source={{ uri: fullResUrl }}
-                  style={{ 
-                    flex: 1,
-                    width: '100%',
-                    resizeMode: 'contain'
-                  }}
-                />
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                  <Text style={{ color: '#fff', fontSize: 16 }}>No images available</Text>
+                </View>
               );
             }
+
             return (
-              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <Text style={{ color: '#fff', fontSize: 16 }}>No image available</Text>
-              </View>
+              <>
+                <ScrollView
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  style={{ flex: 1 }}
+                  onMomentumScrollEnd={(e) => {
+                    const page = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
+                    setCarouselIndex(page);
+                  }}
+                >
+                  {allUrls.map((url, idx) => (
+                    <Image
+                      key={idx}
+                      source={{ uri: url }}
+                      style={{ width: screenWidth, flex: 1, resizeMode: 'contain' }}
+                    />
+                  ))}
+                </ScrollView>
+                {allUrls.length > 1 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', paddingBottom: 80, gap: 8 }}>
+                    {allUrls.map((_, idx) => (
+                      <View
+                        key={idx}
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 4,
+                          backgroundColor: idx === carouselIndex ? '#ffffff' : 'rgba(255,255,255,0.35)',
+                        }}
+                      />
+                    ))}
+                  </View>
+                )}
+              </>
             );
           })()}
           <Pressable
