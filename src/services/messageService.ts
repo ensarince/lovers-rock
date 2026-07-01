@@ -63,10 +63,25 @@ export class MessageService {
     formData.append('content', '');
     formData.append('message_type', 'image');
     formData.append('read', 'false');
-    formData.append('reactions', JSON.stringify({}));
+    formData.append('reactions', '{}');
     formData.append('image_attachment', { uri: imageUri, name: filename, type: 'image/jpeg' } as any);
 
-    const record = await this.pb.collection('messages').create(formData);
+    // Use raw fetch for multipart uploads — the PocketBase SDK's FormData
+    // handling is unreliable in React Native. Raw fetch passes FormData
+    // directly to the native networking layer which handles file parts correctly.
+    const token = this.pb.authStore.token;
+    const response = await fetch(`${POCKETBASE_URL}/api/collections/messages/records`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(errorBody.message || `Upload failed: ${response.status}`);
+    }
+
+    const record = await response.json();
     return mapMessageRecord(record);
   }
 

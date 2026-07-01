@@ -708,7 +708,7 @@ export default function ChatScreen() {
               <Pressable
                 key={emoji}
                 style={styles.emojiButton}
-                onPress={() => setNewMessage((prev) => prev + emoji)}
+                onPressIn={() => setNewMessage((prev) => prev + emoji)}
               >
                 <Text style={styles.emojiText}>{emoji}</Text>
               </Pressable>
