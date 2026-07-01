@@ -12,8 +12,8 @@ import { Match } from '@/src/types/match';
 import { Message } from '@/src/types/message';
 import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
@@ -37,7 +37,6 @@ const HEART_REACTION = '\u2764\uFE0F';
 const LEGACY_HEART_REACTION = '\u00e2\u009d\u00a4\u00ef\u00b8\u008f';
 
 const QUICK_EMOJIS = ['\ud83d\ude02', '\u2764\uFE0F', '\ud83d\udd25', '\ud83d\udc4d', '\ud83d\ude4f', '\ud83d\ude0d', '\ud83e\udd23', '\ud83d\ude2d', '\ud83d\ude0e', '\ud83e\udd70', '\ud83d\udcaa', '\ud83c\udf89', '\ud83e\udd29', '\ud83d\ude0a', '\ud83d\ude05', '\ud83e\udef6', '\u26f0\uFE0F', '\ud83e\uddd7', '\ud83c\udfd4\uFE0F', '\ud83e\udea8'];
-const MAX_IMAGE_SIZE_BYTES = 1 * 1024 * 1024; // 1MB client-side cap (PocketBase also enforces 2MB)
 
 const sortMessages = (msgs: Message[]) =>
   [...msgs].sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime());
@@ -104,6 +103,7 @@ export default function ChatScreen() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const theme = darkMode ? themeDark : themeLight;
   const styles = darkMode ? darkStyles : lightStyles;
+  const insets = useSafeAreaInsets();
   const { climberName, climberId, climberAvatar, climberData: climberDataStr } = useLocalSearchParams();
   const router = useRouter();
   const flatListRef = useRef<FlatList>(null);
@@ -459,13 +459,6 @@ export default function ChatScreen() {
         { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
       );
 
-      // Client-side size check before upload
-      const info = await FileSystem.getInfoAsync(compressed.uri);
-      if (info.exists && (info as any).size > MAX_IMAGE_SIZE_BYTES) {
-        Alert.alert('Image too large', 'Please choose a smaller image.');
-        return;
-      }
-
       const sentMessage = await messageService.sendImageMessage(user.id, climberId as string, compressed.uri);
       applyMessageUpdate(sentMessage);
       setTimeout(() => { flatListRef.current?.scrollToEnd({ animated: true }); }, 100);
@@ -642,7 +635,7 @@ export default function ChatScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Pressable onPress={goBack} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </Pressable>
@@ -714,7 +707,7 @@ export default function ChatScreen() {
             ))}
           </ScrollView>
         )}
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 10) + 8 }]}>
           <Pressable
             style={styles.mediaButton}
             onPress={pickAndSendImage}
@@ -819,7 +812,6 @@ const createStyles = (theme: typeof themeLight) =>
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 16,
-      paddingTop: 50,
       paddingBottom: 16,
       backgroundColor: theme.colors.surface,
       borderBottomWidth: 1,
@@ -1059,8 +1051,7 @@ const createStyles = (theme: typeof themeLight) =>
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 12,
-      paddingVertical: 10,
-      paddingBottom: Platform.OS === 'ios' ? 32 : 52,
+      paddingTop: 10,
       gap: 4,
     },
     mediaButton: {

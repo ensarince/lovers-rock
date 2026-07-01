@@ -9,6 +9,7 @@ import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     ActivityIndicator,
     Alert,
@@ -52,6 +53,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
     const { token } = useAuth();
     const theme = darkMode ? themeDark : themeLight;
     const styles = createStyles(theme);
+    const insets = useSafeAreaInsets();
 
     const [name, setName] = useState(user?.name || '');
     const [bio, setBio] = useState(user?.bio || '');
@@ -331,7 +333,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                 <View style={styles.container}>
                     <ScrollView
                         style={{ flex: 1 }}
-                        contentContainerStyle={styles.intentScrollContent}
+                        contentContainerStyle={[styles.intentScrollContent, { paddingTop: insets.top + 24 }]}
                         showsVerticalScrollIndicator={false}
                     >
                         <Text style={styles.intentWelcome}>Welcome to Take!</Text>
@@ -393,7 +395,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                         </View>
                     </ScrollView>
 
-                    <View style={styles.intentButtonContainer}>
+                    <View style={[styles.intentButtonContainer, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
                         <Pressable
                             style={[styles.saveButton, selectedIntent.length === 0 && styles.saveButtonDisabled]}
                             onPress={() => selectedIntent.includes('date') ? setStep(1) : setStep(2)}
@@ -419,7 +421,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                 <View style={styles.container}>
                     <ScrollView
                         style={{ flex: 1 }}
-                        contentContainerStyle={styles.intentScrollContent}
+                        contentContainerStyle={[styles.intentScrollContent, { paddingTop: insets.top + 24 }]}
                         showsVerticalScrollIndicator={false}
                     >
                         <Text style={styles.intentWelcome}>Dating Preference</Text>
@@ -454,7 +456,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                         </View>
                     </ScrollView>
 
-                    <View style={[styles.intentButtonContainer, { flexDirection: 'row', gap: 10 }]}>
+                    <View style={[styles.intentButtonContainer, { flexDirection: 'row', gap: 10, paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
                         <Pressable
                             style={[styles.saveButton, { flex: 1, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border }]}
                             onPress={() => setStep(0)}
@@ -481,7 +483,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
             transparent={false}
             hardwareAccelerated
         >
-            <View style={[styles.container, { paddingTop: 40 }]}>
+            <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
                 <View style={styles.header}>
                     <Text style={styles.title}>Complete Your Profile</Text>
                     <Text style={styles.subtitle}>
@@ -1036,7 +1038,6 @@ const createStyles = (theme: any) =>
             fontWeight: '600',
         },
         intentScrollContent: {
-            paddingTop: 56,
             paddingHorizontal: 24,
             paddingBottom: 16,
         },
@@ -1117,7 +1118,6 @@ const createStyles = (theme: any) =>
         intentButtonContainer: {
             paddingHorizontal: 24,
             paddingTop: 8,
-            paddingBottom: 70,
             backgroundColor: 'transparent',
         },
     });

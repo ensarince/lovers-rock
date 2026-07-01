@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useCallback, useEffect, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
   FlatList,
@@ -36,6 +37,7 @@ export function GifSearchModal({ visible, onClose, onSelect, darkMode }: Props) 
   const [query, setQuery] = useState('');
   const [gifs, setGifs] = useState<GifItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const fetchGifs = useCallback(async (searchQuery: string) => {
     if (!GIPHY_API_KEY) return;
@@ -134,7 +136,7 @@ export function GifSearchModal({ visible, onClose, onSelect, darkMode }: Props) 
             />
           )}
 
-          <View style={styles.attribution}>
+          <View style={[styles.attribution, { paddingBottom: Math.max(insets.bottom, 8) }]}>
             <Image
               source={require('../../assets/giphyLogo.gif')}
               style={styles.attributionLogo}
@@ -202,7 +204,7 @@ const styles = StyleSheet.create({
   attribution: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#3f3f46',
   },
