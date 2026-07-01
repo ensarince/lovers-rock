@@ -470,12 +470,11 @@ export default function ChatScreen() {
       applyMessageUpdate(sentMessage);
       setTimeout(() => { flatListRef.current?.scrollToEnd({ animated: true }); }, 100);
     } catch (error: any) {
-      const msg = String(error?.message || '');
+      const msg = String(error?.message || error || 'unknown error');
       if (msg.includes('rate limit')) {
         Alert.alert('Slow down', 'Max 20 images per hour.');
       } else {
-        if (__DEV__) console.error('Failed to send image:', error);
-        Alert.alert('Failed to send image', 'Please try again.');
+        Alert.alert('Upload failed', msg);
       }
     } finally {
       setSending(false);
