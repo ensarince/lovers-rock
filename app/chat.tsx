@@ -1,4 +1,5 @@
 import { ChatMenuModal } from '@/src/components/ChatMenuModal';
+import { GifSearchModal } from '@/src/components/GifSearchModal';
 import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import { useAuth } from '@/src/context/AuthContext';
 import { messageService } from '@/src/services/messageService';
@@ -11,9 +12,13 @@ import { Match } from '@/src/types/match';
 import { Message } from '@/src/types/message';
 import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import * as FileSystem from 'expo-file-system';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   FlatList,
   Image,
@@ -21,6 +26,7 @@ import {
   Platform,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -29,6 +35,9 @@ import {
 
 const HEART_REACTION = '\u2764\uFE0F';
 const LEGACY_HEART_REACTION = '\u00e2\u009d\u00a4\u00ef\u00b8\u008f';
+
+const QUICK_EMOJIS = ['\ud83d\ude02', '\u2764\uFE0F', '\ud83d\udd25', '\ud83d\udc4d', '\ud83d\ude4f', '\ud83d\ude0d', '\ud83e\udd23', '\ud83d\ude2d', '\ud83d\ude0e', '\ud83e\udd70', '\ud83d\udcaa', '\ud83c\udf89', '\ud83e\udd29', '\ud83d\ude0a', '\ud83d\ude05', '\ud83e\udef6', '\u26f0\uFE0F', '\ud83e\uddd7', '\ud83c\udfd4\uFE0F', '\ud83e\udea8'];
+const MAX_IMAGE_SIZE_BYTES = 1 * 1024 * 1024; // 1MB client-side cap (PocketBase also enforces 2MB)
 
 const sortMessages = (msgs: Message[]) =>
   [...msgs].sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime());
@@ -91,6 +100,8 @@ export default function ChatScreen() {
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [reactingToMessageIds, setReactingToMessageIds] = useState<string[]>([]);
+  const [gifModalVisible, setGifModalVisible] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const theme = darkMode ? themeDark : themeLight;
   const styles = darkMode ? darkStyles : lightStyles;
   const { climberName, climberId, climberAvatar, climberData: climberDataStr } = useLocalSearchParams();
@@ -421,6 +432,70 @@ export default function ChatScreen() {
     }
   };
 
+  const pickAndSendImage = async () => {
+    if (!user?.id || !climberId || sending || blocked) return;
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to send images.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 1,
+      allowsEditing: false,
+    });
+
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const asset = result.assets[0];
+    setSending(true);
+    try {
+      // Compress: resize to max 800px width, JPEG 70%
+      const compressed = await ImageManipulator.manipulateAsync(
+        asset.uri,
+        [{ resize: { width: 800 } }],
+        { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+      );
+
+      // Client-side size check before upload
+      const info = await FileSystem.getInfoAsync(compressed.uri);
+      if (info.exists && (info as any).size > MAX_IMAGE_SIZE_BYTES) {
+        Alert.alert('Image too large', 'Please choose a smaller image.');
+        return;
+      }
+
+      const sentMessage = await messageService.sendImageMessage(user.id, climberId as string, compressed.uri);
+      applyMessageUpdate(sentMessage);
+      setTimeout(() => { flatListRef.current?.scrollToEnd({ animated: true }); }, 100);
+    } catch (error: any) {
+      const msg = String(error?.message || '');
+      if (msg.includes('rate limit')) {
+        Alert.alert('Slow down', 'Max 20 images per hour.');
+      } else {
+        if (__DEV__) console.error('Failed to send image:', error);
+        Alert.alert('Failed to send image', 'Please try again.');
+      }
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const sendGif = async (gifUrl: string) => {
+    if (!user?.id || !climberId || sending || blocked) return;
+    setSending(true);
+    try {
+      const sentMessage = await messageService.sendGifMessage(user.id, climberId as string, gifUrl);
+      applyMessageUpdate(sentMessage);
+      setTimeout(() => { flatListRef.current?.scrollToEnd({ animated: true }); }, 100);
+    } catch (error) {
+      if (__DEV__) console.error('Failed to send GIF:', error);
+    } finally {
+      setSending(false);
+    }
+  };
+
   const renderMessage = ({ item }: { item: Message }) => {
     const isOwnMessage = item.sender_id === user?.id;
     const userReaction = item.reactions ? item.reactions[user?.id || ''] : undefined;
@@ -428,13 +503,24 @@ export default function ChatScreen() {
     const likedByCurrentUser = isHeartReaction(userReaction);
     const heartReactionCount = getHeartReactionCount(item);
     const showReactionBadge = heartReactionCount > 0;
+    const pbUrl = getPocketBaseUrl();
+    const messageImageUrl = item.image_attachment
+      ? `${pbUrl}/api/files/messages/${item.id}/${item.image_attachment}`
+      : null;
+
     return (
       <View style={[styles.messageContainer, isOwnMessage ? styles.ownMessage : styles.otherMessage]}>
         <View style={styles.messageContent}>
-        <Pressable style={styles.messageBubble}>
-          <Text style={[styles.messageText, isOwnMessage ? styles.ownMessageText : styles.otherMessageText]}>
-            {item.content}
-          </Text>
+        <Pressable style={[styles.messageBubble, (item.message_type === 'image' || item.message_type === 'gif') && styles.mediaBubble]}>
+          {item.message_type === 'image' && messageImageUrl ? (
+            <Image source={{ uri: messageImageUrl }} style={styles.messageImage} resizeMode="cover" />
+          ) : item.message_type === 'gif' && item.attachment_url ? (
+            <Image source={{ uri: item.attachment_url }} style={styles.messageImage} resizeMode="cover" />
+          ) : (
+            <Text style={[styles.messageText, isOwnMessage ? styles.ownMessageText : styles.otherMessageText]}>
+              {item.content}
+            </Text>
+          )}
           <View style={styles.messageFooter}>
             <Text style={[styles.timestamp, isOwnMessage ? styles.ownTimestamp : styles.otherTimestamp]}>
               {new Date(item.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -609,31 +695,75 @@ export default function ChatScreen() {
       />
 
       {/* Input */}
-      <View style={styles.inputContainer}>
-        <TextInput
-          ref={inputRef}
-          style={styles.input}
-          value={newMessage}
-          onChangeText={handleInputChange}
-          placeholder="Type a message..."
-          placeholderTextColor="#a1a1aa"
-          multiline
-          maxLength={1000}
-          onBlur={() => {
-            if (user?.id && climberId) {
-              typingService.setTyping(user.id, climberId as string, false).catch((error) => {
-                if (__DEV__) console.error('Failed to clear typing status on blur:', error);
-              });
-            }
-          }}
-        />
-        <Pressable
-          style={[styles.sendButton, (!newMessage.trim() || sending) && styles.sendButtonDisabled]}
-          onPress={sendMessage}
-          disabled={!newMessage.trim() || sending}
-        >
-          <Ionicons name="send" size={20} color="#ffffff" />
-        </Pressable>
+      <View style={styles.inputWrapper}>
+        {showEmojiPicker && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.emojiRow}
+            contentContainerStyle={styles.emojiRowContent}
+            keyboardShouldPersistTaps="always"
+          >
+            {QUICK_EMOJIS.map((emoji) => (
+              <Pressable
+                key={emoji}
+                style={styles.emojiButton}
+                onPress={() => setNewMessage((prev) => prev + emoji)}
+              >
+                <Text style={styles.emojiText}>{emoji}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+        <View style={styles.inputContainer}>
+          <Pressable
+            style={styles.mediaButton}
+            onPress={pickAndSendImage}
+            disabled={sending || blocked}
+            hitSlop={4}
+          >
+            <Ionicons name="image-outline" size={22} color={sending || blocked ? theme.colors.textSecondary : theme.colors.text} />
+          </Pressable>
+          <Pressable
+            style={styles.mediaButton}
+            onPress={() => setGifModalVisible(true)}
+            disabled={sending || blocked}
+            hitSlop={4}
+          >
+            <Text style={[styles.gifLabel, { color: sending || blocked ? theme.colors.textSecondary : theme.colors.text }]}>GIF</Text>
+          </Pressable>
+          <Pressable
+            style={styles.mediaButton}
+            onPress={() => setShowEmojiPicker((v) => !v)}
+            hitSlop={4}
+          >
+            <Ionicons name={showEmojiPicker ? 'happy' : 'happy-outline'} size={22} color={showEmojiPicker ? theme.colors.accent : theme.colors.text} />
+          </Pressable>
+          <TextInput
+            ref={inputRef}
+            style={styles.input}
+            value={newMessage}
+            onChangeText={handleInputChange}
+            placeholder="Message..."
+            placeholderTextColor="#a1a1aa"
+            multiline
+            maxLength={1000}
+            onBlur={() => {
+              if (user?.id && climberId) {
+                typingService.setTyping(user.id, climberId as string, false).catch((error) => {
+                  if (__DEV__) console.error('Failed to clear typing status on blur:', error);
+                });
+              }
+            }}
+          />
+          <Pressable
+            style={[styles.sendButton, (!newMessage.trim() || sending) && styles.sendButtonDisabled]}
+            onPress={sendMessage}
+            disabled={!newMessage.trim() || sending}
+          >
+            <Ionicons name="send" size={20} color="#ffffff" />
+          </Pressable>
+        </View>
       </View>
 
       {/* Detail Modal */}
@@ -667,6 +797,13 @@ export default function ChatScreen() {
         climberName={(climberName as string) || ''}
         onClose={() => setMenuVisible(false)}
         onDeleteChat={deleteChat}
+        darkMode={darkMode}
+      />
+
+      <GifSearchModal
+        visible={gifModalVisible}
+        onClose={() => setGifModalVisible(false)}
+        onSelect={sendGif}
         darkMode={darkMode}
       />
     </KeyboardAvoidingView>
@@ -893,11 +1030,7 @@ const createStyles = (theme: typeof themeLight) =>
       color: theme.colors.textSecondary,
       fontSize: 12,
     },
-    inputContainer: {
-      flexDirection: 'row',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      paddingBottom: Platform.OS === 'ios' ? 34 : 54,
+    inputWrapper: {
       backgroundColor: theme.colors.surface,
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,
@@ -907,23 +1040,58 @@ const createStyles = (theme: typeof themeLight) =>
       shadowOffset: { width: 0, height: -4 },
       elevation: 6,
     },
+    emojiRow: {
+      maxHeight: 44,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.border,
+    },
+    emojiRowContent: {
+      paddingHorizontal: 8,
+      alignItems: 'center',
+    },
+    emojiButton: {
+      paddingHorizontal: 6,
+      paddingVertical: 6,
+    },
+    emojiText: {
+      fontSize: 22,
+    },
+    inputContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      paddingBottom: Platform.OS === 'ios' ? 32 : 52,
+      gap: 4,
+    },
+    mediaButton: {
+      width: 32,
+      height: 32,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    gifLabel: {
+      fontSize: 13,
+      fontWeight: '700',
+      letterSpacing: 0.3,
+    },
     input: {
       flex: 1,
       backgroundColor: theme.colors.background,
       borderRadius: 24,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
       color: theme.colors.text,
       fontSize: 16,
       maxHeight: 100,
-      marginRight: 12,
+      marginHorizontal: 4,
       borderWidth: 1,
       borderColor: theme.colors.border,
     },
     sendButton: {
-      width: 48,
-      height: 48,
-      borderRadius: 24,
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       backgroundColor: theme.colors.accent,
       justifyContent: 'center',
       alignItems: 'center',
@@ -935,6 +1103,16 @@ const createStyles = (theme: typeof themeLight) =>
     },
     sendButtonDisabled: {
       backgroundColor: '#374151',
+    },
+    mediaBubble: {
+      padding: 0,
+      overflow: 'hidden',
+      borderRadius: 16,
+    },
+    messageImage: {
+      width: 200,
+      height: 160,
+      borderRadius: 16,
     },
   });
 

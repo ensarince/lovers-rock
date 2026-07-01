@@ -21,7 +21,10 @@ const mapMessageRecord = (record: any): Message => ({
   content: record.content,
   created: record.created,
   read: record.read,
-  reactions: record.reactions || {}
+  reactions: record.reactions || {},
+  message_type: record.message_type || 'text',
+  image_attachment: record.image_attachment || undefined,
+  attachment_url: record.attachment_url || undefined,
 });
 
 export class MessageService {
@@ -43,11 +46,40 @@ export class MessageService {
       sender_id: senderId,
       receiver_id: receiverId,
       content: content.trim(),
+      message_type: 'text',
       read: false,
       reactions: {}
     };
 
     const record = await this.pb.collection('messages').create(data);
+    return mapMessageRecord(record);
+  }
+
+  async sendImageMessage(senderId: string, receiverId: string, imageUri: string): Promise<Message> {
+    const filename = imageUri.split('/').pop() || 'photo.jpg';
+    const formData = new FormData();
+    formData.append('sender_id', senderId);
+    formData.append('receiver_id', receiverId);
+    formData.append('content', '');
+    formData.append('message_type', 'image');
+    formData.append('read', 'false');
+    formData.append('reactions', JSON.stringify({}));
+    formData.append('image_attachment', { uri: imageUri, name: filename, type: 'image/jpeg' } as any);
+
+    const record = await this.pb.collection('messages').create(formData);
+    return mapMessageRecord(record);
+  }
+
+  async sendGifMessage(senderId: string, receiverId: string, gifUrl: string): Promise<Message> {
+    const record = await this.pb.collection('messages').create({
+      sender_id: senderId,
+      receiver_id: receiverId,
+      content: '',
+      message_type: 'gif',
+      attachment_url: gifUrl,
+      read: false,
+      reactions: {},
+    });
     return mapMessageRecord(record);
   }
 
