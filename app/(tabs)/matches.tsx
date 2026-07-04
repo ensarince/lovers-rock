@@ -322,7 +322,16 @@ export default function MatchesScreen() {
         </Text>
 
         <Text style={styles.matchedTimeMinimal}>
-          Matched {Math.floor((Date.now() - item.matchedAt) / (1000 * 60 * 60))}h ago
+          Matched {(() => {
+            const diff = Date.now() - item.matchedAt;
+            const mins = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            if (days > 0) return `${days}d ago`;
+            if (hours > 0) return `${hours}h ago`;
+            if (mins > 0) return `${mins}m ago`;
+            return 'just now';
+          })()}
         </Text>
       </View>
 

@@ -182,51 +182,56 @@ export const getMatches = async (token: string, currentUserId: string): Promise<
     const profileMap = buildProfileMap(profiles);
     const blockedIds = buildBlockedIdSet(blockedByMe, blockedAgainstMe);
 
-    const outgoingDating = new Set(outgoingLikes.filter((like) => like.intent === 'dating').map((like) => like.to_user));
-    const outgoingPartner = new Set(outgoingLikes.filter((like) => like.intent === 'partner').map((like) => like.to_user));
-    const incomingDating = new Set(incomingLikes.filter((like) => like.intent === 'dating').map((like) => like.from_user));
-    const incomingPartner = new Set(incomingLikes.filter((like) => like.intent === 'partner').map((like) => like.from_user));
+    // Maps from userId → like created timestamp so we can compute the real match time
+    const outgoingDating = new Map(outgoingLikes.filter((like) => like.intent === 'dating').map((like) => [like.to_user, like.created]));
+    const outgoingPartner = new Map(outgoingLikes.filter((like) => like.intent === 'partner').map((like) => [like.to_user, like.created]));
+    const incomingDating = new Map(incomingLikes.filter((like) => like.intent === 'dating').map((like) => [like.from_user, like.created]));
+    const incomingPartner = new Map(incomingLikes.filter((like) => like.intent === 'partner').map((like) => [like.from_user, like.created]));
 
     const declinedByMeDating = new Set(getActiveDeclinedUserIds(outgoingDeclines, 'dating', 'outgoing'));
     const declinedByMePartner = new Set(getActiveDeclinedUserIds(outgoingDeclines, 'partner', 'outgoing'));
 
     const matchesMap: Record<string, Match> = {};
 
-    const addMatch = (user: Climber, type: 'dating' | 'partner') => {
+    const addMatch = (user: Climber, type: 'dating' | 'partner', matchedAt: number) => {
       const matchId = `${user.id}-${type}-match`;
       if (matchesMap[matchId]) return;
 
       matchesMap[matchId] = {
         id: matchId,
         climber: normalizeClimber(user),
-        matchedAt: Date.now(),
+        matchedAt,
         messagePreview: type === 'dating' ? 'You matched! Say hello 🤗' : 'Connected! Say hello 🤗',
         unreadCount: 0,
         type,
       };
     };
 
+    const likeTs = (created?: string) => (created ? new Date(created).getTime() : 0);
+
     if (currentUserIntent.includes('date')) {
-      outgoingDating.forEach((userId) => {
+      outgoingDating.forEach((outCreated, userId) => {
         if (!incomingDating.has(userId)) return;
         if (blockedIds.has(userId)) return;
         if (declinedByMeDating.has(userId)) return;
         const user = profileMap.get(userId);
         if (!user) return;
         if (!intentIncludes(user.intent, 'date')) return;
-        addMatch(user, 'dating');
+        const matchedAt = Math.max(likeTs(outCreated), likeTs(incomingDating.get(userId)));
+        addMatch(user, 'dating', matchedAt || Date.now());
       });
     }
 
     if (currentUserIntent.includes('partner')) {
-      outgoingPartner.forEach((userId) => {
+      outgoingPartner.forEach((outCreated, userId) => {
         if (!incomingPartner.has(userId)) return;
         if (blockedIds.has(userId)) return;
         if (declinedByMePartner.has(userId)) return;
         const user = profileMap.get(userId);
         if (!user) return;
         if (!intentIncludes(user.intent, 'partner')) return;
-        addMatch(user, 'partner');
+        const matchedAt = Math.max(likeTs(outCreated), likeTs(incomingPartner.get(userId)));
+        addMatch(user, 'partner', matchedAt || Date.now());
       });
     }
 
