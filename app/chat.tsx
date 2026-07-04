@@ -14,6 +14,7 @@ import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Swipeable } from 'react-native-gesture-handler';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
@@ -116,6 +117,7 @@ export default function ChatScreen() {
   const typingExpireTimeoutRef = useRef<number | null>(null);
   const lastTypingSentAtRef = useRef(0);
   const hasScrolledToBottomRef = useRef(false);
+  const swipeableRefs = useRef<Map<string, Swipeable | null>>(new Map());
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
@@ -512,6 +514,28 @@ export default function ChatScreen() {
     const isMedia = item.message_type === 'image' || item.message_type === 'gif';
 
     return (
+      <Swipeable
+        ref={(ref) => {
+          if (ref) swipeableRefs.current.set(item.id, ref);
+          else swipeableRefs.current.delete(item.id);
+        }}
+        renderLeftActions={(_, dragX) => {
+          const scale = (dragX as any).interpolate({ inputRange: [0, 70], outputRange: [0.4, 1], extrapolate: 'clamp' });
+          const translateX = (dragX as any).interpolate({ inputRange: [0, 70], outputRange: [-16, 0], extrapolate: 'clamp' });
+          return (
+            <Animated.View style={[styles.replyAction, { transform: [{ scale }, { translateX }] }]}>
+              <Ionicons name="return-up-forward" size={22} color={theme.colors.accent} />
+            </Animated.View>
+          );
+        }}
+        leftThreshold={70}
+        onSwipeableOpen={() => {
+          setReplyingTo(item);
+          setTimeout(() => swipeableRefs.current.get(item.id)?.close(), 80);
+        }}
+        friction={2}
+        overshootLeft={false}
+      >
       <View style={[styles.messageContainer, isOwnMessage ? styles.ownMessage : styles.otherMessage]}>
         <View style={styles.messageContent}>
         <Pressable
@@ -520,8 +544,6 @@ export default function ChatScreen() {
             if (item.message_type === 'image' && messageImageUrl) setFullscreenImageUrl(messageImageUrl);
             else if (item.message_type === 'gif' && item.attachment_url) setFullscreenImageUrl(item.attachment_url);
           }}
-          onLongPress={() => setReplyingTo(item)}
-          delayLongPress={350}
         >
           {item.reply_to_preview ? (
             <View style={[styles.replyQuote, isOwnMessage ? styles.replyQuoteOwn : styles.replyQuoteOther]}>
@@ -571,6 +593,7 @@ export default function ChatScreen() {
           </Pressable>
         )}
       </View>
+      </Swipeable>
     );
   };
   const handleToggleLike = async (messageId: string) => {
@@ -1159,6 +1182,12 @@ const createStyles = (theme: typeof themeLight) =>
       width: 200,
       height: 160,
       borderRadius: 16,
+    },
+    replyAction: {
+      justifyContent: 'center',
+      alignItems: 'center',
+      width: 52,
+      marginVertical: 4,
     },
     replyQuote: {
       flexDirection: 'row',
