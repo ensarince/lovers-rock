@@ -135,35 +135,57 @@ function MessageItem({
   userIdRef.current = userId;
   isReactingRef.current = isReacting;
 
+  const onImagePressRef = useRef(onImagePress);
+  onImagePressRef.current = onImagePress;
+  const lastTapRef = useRef(0);
+
   const triggerReply = useCallback(() => {
     onReplyRef.current(itemRef.current);
   }, []);
 
-  const triggerLike = useCallback(() => {
-    const cur = itemRef.current;
-    if (cur.sender_id !== userIdRef.current && !isReactingRef.current) {
-      onLikeRef.current(cur.id);
+  // Double-tap via JS timestamp — avoids all RNGH vs Pressable conflicts
+  const handleBubblePress = useCallback(() => {
+    const now = Date.now();
+    const gap = now - lastTapRef.current;
+    if (gap < 300 && gap > 0) {
+      lastTapRef.current = 0;
+      const cur = itemRef.current;
+      if (cur.sender_id !== userIdRef.current && !isReactingRef.current) {
+        onLikeRef.current(cur.id);
+      }
+      return;
     }
-  }, []);
+    lastTapRef.current = now;
+    // Single-tap: open media
+    const cur = itemRef.current;
+    if (cur.message_type === 'image' && cur.image_attachment) {
+      onImagePressRef.current(`${pbUrl}/api/files/messages/${cur.id}/${cur.image_attachment}`);
+    } else if (cur.message_type === 'gif' && cur.attachment_url) {
+      onImagePressRef.current(cur.attachment_url);
+    }
+  }, [pbUrl]);
 
   const initialTouchLocation = useSharedValue({ x: 0, y: 0 });
 
+  // GestureDetector handles ONLY swipe-to-reply — no tap/longpress races
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
         .manualActivation(true)
         .onTouchesDown((e) => {
+          if (e.changedTouches.length === 0) return;
           initialTouchLocation.value = {
             x: e.changedTouches[0].x,
             y: e.changedTouches[0].y,
           };
         })
         .onTouchesMove((e, state) => {
+          if (e.changedTouches.length === 0) return;
           const xDiff = Math.abs(e.changedTouches[0].x - initialTouchLocation.value.x);
           const yDiff = Math.abs(e.changedTouches[0].y - initialTouchLocation.value.y);
-          if (xDiff > yDiff) {
+          if (xDiff > yDiff && xDiff > 10) {
             state.activate();
-          } else {
+          } else if (yDiff > xDiff && yDiff > 10) {
             state.fail();
           }
         })
@@ -174,28 +196,6 @@ function MessageItem({
           if (dx > 60) runOnJS(triggerReply)();
         }),
     []
-  );
-
-  const doubleTapGesture = useMemo(
-    () =>
-      Gesture.Tap()
-        .numberOfTaps(2)
-        .maxDuration(250)
-        .onStart(() => { runOnJS(triggerLike)(); }),
-    []
-  );
-
-  const longPressGesture = useMemo(
-    () =>
-      Gesture.LongPress()
-        .minDuration(500)
-        .onStart(() => { runOnJS(triggerReply)(); }),
-    []
-  );
-
-  const composedGesture = useMemo(
-    () => Gesture.Race(panGesture, longPressGesture, doubleTapGesture),
-    [panGesture, longPressGesture, doubleTapGesture]
   );
 
   const animatedRowStyle = useAnimatedStyle(() => ({
@@ -224,14 +224,13 @@ function MessageItem({
       </Reanimated.View>
       <Reanimated.View style={[{ width: '100%' }, animatedRowStyle]}>
         <View style={[styles.messageContainer, isOwn ? styles.ownMessage : styles.otherMessage]}>
-          <GestureDetector gesture={composedGesture}>
+          <GestureDetector gesture={panGesture}>
             <View style={styles.messageContent}>
               <Pressable
                 style={[styles.messageBubble, isMedia && styles.mediaBubble]}
-                onPress={() => {
-                  if (item.message_type === 'image' && messageImageUrl) onImagePress(messageImageUrl);
-                  else if (item.message_type === 'gif' && item.attachment_url) onImagePress(item.attachment_url);
-                }}
+                onPress={handleBubblePress}
+                onLongPress={triggerReply}
+                delayLongPress={400}
               >
                 {item.reply_to_preview ? (
                   <View style={[styles.replyQuote, isOwn ? styles.replyQuoteOwn : styles.replyQuoteOther]}>
