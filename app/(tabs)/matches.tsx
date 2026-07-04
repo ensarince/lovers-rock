@@ -122,7 +122,15 @@ export default function MatchesScreen() {
       Promise.all(
         allMatches.map(async (match) => {
           const lastMsg = await messageService.getLastMessage(user!.id, match.climber.id);
-          return lastMsg ? { ...match, messagePreview: lastMsg.content } : match;
+          if (!lastMsg) return match;
+          let preview = lastMsg.content;
+          if (!preview) {
+            if (lastMsg.message_type === 'image') preview = '📷 Photo';
+            else if (lastMsg.message_type === 'gif') preview = 'GIF';
+            else preview = 'Sent a message';
+          }
+          const isOwn = lastMsg.sender_id === user!.id;
+          return { ...match, messagePreview: isOwn ? `You: ${preview}` : preview };
         })
       ).then((updated) => setMatches(updated)).catch(() => {});
 
