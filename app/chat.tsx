@@ -24,6 +24,7 @@ import {
   FlatList,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -64,7 +65,8 @@ const messagesAreEqual = (prev: Message[], next: Message[]) => {
       message.created === nextMessage.created &&
       message.read === nextMessage.read &&
       message.sender_id === nextMessage.sender_id &&
-      message.receiver_id === nextMessage.receiver_id
+      message.receiver_id === nextMessage.receiver_id &&
+      message.reply_to_id === nextMessage.reply_to_id
     );
   });
 };
@@ -104,6 +106,9 @@ export default function ChatScreen() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [fullscreenImageUrl, setFullscreenImageUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const messagesPageRef = useRef(1);
   const theme = darkMode ? themeDark : themeLight;
   const styles = darkMode ? darkStyles : lightStyles;
   const insets = useSafeAreaInsets();
@@ -344,9 +349,11 @@ export default function ChatScreen() {
               }
             }
 
-            setTimeout(() => {
-              flatListRef.current?.scrollToEnd({ animated: action === 'create' });
-            }, 50);
+            if (action === 'create') {
+              setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+              }, 50);
+            }
           }
         );
       } catch (error) {
@@ -371,23 +378,34 @@ export default function ChatScreen() {
 
   const loadMessages = async () => {
     if (!user?.id || !climberId) return;
-
     try {
       setLoading(true);
-      const msgs = await messageService.getMessagesBetweenUsers(user.id, climberId as string);
+      setError(null);
+      const msgs = await messageService.getMessagesBetweenUsers(user.id, climberId as string, 1, 50);
+      messagesPageRef.current = 1;
+      setHasMoreMessages(msgs.length === 50);
       updateMessages(msgs);
-
-      // Mark messages from the other user as read
       await messageService.markMessagesAsRead(climberId as string, user.id);
       await refreshUnreadMessageCount();
-
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
-      }, 100);
-    } catch (error) {
-      if (__DEV__) console.error('Failed to load messages:', error);
+    } catch (err) {
+      setError('Failed to load messages');
+      if (__DEV__) console.error('Failed to load messages:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadEarlierMessages = async () => {
+    if (!user?.id || !climberId || !hasMoreMessages) return;
+    const nextPage = messagesPageRef.current + 1;
+    try {
+      const older = await messageService.getMessagesBetweenUsers(user.id, climberId as string, nextPage, 50);
+      if (older.length === 0) { setHasMoreMessages(false); return; }
+      messagesPageRef.current = nextPage;
+      setHasMoreMessages(older.length === 50);
+      setMessages(prev => sortMessages([...prev, ...older]));
+    } catch (err) {
+      if (__DEV__) console.error('Failed to load earlier messages:', err);
     }
   };
 
@@ -405,21 +423,6 @@ export default function ChatScreen() {
 
     try {
       setSending(true);
-      // Double-check block before sending
-      if (!user?.id || !token) {
-        setSending(false);
-        return;
-      }
-      const reportService = getReportService();
-      const [iBlocked, theyBlocked] = await Promise.all([
-        reportService.isUserBlocked(user.id, climberId as string, token),
-        reportService.isUserBlocked(climberId as string, user.id, token),
-      ]);
-      if (iBlocked || theyBlocked) {
-        setBlocked(true);
-        setSending(false);
-        return;
-      }
       const replyPreview = replyingTo
         ? replyingTo.message_type === 'image' ? '📷 Photo'
           : replyingTo.message_type === 'gif' ? '🎞️ GIF'
@@ -461,6 +464,7 @@ export default function ChatScreen() {
     if (result.canceled || !result.assets?.[0]) return;
 
     const asset = result.assets[0];
+    setReplyingTo(null);
     setSending(true);
     try {
       // Compress: resize to max 800px width, JPEG 70%
@@ -487,6 +491,7 @@ export default function ChatScreen() {
 
   const sendGif = async (gifUrl: string) => {
     if (!user?.id || !climberId || sending || blocked) return;
+    setReplyingTo(null);
     setSending(true);
     try {
       const sentMessage = await messageService.sendGifMessage(user.id, climberId as string, gifUrl);
@@ -494,6 +499,7 @@ export default function ChatScreen() {
       setTimeout(() => { flatListRef.current?.scrollToEnd({ animated: true }); }, 100);
     } catch (error) {
       if (__DEV__) console.error('Failed to send GIF:', error);
+      Alert.alert('Failed to send GIF', 'Please try again.');
     } finally {
       setSending(false);
     }
@@ -668,6 +674,26 @@ export default function ChatScreen() {
       </View>
     );
   }
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+          <Pressable onPress={goBack} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+          </Pressable>
+          <Text style={styles.headerTitle}>{climberName}</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+          <Ionicons name="alert-circle-outline" size={40} color={theme.colors.textSecondary} />
+          <Text style={{ color: theme.colors.textSecondary, fontSize: 15 }}>Failed to load messages</Text>
+          <Pressable onPress={loadMessages} style={{ paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, backgroundColor: theme.colors.accent }}>
+            <Text style={{ color: '#fff', fontWeight: '600' }}>Try again</Text>
+          </Pressable>
+        </View>
+      </View>
+    );
+  }
   if (loading) {
     return (
       <View style={styles.container}>
@@ -714,12 +740,21 @@ export default function ChatScreen() {
         style={styles.messagesList}
         contentContainerStyle={styles.messagesContent}
         showsVerticalScrollIndicator={false}
+        maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
         onContentSizeChange={() => {
           if (!hasScrolledToBottomRef.current && messages.length > 0) {
             hasScrolledToBottomRef.current = true;
             flatListRef.current?.scrollToEnd({ animated: false });
           }
         }}
+        ListHeaderComponent={
+          hasMoreMessages ? (
+            <Pressable onPress={loadEarlierMessages} style={styles.loadEarlierButton}>
+              <Ionicons name="chevron-up" size={14} color={theme.colors.textSecondary} />
+              <Text style={styles.loadEarlierText}>Load earlier messages</Text>
+            </Pressable>
+          ) : null
+        }
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1189,6 +1224,17 @@ const createStyles = (theme: typeof themeLight) =>
       width: 52,
       marginVertical: 4,
     },
+    loadEarlierButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 10,
+      gap: 6,
+    },
+    loadEarlierText: {
+      fontSize: 13,
+      color: theme.colors.textSecondary,
+    },
     replyQuote: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1202,7 +1248,7 @@ const createStyles = (theme: typeof themeLight) =>
       backgroundColor: 'rgba(255,255,255,0.15)',
     },
     replyQuoteOther: {
-      backgroundColor: 'rgba(0,0,0,0.08)',
+      backgroundColor: theme.colors.border,
     },
     replyQuoteBar: {
       width: 3,

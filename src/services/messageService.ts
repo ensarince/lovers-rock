@@ -34,9 +34,7 @@ export class MessageService {
 
   constructor(token?: string) {
     this.pb = new PocketBase(POCKETBASE_URL);
-    if (token) {
-      this.pb.authStore.save(token, null);
-    }
+    if (token) this.setToken(token);
   }
 
   setToken(token: string) {
@@ -110,12 +108,21 @@ export class MessageService {
   }
 
   async getMessagesBetweenUsers(userId1: string, userId2: string, page = 1, perPage = 50): Promise<Message[]> {
+    // Sort newest-first so page 1 always returns the most recent messages.
+    // Callers that display messages use sortMessages() to re-order oldest-first.
     const records = await this.pb.collection('messages').getList(page, perPage, {
       filter: `((sender_id = "${safeId(userId1)}" && receiver_id = "${safeId(userId2)}") || (sender_id = "${safeId(userId2)}" && receiver_id = "${safeId(userId1)}"))`,
-      sort: 'created'
+      sort: '-created',
     });
 
     return records.items.map((record: any) => mapMessageRecord(record)) as Message[];
+  }
+
+  async getUnreadCountFromSender(senderId: string, receiverId: string): Promise<number> {
+    const records = await this.pb.collection('messages').getList(1, 1, {
+      filter: `sender_id = "${safeId(senderId)}" && receiver_id = "${safeId(receiverId)}" && read = false`,
+    });
+    return records.totalItems;
   }
 
   async markMessagesAsRead(senderId: string, receiverId: string): Promise<void> {

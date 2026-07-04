@@ -10,7 +10,7 @@ import { getPocketBaseUrl, intentIncludes } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -59,6 +59,19 @@ export default function MessagesScreen() {
         }, [token, user?.id])
     );
 
+    // Live-update the conversation list when a new message arrives
+    useEffect(() => {
+        if (!user?.id || !token) return;
+        let unsub: (() => Promise<void>) | null = null;
+        messageService.subscribeToIncomingMessages(user.id, (message) => {
+            setConversations(prev => prev.map(conv => {
+                if (conv.climber.id !== message.sender_id) return conv;
+                return { ...conv, lastMessage: message, unreadCount: conv.unreadCount + 1 };
+            }));
+        }).then(fn => { unsub = fn; }).catch(() => {});
+        return () => { unsub?.().catch(() => {}); };
+    }, [user?.id, token]);
+
     const loadConversations = async () => {
         if (!user?.id || !token) return;
 
@@ -69,28 +82,16 @@ export default function MessagesScreen() {
             const conversationsWithMessages = await Promise.all(
                 matches.map(async (match) => {
                     try {
-                        const messages = await messageService.getMessagesBetweenUsers(user.id, match.climber.id);
-                        const lastMessage = messages.length > 0 ? messages[messages.length - 1] : undefined;
-                        // Only count unread messages not sent by the user
-                        const unreadMessages = messages.filter(
-                            m => !m.read && m.sender_id !== user.id
-                        );
-                        // Only show unread if last message is NOT sent by user and there are unread messages
-                        let unreadCount = 0;
-                        if (
-                            lastMessage &&
-                            lastMessage.sender_id !== user.id &&
-                            unreadMessages.length > 0
-                        ) {
-                            unreadCount = unreadMessages.length;
-                        }
-
+                        const [lastMessage, unreadCount] = await Promise.all([
+                            messageService.getLastMessage(user.id, match.climber.id),
+                            messageService.getUnreadCountFromSender(match.climber.id, user.id),
+                        ]);
                         return {
                             matchId: match.id,
                             climber: match.climber,
-                            lastMessage,
+                            lastMessage: lastMessage ?? undefined,
                             unreadCount,
-                            matchType: (match.type as 'dating' | 'partner') || 'dating'
+                            matchType: (match.type as 'dating' | 'partner') || 'dating',
                         };
                     } catch (error) {
                         if (__DEV__) console.error('Error loading messages for match:', match.id, error);
@@ -99,13 +100,12 @@ export default function MessagesScreen() {
                             climber: match.climber,
                             lastMessage: undefined,
                             unreadCount: 0,
-                            matchType: (match.type as 'dating' | 'partner') || 'dating'
+                            matchType: (match.type as 'dating' | 'partner') || 'dating',
                         };
                     }
                 })
             );
 
-            // Show all matches — ones without messages get "Say hello" placeholder
             setConversations(conversationsWithMessages);
             await refreshUnreadMessageCount();
         } catch (err) {

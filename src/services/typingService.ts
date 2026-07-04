@@ -25,13 +25,17 @@ export class TypingService {
 
   constructor(token?: string) {
     this.pb = new PocketBase(POCKETBASE_URL);
-    if (token) {
-      this.pb.authStore.save(token, null);
-    }
+    if (token) this.setToken(token);
   }
 
   setToken(token: string) {
-    this.pb.authStore.save(token, null);
+    try {
+      const base64Payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(base64Payload));
+      this.pb.authStore.save(token, { id: payload.id || payload.sub || '' });
+    } catch {
+      this.pb.authStore.save(token, null);
+    }
   }
 
   private getTypingExpiresAt(isTyping: boolean, ttlMs: number): string | null {
