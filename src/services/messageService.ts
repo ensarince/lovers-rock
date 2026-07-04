@@ -39,11 +39,14 @@ export class MessageService {
 
   setToken(token: string) {
     try {
-      const base64Payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-      const payload = JSON.parse(atob(base64Payload));
+      const raw = token.split('.')[1];
+      // base64url → base64: replace URL-safe chars and add = padding
+      const b64 = raw.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = b64.padEnd(b64.length + (4 - b64.length % 4) % 4, '=');
+      const payload = JSON.parse(atob(padded));
       this.pb.authStore.save(token, { id: payload.id || payload.sub || '' });
     } catch {
-      this.pb.authStore.save(token, null);
+      this.pb.authStore.save(token, { id: '' });
     }
   }
 
@@ -212,28 +215,17 @@ export class MessageService {
     await Promise.all(deletePromises);
   }
 
-  async updateMessageReaction(messageId: string, _userId: string, reaction: string | null): Promise<void> {
-    // Always use the authenticated user's own ID as the reaction key — never
-    // trust the caller-supplied userId, which could be forged to attribute
-    // a reaction to another user.
-    const authUserId = this.pb.authStore.record?.id;
-    if (!authUserId) throw new Error('Not authenticated');
+  async updateMessageReaction(messageId: string, userId: string, reaction: string | null): Promise<void> {
+    const record = await this.pb.collection('messages').getOne(messageId);
+    const reactions = { ...(record.reactions || {}) };
 
-    try {
-      const record = await this.pb.collection('messages').getOne(messageId);
-      const reactions = record.reactions || {};
-
-      if (reaction === null || reaction === '') {
-        delete reactions[authUserId];
-      } else {
-        reactions[authUserId] = reaction;
-      }
-
-      await this.pb.collection('messages').update(messageId, { reactions });
-    } catch (error) {
-      if (__DEV__) console.error('Failed to update message reaction:', error);
-      throw error;
+    if (reaction === null || reaction === '') {
+      delete reactions[userId];
+    } else {
+      reactions[userId] = reaction;
     }
+
+    await this.pb.collection('messages').update(messageId, { reactions });
   }
 }
 

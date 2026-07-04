@@ -27,8 +27,8 @@ onRecordUpdateRequest((e) => {
 
         if (authId === receiverId) {
             for (var i = 0; i < keys.length; i++) {
-                if (keys[i] !== 'read') {
-                    throw new Error('Receiver may only update the read field on a message');
+                if (keys[i] !== 'read' && keys[i] !== 'reactions') {
+                    throw new Error('Receiver may only update read or reactions on a message');
                 }
             }
         } else if (authId === senderId) {

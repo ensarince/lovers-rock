@@ -14,10 +14,18 @@ import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Swipeable } from 'react-native-gesture-handler';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import Reanimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Animated,
@@ -89,6 +97,146 @@ const isHeartReaction = (reaction?: string) =>
 const getHeartReactionCount = (message: Message) =>
   Object.values(message.reactions || {}).filter((reaction) => isHeartReaction(reaction)).length;
 
+// ─── Swipeable message row ────────────────────────────────────────────────────
+// Uses GestureDetector + Gesture.Pan() (RNGH v2 modern API) which works correctly
+// with Reanimated 4 and doesn't conflict with FlatList's vertical scroll.
+function MessageItem({
+  item,
+  userId,
+  isReacting,
+  theme,
+  styles,
+  onLike,
+  onReply,
+  onImagePress,
+  pbUrl,
+}: {
+  item: Message;
+  userId: string;
+  isReacting: boolean;
+  theme: any;
+  styles: any;
+  pbUrl: string;
+  onLike: (id: string) => void;
+  onReply: (msg: Message) => void;
+  onImagePress: (url: string) => void;
+}) {
+  const dragX = useSharedValue(0);
+
+  // Keep latest values in refs to avoid stale closures in worklet callbacks
+  const onReplyRef = useRef(onReply);
+  onReplyRef.current = onReply;
+  const itemRef = useRef(item);
+  itemRef.current = item;
+
+  const triggerReply = useCallback(() => {
+    onReplyRef.current(itemRef.current);
+  }, []);
+
+  const panGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetX(20)     // activate after 20px rightward drag
+        .failOffsetY([-5, 5])  // let FlatList handle vertical scrolls
+        .onUpdate((e) => {
+          dragX.value = Math.max(0, e.translationX);
+        })
+        .onEnd(() => {
+          const dx = dragX.value;
+          dragX.value = withSpring(0, { damping: 20, stiffness: 300 });
+          if (dx > 60) runOnJS(triggerReply)();
+        }),
+    []
+  );
+
+  const animatedRowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: Math.min(dragX.value * 0.5, 40) }],
+  }));
+
+  const replyIconStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(dragX.value, [0, 60], [0, 1], Extrapolation.CLAMP),
+    transform: [{ scale: interpolate(dragX.value, [0, 60], [0.4, 1], Extrapolation.CLAMP) }],
+  }));
+
+  const isOwn = item.sender_id === userId;
+  const userReaction = item.reactions?.[userId];
+  const likedByCurrentUser = isHeartReaction(userReaction);
+  const heartReactionCount = getHeartReactionCount(item);
+  const isMedia = item.message_type === 'image' || item.message_type === 'gif';
+  const messageImageUrl = item.image_attachment
+    ? `${pbUrl}/api/files/messages/${item.id}/${item.image_attachment}`
+    : null;
+
+  return (
+    <View style={styles.swipeableRow}>
+      <Reanimated.View style={[styles.replyAction, replyIconStyle]}>
+        <Ionicons name="return-up-forward" size={22} color={theme.colors.accent} />
+      </Reanimated.View>
+      <GestureDetector gesture={panGesture}>
+        <Reanimated.View style={[{ width: '100%' }, animatedRowStyle]}>
+          <View style={[styles.messageContainer, isOwn ? styles.ownMessage : styles.otherMessage]}>
+            <View style={styles.messageContent}>
+              <Pressable
+                style={[styles.messageBubble, isMedia && styles.mediaBubble]}
+                onPress={() => {
+                  if (item.message_type === 'image' && messageImageUrl) onImagePress(messageImageUrl);
+                  else if (item.message_type === 'gif' && item.attachment_url) onImagePress(item.attachment_url);
+                }}
+                onLongPress={() => onReplyRef.current(itemRef.current)}
+              >
+                {item.reply_to_preview ? (
+                  <View style={[styles.replyQuote, isOwn ? styles.replyQuoteOwn : styles.replyQuoteOther]}>
+                    <View style={styles.replyQuoteBar} />
+                    <Text style={styles.replyQuoteText} numberOfLines={2}>{item.reply_to_preview}</Text>
+                  </View>
+                ) : null}
+                {item.message_type === 'image' && messageImageUrl ? (
+                  <Image source={{ uri: messageImageUrl }} style={styles.messageImage} resizeMode="cover" />
+                ) : item.message_type === 'gif' && item.attachment_url ? (
+                  <Image source={{ uri: item.attachment_url }} style={styles.messageImage} resizeMode="cover" />
+                ) : (
+                  <Text style={[styles.messageText, isOwn ? styles.ownMessageText : styles.otherMessageText]}>
+                    {item.content}
+                  </Text>
+                )}
+                <View style={styles.messageFooter}>
+                  <Text style={[styles.timestamp, isOwn ? styles.ownTimestamp : styles.otherTimestamp]}>
+                    {new Date(item.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                  {isOwn && (
+                    <Ionicons
+                      name={item.read ? 'checkmark-done' : 'checkmark'}
+                      size={12}
+                      color={item.read ? theme.colors.accent : theme.colors.textSecondary}
+                      style={{ marginLeft: 4 }}
+                    />
+                  )}
+                </View>
+              </Pressable>
+              {isOwn && heartReactionCount > 0 && (
+                <Text style={styles.receivedReaction}>❤️</Text>
+              )}
+            </View>
+            {!isOwn && (
+              <Pressable
+                style={[styles.likeButton, isReacting && styles.likeButtonDisabled]}
+                onPress={() => onLike(item.id)}
+                disabled={isReacting}
+              >
+                <Ionicons
+                  name={likedByCurrentUser ? 'heart' : 'heart-outline'}
+                  size={14}
+                  color={likedByCurrentUser ? '#ef4444' : theme.colors.textSecondary}
+                />
+              </Pressable>
+            )}
+          </View>
+        </Reanimated.View>
+      </GestureDetector>
+    </View>
+  );
+}
+
 export default function ChatScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -122,7 +270,7 @@ export default function ChatScreen() {
   const typingExpireTimeoutRef = useRef<number | null>(null);
   const lastTypingSentAtRef = useRef(0);
   const hasScrolledToBottomRef = useRef(false);
-  const swipeableRefs = useRef<Map<string, Swipeable | null>>(new Map());
+  const pbUrl = getPocketBaseUrl();
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
@@ -505,103 +653,19 @@ export default function ChatScreen() {
     }
   };
 
-  const renderMessage = ({ item }: { item: Message }) => {
-    const isOwnMessage = item.sender_id === user?.id;
-    const userReaction = item.reactions ? item.reactions[user?.id || ''] : undefined;
-    const isReacting = reactingToMessageIds.includes(item.id);
-    const likedByCurrentUser = isHeartReaction(userReaction);
-    const heartReactionCount = getHeartReactionCount(item);
-    const showReactionBadge = heartReactionCount > 0;
-    const pbUrl = getPocketBaseUrl();
-    const messageImageUrl = item.image_attachment
-      ? `${pbUrl}/api/files/messages/${item.id}/${item.image_attachment}`
-      : null;
-
-    const isMedia = item.message_type === 'image' || item.message_type === 'gif';
-
-    return (
-      <Swipeable
-        ref={(ref) => {
-          if (ref) swipeableRefs.current.set(item.id, ref);
-          else swipeableRefs.current.delete(item.id);
-        }}
-        renderLeftActions={(_, dragX) => {
-          const scale = (dragX as any).interpolate({ inputRange: [0, 70], outputRange: [0.4, 1], extrapolate: 'clamp' });
-          const translateX = (dragX as any).interpolate({ inputRange: [0, 70], outputRange: [-16, 0], extrapolate: 'clamp' });
-          return (
-            <Animated.View style={[styles.replyAction, { transform: [{ scale }, { translateX }] }]}>
-              <Ionicons name="return-up-forward" size={22} color={theme.colors.accent} />
-            </Animated.View>
-          );
-        }}
-        leftThreshold={70}
-        onSwipeableOpen={() => {
-          setReplyingTo(item);
-          setTimeout(() => swipeableRefs.current.get(item.id)?.close(), 80);
-        }}
-        friction={2}
-        overshootLeft={false}
-      >
-      <View style={[styles.messageContainer, isOwnMessage ? styles.ownMessage : styles.otherMessage]}>
-        <View style={styles.messageContent}>
-        <Pressable
-          style={[styles.messageBubble, isMedia && styles.mediaBubble]}
-          onPress={() => {
-            if (item.message_type === 'image' && messageImageUrl) setFullscreenImageUrl(messageImageUrl);
-            else if (item.message_type === 'gif' && item.attachment_url) setFullscreenImageUrl(item.attachment_url);
-          }}
-        >
-          {item.reply_to_preview ? (
-            <View style={[styles.replyQuote, isOwnMessage ? styles.replyQuoteOwn : styles.replyQuoteOther]}>
-              <View style={styles.replyQuoteBar} />
-              <Text style={styles.replyQuoteText} numberOfLines={2}>{item.reply_to_preview}</Text>
-            </View>
-          ) : null}
-          {item.message_type === 'image' && messageImageUrl ? (
-            <Image source={{ uri: messageImageUrl }} style={styles.messageImage} resizeMode="cover" />
-          ) : item.message_type === 'gif' && item.attachment_url ? (
-            <Image source={{ uri: item.attachment_url }} style={styles.messageImage} resizeMode="cover" />
-          ) : (
-            <Text style={[styles.messageText, isOwnMessage ? styles.ownMessageText : styles.otherMessageText]}>
-              {item.content}
-            </Text>
-          )}
-          <View style={styles.messageFooter}>
-            <Text style={[styles.timestamp, isOwnMessage ? styles.ownTimestamp : styles.otherTimestamp]}>
-              {new Date(item.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Text>
-            {isOwnMessage && (
-              <Ionicons
-                name={item.read ? "checkmark-done" : "checkmark"}
-                size={12}
-                color={item.read ? theme.colors.accent : theme.colors.textSecondary}
-                style={{ marginLeft: 4 }}
-              />
-            )}
-          </View>
-        </Pressable>
-        {/* Reaction on own messages — visible to sender when someone hearts it */}
-        {isOwnMessage && heartReactionCount > 0 && (
-          <Text style={styles.receivedReaction}>❤️</Text>
-        )}
-        </View>
-        {!isOwnMessage && (
-          <Pressable
-            style={[styles.likeButton, isReacting && styles.likeButtonDisabled]}
-            onPress={() => handleToggleLike(item.id)}
-            disabled={isReacting}
-          >
-            <Ionicons
-              name={likedByCurrentUser ? "heart" : "heart-outline"}
-              size={14}
-              color={likedByCurrentUser ? '#ef4444' : theme.colors.textSecondary}
-            />
-          </Pressable>
-        )}
-      </View>
-      </Swipeable>
-    );
-  };
+  const renderMessage = ({ item }: { item: Message }) => (
+    <MessageItem
+      item={item}
+      userId={user?.id || ''}
+      isReacting={reactingToMessageIds.includes(item.id)}
+      theme={theme}
+      styles={styles}
+      pbUrl={pbUrl}
+      onLike={handleToggleLike}
+      onReply={setReplyingTo}
+      onImagePress={setFullscreenImageUrl}
+    />
+  );
   const handleToggleLike = async (messageId: string) => {
     if (!user?.id || !token) return;
     const message = messages.find((currentMessage) => currentMessage.id === messageId);
@@ -740,11 +804,11 @@ export default function ChatScreen() {
         style={styles.messagesList}
         contentContainerStyle={styles.messagesContent}
         showsVerticalScrollIndicator={false}
-        maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+        initialNumToRender={50}
         onContentSizeChange={() => {
           if (!hasScrolledToBottomRef.current && messages.length > 0) {
             hasScrolledToBottomRef.current = true;
-            flatListRef.current?.scrollToEnd({ animated: false });
+            requestAnimationFrame(() => flatListRef.current?.scrollToEnd({ animated: false }));
           }
         }}
         ListHeaderComponent={
@@ -1218,11 +1282,19 @@ const createStyles = (theme: typeof themeLight) =>
       height: 160,
       borderRadius: 16,
     },
+    swipeableRow: {
+      position: 'relative',
+      width: '100%',
+    },
     replyAction: {
+      position: 'absolute',
+      left: 8,
+      top: 0,
+      bottom: 0,
       justifyContent: 'center',
       alignItems: 'center',
-      width: 52,
-      marginVertical: 4,
+      width: 40,
+      zIndex: 0,
     },
     loadEarlierButton: {
       flexDirection: 'row',

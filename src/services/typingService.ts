@@ -30,11 +30,13 @@ export class TypingService {
 
   setToken(token: string) {
     try {
-      const base64Payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-      const payload = JSON.parse(atob(base64Payload));
+      const raw = token.split('.')[1];
+      const b64 = raw.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = b64.padEnd(b64.length + (4 - b64.length % 4) % 4, '=');
+      const payload = JSON.parse(atob(padded));
       this.pb.authStore.save(token, { id: payload.id || payload.sub || '' });
     } catch {
-      this.pb.authStore.save(token, null);
+      this.pb.authStore.save(token, { id: '' });
     }
   }
 
