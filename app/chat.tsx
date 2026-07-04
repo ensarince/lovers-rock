@@ -172,9 +172,9 @@ function MessageItem({
       <Reanimated.View style={[styles.replyAction, replyIconStyle]}>
         <Ionicons name="return-up-forward" size={22} color={theme.colors.accent} />
       </Reanimated.View>
-      <GestureDetector gesture={panGesture}>
-        <Reanimated.View style={[{ width: '100%' }, animatedRowStyle]}>
-          <View style={[styles.messageContainer, isOwn ? styles.ownMessage : styles.otherMessage]}>
+      <Reanimated.View style={[{ width: '100%' }, animatedRowStyle]}>
+        <View style={[styles.messageContainer, isOwn ? styles.ownMessage : styles.otherMessage]}>
+          <GestureDetector gesture={panGesture}>
             <View style={styles.messageContent}>
               <Pressable
                 style={[styles.messageBubble, isMedia && styles.mediaBubble]}
@@ -217,22 +217,22 @@ function MessageItem({
                 <Text style={styles.receivedReaction}>❤️</Text>
               )}
             </View>
-            {!isOwn && (
-              <Pressable
-                style={[styles.likeButton, isReacting && styles.likeButtonDisabled]}
-                onPress={() => onLike(item.id)}
-                disabled={isReacting}
-              >
-                <Ionicons
-                  name={likedByCurrentUser ? 'heart' : 'heart-outline'}
-                  size={14}
-                  color={likedByCurrentUser ? '#ef4444' : theme.colors.textSecondary}
-                />
-              </Pressable>
-            )}
-          </View>
-        </Reanimated.View>
-      </GestureDetector>
+          </GestureDetector>
+          {!isOwn && (
+            <Pressable
+              style={[styles.likeButton, isReacting && styles.likeButtonDisabled]}
+              onPress={() => onLike(item.id)}
+              disabled={isReacting}
+            >
+              <Ionicons
+                name={likedByCurrentUser ? 'heart' : 'heart-outline'}
+                size={14}
+                color={likedByCurrentUser ? '#ef4444' : theme.colors.textSecondary}
+              />
+            </Pressable>
+          )}
+        </View>
+      </Reanimated.View>
     </View>
   );
 }
@@ -1312,9 +1312,10 @@ const createStyles = (theme: typeof themeLight) =>
       alignItems: 'center',
       borderRadius: 8,
       marginBottom: 6,
-      paddingVertical: 5,
+      paddingVertical: 8,
       paddingHorizontal: 10,
       gap: 8,
+      minWidth: 120,
     },
     replyQuoteOwn: {
       backgroundColor: 'rgba(255,255,255,0.15)',
@@ -1330,9 +1331,9 @@ const createStyles = (theme: typeof themeLight) =>
     },
     replyQuoteText: {
       flex: 1,
-      fontSize: 12,
+      fontSize: 13,
       color: theme.colors.textSecondary,
-      lineHeight: 16,
+      lineHeight: 18,
     },
     replyStrip: {
       flexDirection: 'row',

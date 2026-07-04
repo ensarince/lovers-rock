@@ -124,6 +124,7 @@ export class MessageService {
   async getUnreadCountFromSender(senderId: string, receiverId: string): Promise<number> {
     const records = await this.pb.collection('messages').getList(1, 1, {
       filter: `sender_id = "${safeId(senderId)}" && receiver_id = "${safeId(receiverId)}" && read = false`,
+      requestKey: null,
     });
     return records.totalItems;
   }
@@ -186,6 +187,7 @@ export class MessageService {
       const records = await this.pb.collection('messages').getList(1, 1, {
         filter: `((sender_id = "${safeId(userId1)}" && receiver_id = "${safeId(userId2)}") || (sender_id = "${safeId(userId2)}" && receiver_id = "${safeId(userId1)}"))`,
         sort: '-created',
+        requestKey: null,
       });
       return records.items.length > 0 ? mapMessageRecord(records.items[0]) : null;
     } catch {
@@ -216,7 +218,7 @@ export class MessageService {
   }
 
   async updateMessageReaction(messageId: string, userId: string, reaction: string | null): Promise<void> {
-    const record = await this.pb.collection('messages').getOne(messageId);
+    const record = await this.pb.collection('messages').getOne(messageId, { requestKey: null });
     const reactions = { ...(record.reactions || {}) };
 
     if (reaction === null || reaction === '') {
