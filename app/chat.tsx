@@ -146,11 +146,27 @@ function MessageItem({
     }
   }, []);
 
+  const initialTouchLocation = useSharedValue({ x: 0, y: 0 });
+
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
-        .activeOffsetX(20)
-        .failOffsetY([-5, 5])
+        .manualActivation(true)
+        .onTouchesDown((e) => {
+          initialTouchLocation.value = {
+            x: e.changedTouches[0].x,
+            y: e.changedTouches[0].y,
+          };
+        })
+        .onTouchesMove((e, state) => {
+          const xDiff = Math.abs(e.changedTouches[0].x - initialTouchLocation.value.x);
+          const yDiff = Math.abs(e.changedTouches[0].y - initialTouchLocation.value.y);
+          if (xDiff > yDiff) {
+            state.activate();
+          } else {
+            state.fail();
+          }
+        })
         .onUpdate((e) => { dragX.value = Math.max(0, e.translationX); })
         .onEnd(() => {
           const dx = dragX.value;
@@ -164,15 +180,15 @@ function MessageItem({
     () =>
       Gesture.Tap()
         .numberOfTaps(2)
-        .maxDelay(300)
-        .onEnd(() => { runOnJS(triggerLike)(); }),
+        .maxDuration(250)
+        .onStart(() => { runOnJS(triggerLike)(); }),
     []
   );
 
   const longPressGesture = useMemo(
     () =>
       Gesture.LongPress()
-        .minDuration(350)
+        .minDuration(500)
         .onStart(() => { runOnJS(triggerReply)(); }),
     []
   );
