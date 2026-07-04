@@ -21,13 +21,14 @@ export interface NotificationData {
 // Configure how notifications are displayed while the app is in use
 if (Notifications) {
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
+    handleNotification: async (notification: any) => {
+      const data = notification?.request?.content?.data;
+      // Suppress new-message notifications when the user is already in that chat
+      if (data?.type === 'new_message' && data?.chatId && data.chatId === activeConversationPartnerId) {
+        return { shouldShowAlert: false, shouldPlaySound: false, shouldSetBadge: false, shouldShowBanner: false, shouldShowList: false };
+      }
+      return { shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: true, shouldShowBanner: true, shouldShowList: true };
+    },
   });
 }
 

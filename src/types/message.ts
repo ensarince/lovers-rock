@@ -11,6 +11,8 @@ export interface Message {
   message_type?: 'text' | 'image' | 'gif';
   image_attachment?: string; // PocketBase filename (for message_type === 'image')
   attachment_url?: string;   // Giphy CDN URL (for message_type === 'gif')
+  reply_to_id?: string;
+  reply_to_preview?: string;
 }
 
 export interface Conversation {

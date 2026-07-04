@@ -101,6 +101,8 @@ export default function ChatScreen() {
   const [reactingToMessageIds, setReactingToMessageIds] = useState<string[]>([]);
   const [gifModalVisible, setGifModalVisible] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [fullscreenImageUrl, setFullscreenImageUrl] = useState<string | null>(null);
   const theme = darkMode ? themeDark : themeLight;
   const styles = darkMode ? darkStyles : lightStyles;
   const insets = useSafeAreaInsets();
@@ -113,6 +115,7 @@ export default function ChatScreen() {
   const typingUnsubscribeRef = useRef<null | (() => Promise<void>)>(null);
   const typingExpireTimeoutRef = useRef<number | null>(null);
   const lastTypingSentAtRef = useRef(0);
+  const hasScrolledToBottomRef = useRef(false);
   const dot1 = useRef(new Animated.Value(0)).current;
   const dot2 = useRef(new Animated.Value(0)).current;
   const dot3 = useRef(new Animated.Value(0)).current;
@@ -415,8 +418,14 @@ export default function ChatScreen() {
         setSending(false);
         return;
       }
-      const sentMessage = await messageService.sendMessage(user.id, climberId as string, newMessage);
+      const replyPreview = replyingTo
+        ? replyingTo.message_type === 'image' ? '📷 Photo'
+          : replyingTo.message_type === 'gif' ? '🎞️ GIF'
+          : (replyingTo.content.length > 60 ? replyingTo.content.slice(0, 60) + '…' : replyingTo.content)
+        : undefined;
+      const sentMessage = await messageService.sendMessage(user.id, climberId as string, newMessage, replyingTo?.id, replyPreview);
       setNewMessage('');
+      setReplyingTo(null);
       inputRef.current?.clear();
       applyMessageUpdate(sentMessage);
       typingService.setTyping(user.id, climberId as string, false).catch((error) => {
@@ -500,10 +509,26 @@ export default function ChatScreen() {
       ? `${pbUrl}/api/files/messages/${item.id}/${item.image_attachment}`
       : null;
 
+    const isMedia = item.message_type === 'image' || item.message_type === 'gif';
+
     return (
       <View style={[styles.messageContainer, isOwnMessage ? styles.ownMessage : styles.otherMessage]}>
         <View style={styles.messageContent}>
-        <Pressable style={[styles.messageBubble, (item.message_type === 'image' || item.message_type === 'gif') && styles.mediaBubble]}>
+        <Pressable
+          style={[styles.messageBubble, isMedia && styles.mediaBubble]}
+          onPress={() => {
+            if (item.message_type === 'image' && messageImageUrl) setFullscreenImageUrl(messageImageUrl);
+            else if (item.message_type === 'gif' && item.attachment_url) setFullscreenImageUrl(item.attachment_url);
+          }}
+          onLongPress={() => setReplyingTo(item)}
+          delayLongPress={350}
+        >
+          {item.reply_to_preview ? (
+            <View style={[styles.replyQuote, isOwnMessage ? styles.replyQuoteOwn : styles.replyQuoteOther]}>
+              <View style={styles.replyQuoteBar} />
+              <Text style={styles.replyQuoteText} numberOfLines={2}>{item.reply_to_preview}</Text>
+            </View>
+          ) : null}
           {item.message_type === 'image' && messageImageUrl ? (
             <Image source={{ uri: messageImageUrl }} style={styles.messageImage} resizeMode="cover" />
           ) : item.message_type === 'gif' && item.attachment_url ? (
@@ -666,6 +691,12 @@ export default function ChatScreen() {
         style={styles.messagesList}
         contentContainerStyle={styles.messagesContent}
         showsVerticalScrollIndicator={false}
+        onContentSizeChange={() => {
+          if (!hasScrolledToBottomRef.current && messages.length > 0) {
+            hasScrolledToBottomRef.current = true;
+            flatListRef.current?.scrollToEnd({ animated: false });
+          }
+        }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -688,6 +719,19 @@ export default function ChatScreen() {
 
       {/* Input */}
       <View style={styles.inputWrapper}>
+        {replyingTo && (
+          <View style={styles.replyStrip}>
+            <Ionicons name="return-up-back" size={15} color={theme.colors.accent} style={{ marginRight: 6 }} />
+            <Text style={styles.replyStripText} numberOfLines={1}>
+              {replyingTo.message_type === 'image' ? '📷 Photo'
+                : replyingTo.message_type === 'gif' ? '🎞️ GIF'
+                : replyingTo.content}
+            </Text>
+            <Pressable onPress={() => setReplyingTo(null)} hitSlop={10} style={{ marginLeft: 6 }}>
+              <Ionicons name="close-circle" size={18} color={theme.colors.textSecondary} />
+            </Pressable>
+          </View>
+        )}
         {showEmojiPicker && (
           <ScrollView
             horizontal
@@ -798,6 +842,18 @@ export default function ChatScreen() {
         onSelect={sendGif}
         darkMode={darkMode}
       />
+
+      {/* Fullscreen image viewer */}
+      {fullscreenImageUrl !== null && (
+        <Modal visible animationType="fade" transparent onRequestClose={() => setFullscreenImageUrl(null)}>
+          <Pressable style={styles.fullscreenOverlay} onPress={() => setFullscreenImageUrl(null)}>
+            <Image source={{ uri: fullscreenImageUrl }} style={styles.fullscreenImage} resizeMode="contain" />
+            <Pressable style={[styles.fullscreenClose, { top: insets.top + 12 }]} onPress={() => setFullscreenImageUrl(null)} hitSlop={12}>
+              <Ionicons name="close" size={24} color="#fff" />
+            </Pressable>
+          </Pressable>
+        </Modal>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -1103,6 +1159,67 @@ const createStyles = (theme: typeof themeLight) =>
       width: 200,
       height: 160,
       borderRadius: 16,
+    },
+    replyQuote: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 8,
+      marginBottom: 6,
+      paddingVertical: 5,
+      paddingHorizontal: 10,
+      gap: 8,
+    },
+    replyQuoteOwn: {
+      backgroundColor: 'rgba(255,255,255,0.15)',
+    },
+    replyQuoteOther: {
+      backgroundColor: 'rgba(0,0,0,0.08)',
+    },
+    replyQuoteBar: {
+      width: 3,
+      alignSelf: 'stretch',
+      borderRadius: 2,
+      backgroundColor: theme.colors.accent,
+    },
+    replyQuoteText: {
+      flex: 1,
+      fontSize: 12,
+      color: theme.colors.textSecondary,
+      lineHeight: 16,
+    },
+    replyStrip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
+      backgroundColor: theme.colors.surface,
+    },
+    replyStripText: {
+      flex: 1,
+      fontSize: 13,
+      color: theme.colors.text,
+    },
+    fullscreenOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.95)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    fullscreenImage: {
+      width: '100%',
+      height: '85%',
+    },
+    fullscreenClose: {
+      position: 'absolute',
+      right: 16,
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: 'rgba(255,255,255,0.15)',
+      justifyContent: 'center',
+      alignItems: 'center',
     },
   });
 

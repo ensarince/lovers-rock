@@ -25,6 +25,8 @@ const mapMessageRecord = (record: any): Message => ({
   message_type: record.message_type || 'text',
   image_attachment: record.image_attachment || undefined,
   attachment_url: record.attachment_url || undefined,
+  reply_to_id: record.reply_to_id || undefined,
+  reply_to_preview: record.reply_to_preview || undefined,
 });
 
 export class MessageService {
@@ -38,19 +40,28 @@ export class MessageService {
   }
 
   setToken(token: string) {
-    this.pb.authStore.save(token, null);
+    try {
+      const base64Payload = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      const payload = JSON.parse(atob(base64Payload));
+      this.pb.authStore.save(token, { id: payload.id || payload.sub || '' });
+    } catch {
+      this.pb.authStore.save(token, null);
+    }
   }
 
-  async sendMessage(senderId: string, receiverId: string, content: string): Promise<Message> {
-    const data = {
+  async sendMessage(senderId: string, receiverId: string, content: string, replyToId?: string, replyToPreview?: string): Promise<Message> {
+    const data: Record<string, any> = {
       sender_id: senderId,
       receiver_id: receiverId,
       content: content.trim(),
       message_type: 'text',
       read: false,
-      reactions: {}
+      reactions: {},
     };
-
+    if (replyToId) {
+      data.reply_to_id = replyToId;
+      data.reply_to_preview = replyToPreview || '';
+    }
     const record = await this.pb.collection('messages').create(data);
     return mapMessageRecord(record);
   }

@@ -199,7 +199,13 @@ export default function MessagesScreen() {
                     </View>
 
                     <Text style={[styles.lastMessage, showUnread && styles.lastMessageUnread]} numberOfLines={1}>
-                        {item.lastMessage?.content || 'Say hello 👋'}
+                        {(() => {
+                            const msg = item.lastMessage;
+                            if (!msg) return 'Say hello 👋';
+                            if (msg.message_type === 'image') return '📷 Photo';
+                            if (msg.message_type === 'gif') return '🎞️ GIF';
+                            return msg.content || 'Say hello 👋';
+                        })()}
                     </Text>
                 </View>
 
