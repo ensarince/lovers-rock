@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ChatMenuModal } from '@/src/components/ChatMenuModal';
 import { GifSearchModal } from '@/src/components/GifSearchModal';
 import { MatchDetailModal } from '@/src/components/MatchDetailModal';
@@ -98,8 +99,7 @@ const getHeartReactionCount = (message: Message) =>
   Object.values(message.reactions || {}).filter((reaction) => isHeartReaction(reaction)).length;
 
 // ─── Swipeable message row ────────────────────────────────────────────────────
-// Uses GestureDetector + Gesture.Pan() (RNGH v2 modern API) which works correctly
-// with Reanimated 4 and doesn't conflict with FlatList's vertical scroll.
+// Pan → swipe-to-reply | LongPress → reply | DoubleTap → like
 function MessageItem({
   item,
   userId,
@@ -123,30 +123,63 @@ function MessageItem({
 }) {
   const dragX = useSharedValue(0);
 
-  // Keep latest values in refs to avoid stale closures in worklet callbacks
+  // Refs so worklet callbacks always see the latest values
   const onReplyRef = useRef(onReply);
-  onReplyRef.current = onReply;
+  const onLikeRef = useRef(onLike);
   const itemRef = useRef(item);
+  const userIdRef = useRef(userId);
+  const isReactingRef = useRef(isReacting);
+  onReplyRef.current = onReply;
+  onLikeRef.current = onLike;
   itemRef.current = item;
+  userIdRef.current = userId;
+  isReactingRef.current = isReacting;
 
   const triggerReply = useCallback(() => {
     onReplyRef.current(itemRef.current);
   }, []);
 
+  const triggerLike = useCallback(() => {
+    const cur = itemRef.current;
+    if (cur.sender_id !== userIdRef.current && !isReactingRef.current) {
+      onLikeRef.current(cur.id);
+    }
+  }, []);
+
   const panGesture = useMemo(
     () =>
       Gesture.Pan()
-        .activeOffsetX(20)     // activate after 20px rightward drag
-        .failOffsetY([-5, 5])  // let FlatList handle vertical scrolls
-        .onUpdate((e) => {
-          dragX.value = Math.max(0, e.translationX);
-        })
+        .activeOffsetX(20)
+        .failOffsetY([-5, 5])
+        .onUpdate((e) => { dragX.value = Math.max(0, e.translationX); })
         .onEnd(() => {
           const dx = dragX.value;
           dragX.value = withSpring(0, { damping: 20, stiffness: 300 });
           if (dx > 60) runOnJS(triggerReply)();
         }),
     []
+  );
+
+  const doubleTapGesture = useMemo(
+    () =>
+      Gesture.Tap()
+        .numberOfTaps(2)
+        .maxDelay(300)
+        .onEnd(() => { runOnJS(triggerLike)(); }),
+    []
+  );
+
+  const longPressGesture = useMemo(
+    () =>
+      Gesture.LongPress()
+        .minDuration(350)
+        .onStart(() => { runOnJS(triggerReply)(); }),
+    []
+  );
+
+  const composedGesture = useMemo(
+    () => Gesture.Race(panGesture, longPressGesture, doubleTapGesture),
+    [panGesture, longPressGesture, doubleTapGesture]
   );
 
   const animatedRowStyle = useAnimatedStyle(() => ({
@@ -166,6 +199,7 @@ function MessageItem({
   const messageImageUrl = item.image_attachment
     ? `${pbUrl}/api/files/messages/${item.id}/${item.image_attachment}`
     : null;
+  const showReaction = isOwn ? heartReactionCount > 0 : likedByCurrentUser;
 
   return (
     <View style={styles.swipeableRow}>
@@ -174,7 +208,7 @@ function MessageItem({
       </Reanimated.View>
       <Reanimated.View style={[{ width: '100%' }, animatedRowStyle]}>
         <View style={[styles.messageContainer, isOwn ? styles.ownMessage : styles.otherMessage]}>
-          <GestureDetector gesture={panGesture}>
+          <GestureDetector gesture={composedGesture}>
             <View style={styles.messageContent}>
               <Pressable
                 style={[styles.messageBubble, isMedia && styles.mediaBubble]}
@@ -182,7 +216,6 @@ function MessageItem({
                   if (item.message_type === 'image' && messageImageUrl) onImagePress(messageImageUrl);
                   else if (item.message_type === 'gif' && item.attachment_url) onImagePress(item.attachment_url);
                 }}
-                onLongPress={() => onReplyRef.current(itemRef.current)}
               >
                 {item.reply_to_preview ? (
                   <View style={[styles.replyQuote, isOwn ? styles.replyQuoteOwn : styles.replyQuoteOther]}>
@@ -213,24 +246,11 @@ function MessageItem({
                   )}
                 </View>
               </Pressable>
-              {isOwn && heartReactionCount > 0 && (
-                <Text style={styles.receivedReaction}>❤️</Text>
+              {showReaction && (
+                <Text style={[styles.receivedReaction, !isOwn && styles.sentReaction]}>❤️</Text>
               )}
             </View>
           </GestureDetector>
-          {!isOwn && (
-            <Pressable
-              style={[styles.likeButton, isReacting && styles.likeButtonDisabled]}
-              onPress={() => onLike(item.id)}
-              disabled={isReacting}
-            >
-              <Ionicons
-                name={likedByCurrentUser ? 'heart' : 'heart-outline'}
-                size={14}
-                color={likedByCurrentUser ? '#ef4444' : theme.colors.textSecondary}
-              />
-            </Pressable>
-          )}
         </View>
       </Reanimated.View>
     </View>
@@ -256,6 +276,7 @@ export default function ChatScreen() {
   const [fullscreenImageUrl, setFullscreenImageUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [showDoubleTapHint, setShowDoubleTapHint] = useState(false);
   const messagesPageRef = useRef(1);
   const theme = darkMode ? themeDark : themeLight;
   const styles = darkMode ? darkStyles : lightStyles;
@@ -711,6 +732,23 @@ export default function ChatScreen() {
     router.back();
   };
 
+  const dismissDoubleTapHint = useCallback(() => {
+    setShowDoubleTapHint(false);
+    AsyncStorage.setItem('chat_double_tap_hint_seen', '1');
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem('chat_double_tap_hint_seen').then((seen) => {
+      if (!seen) setShowDoubleTapHint(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!showDoubleTapHint) return;
+    const t = setTimeout(dismissDoubleTapHint, 4000);
+    return () => clearTimeout(t);
+  }, [showDoubleTapHint, dismissDoubleTapHint]);
+
   const deleteChat = async () => {
     if (!user?.id || !climberId) return;
     try {
@@ -838,6 +876,14 @@ export default function ChatScreen() {
           ) : null
         }
       />
+
+      {/* Double-tap to like hint — shown once */}
+      {showDoubleTapHint && (
+        <Pressable style={styles.doubleTapHint} onPress={dismissDoubleTapHint}>
+          <Ionicons name="heart" size={14} color="#ef4444" style={{ marginRight: 7 }} />
+          <Text style={styles.doubleTapHintText}>Double tap a message to like it</Text>
+        </Pressable>
+      )}
 
       {/* Input */}
       <View style={styles.inputWrapper}>
@@ -1129,16 +1175,30 @@ const createStyles = (theme: typeof themeLight) =>
     receivedReaction: {
       fontSize: 13,
       marginRight: 4,
+      marginTop: 3,
       alignSelf: 'flex-end',
     },
-    likeButton: {
-      marginLeft: 8,
-      padding: 4,
-      justifyContent: 'center',
-      alignItems: 'center',
+    sentReaction: {
+      alignSelf: 'flex-start',
+      marginLeft: 6,
+      marginRight: 0,
     },
-    likeButtonDisabled: {
-      opacity: 0.5,
+    doubleTapHint: {
+      position: 'absolute',
+      bottom: 90,
+      alignSelf: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.72)',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 20,
+      zIndex: 50,
+    },
+    doubleTapHintText: {
+      color: '#fff',
+      fontSize: 13,
+      fontWeight: '500',
     },
     blockedContainer: {
       flex: 1,
