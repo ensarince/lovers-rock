@@ -9,6 +9,7 @@ import { Climber } from '@/src/types/climber';
 import { getPocketBaseUrl, normalizeIntentValue } from '@/src/utils/helperFunctions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
+import { router } from 'expo-router';
 import PocketBase from 'pocketbase';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 
@@ -60,37 +61,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [preferencesSynced, setPreferencesSynced] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [pendingChatNav, setPendingChatNav] = useState<{ climberId: string; climberName: string } | null>(null);
   const incomingMessageUnsubscribeRef = useRef<(() => Promise<void>) | null>(null);
+  const senderNameCacheRef = useRef<Map<string, string>>(new Map());
+
+  // Execute deferred notification navigation once auth finishes loading
+  useEffect(() => {
+    if (!isLoading && user && pendingChatNav) {
+      const params = pendingChatNav;
+      setPendingChatNav(null);
+      if (activeConversationPartnerId !== params.climberId) {
+        setTimeout(() => router.push({ pathname: '/chat', params }), 200);
+      }
+    }
+  }, [isLoading, user?.id, pendingChatNav]);
 
   // Initialize notification listeners when component mounts
   useEffect(() => {
     if (!Notifications) return;
 
-    // Listen for notification responses (when user taps on notification)
     const responseListener = Notifications.addNotificationResponseReceivedListener(
       (response: any) => {
-        handleNotificationResponse(response);
+        const data = response?.notification?.request?.content?.data;
+        if (data?.type === 'new_message' && data?.chatId) {
+          setPendingChatNav({ climberId: data.chatId, climberName: data.userName || 'Chat' });
+        }
       }
     );
 
-    // Cleanup listener on unmount
-    return () => {
-      if (responseListener?.remove) {
-        responseListener.remove();
-      }
-    };
+    return () => { responseListener?.remove?.(); };
   }, []);
-
-  const handleNotificationResponse = async (
-    response: any
-  ) => {
-    const data = response.notification.request.content.data;
-    // You can navigate based on notification type here if needed
-    // For now, just log it
-    if (__DEV__) {
-      console.log('Notification tapped:', data);
-    }
-  };
 
   const refreshUnreadMessageCount = async (overrideUserId?: string, overrideToken?: string) => {
     const targetUserId = overrideUserId || user?.id;
@@ -140,7 +140,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         userId,
         async (message) => {
           if (activeConversationPartnerId !== message.sender_id) {
-            notificationService?.notifyNewMessage('New message', message.content, message.sender_id);
+            // Resolve sender name — cache to avoid repeated fetches
+            let senderName = senderNameCacheRef.current.get(message.sender_id);
+            if (!senderName) {
+              try {
+                const res = await fetch(
+                  `${getPocketBaseUrl()}/api/collections/public_profiles/records/${message.sender_id}`,
+                  { headers: { Authorization: `Bearer ${authToken}` } }
+                );
+                if (res.ok) {
+                  const profile = await res.json();
+                  senderName = profile.name || 'Someone';
+                  senderNameCacheRef.current.set(message.sender_id, senderName);
+                }
+              } catch {
+                senderName = 'Someone';
+              }
+            }
+            const preview = message.message_type === 'image' ? '📷 Photo'
+              : message.message_type === 'gif' ? '🎞️ GIF'
+              : message.content;
+            notificationService?.notifyNewMessage(senderName || 'Someone', preview, message.sender_id);
           }
 
           await refreshUnreadMessageCount(userId, authToken);

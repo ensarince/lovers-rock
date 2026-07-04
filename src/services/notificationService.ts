@@ -129,9 +129,11 @@ export class NotificationService {
    * Notify about new message
    */
   notifyNewMessage(senderName: string, messagePreview: string, senderId: string): void {
+    const preview = messagePreview.trim() || 'Sent you a message';
+    const body = preview.length > 60 ? preview.substring(0, 60) + '…' : preview;
     this.sendLocalNotification(
-      '💬 New Message',
-      `${senderName}: ${messagePreview.substring(0, 50)}...`,
+      senderName,
+      body,
       {
         type: 'new_message',
         userId: senderId,
