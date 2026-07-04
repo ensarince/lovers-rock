@@ -734,8 +734,12 @@ export default function ChatScreen() {
       setReactionForMessage(messageId, previousReaction || null, user.id);
       if (__DEV__) console.error('Failed to update reaction:', error);
     } finally {
-      reactingToMessageIdsRef.current = reactingToMessageIdsRef.current.filter((id) => id !== messageId);
-      setReactingToMessageIds((prev) => prev.filter((id) => id !== messageId));
+      // Delay clearing the guard so any late-arriving SSE from a concurrent
+      // markMessagesAsRead PATCH is still intercepted and can't revert the heart.
+      setTimeout(() => {
+        reactingToMessageIdsRef.current = reactingToMessageIdsRef.current.filter((id) => id !== messageId);
+        setReactingToMessageIds((prev) => prev.filter((id) => id !== messageId));
+      }, 600);
     }
   };
 
