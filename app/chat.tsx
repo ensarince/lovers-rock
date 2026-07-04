@@ -303,6 +303,7 @@ export default function ChatScreen() {
   const fallbackPollingIntervalRef = useRef<number | null>(null);
   const conversationUnsubscribeRef = useRef<null | (() => Promise<void>)>(null);
   const typingUnsubscribeRef = useRef<null | (() => Promise<void>)>(null);
+  const reactingToMessageIdsRef = useRef<string[]>([]);
   const typingExpireTimeoutRef = useRef<number | null>(null);
   const lastTypingSentAtRef = useRef(0);
   const hasScrolledToBottomRef = useRef(false);
@@ -522,7 +523,16 @@ export default function ChatScreen() {
                 ? { ...message, read: true }
                 : message;
 
-            applyMessageUpdate(nextMessage);
+            // If a reaction PATCH is in-flight for this message, preserve local
+            // reactions — the SSE snapshot from a concurrent markMessagesAsRead
+            // PATCH would otherwise carry stale reactions: {} and revert the heart.
+            if (action === 'update' && reactingToMessageIdsRef.current.includes(message.id)) {
+              setMessages((prev) =>
+                prev.map((m) => (m.id === message.id ? { ...nextMessage, reactions: m.reactions } : m))
+              );
+            } else {
+              applyMessageUpdate(nextMessage);
+            }
 
             if (action === 'create' && message.sender_id !== user.id) {
               try {
@@ -709,6 +719,7 @@ export default function ChatScreen() {
     const previousReaction = message.reactions?.[user.id];
     const nextReaction = isHeartReaction(previousReaction) ? null : HEART_REACTION;
     try {
+      reactingToMessageIdsRef.current = [...reactingToMessageIdsRef.current, messageId];
       setReactingToMessageIds((prev) => (prev.includes(messageId) ? prev : [...prev, messageId]));
       setReactionForMessage(messageId, nextReaction, user.id);
       await messageService.updateMessageReaction(messageId, user.id, nextReaction);
@@ -716,6 +727,7 @@ export default function ChatScreen() {
       setReactionForMessage(messageId, previousReaction || null, user.id);
       if (__DEV__) console.error('Failed to update reaction:', error);
     } finally {
+      reactingToMessageIdsRef.current = reactingToMessageIdsRef.current.filter((id) => id !== messageId);
       setReactingToMessageIds((prev) => prev.filter((id) => id !== messageId));
     }
   };

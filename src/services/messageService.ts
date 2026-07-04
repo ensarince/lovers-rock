@@ -133,7 +133,8 @@ export class MessageService {
   async markMessagesAsRead(senderId: string, receiverId: string): Promise<void> {
     // Get all unread messages from sender to receiver
     const records = await this.pb.collection('messages').getFullList({
-      filter: `sender_id = "${safeId(senderId)}" && receiver_id = "${safeId(receiverId)}" && read = false`
+      filter: `sender_id = "${safeId(senderId)}" && receiver_id = "${safeId(receiverId)}" && read = false`,
+      requestKey: null,
     });
 
     if (!records.length) {
