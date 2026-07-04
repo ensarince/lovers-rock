@@ -380,7 +380,7 @@ export default function ChatScreen() {
       messageService.setToken(token);
       typingService.setToken(token);
     }
-    if (user?.id && climberId) {
+    if (user?.id && climberId && token) {
       checkBlocked();
       loadMessages();
     }
@@ -572,6 +572,7 @@ export default function ChatScreen() {
 
   const loadMessages = async () => {
     if (!user?.id || !climberId) return;
+    let fetchSucceeded = false;
     try {
       setLoading(true);
       setError(null);
@@ -579,14 +580,20 @@ export default function ChatScreen() {
       messagesPageRef.current = 1;
       setHasMoreMessages(msgs.length === 50);
       updateMessages(msgs);
-      await messageService.markMessagesAsRead(climberId as string, user.id);
-      await refreshUnreadMessageCount();
+      fetchSucceeded = true;
     } catch (err) {
       setError('Failed to load messages');
       if (__DEV__) console.error('Failed to load messages:', err);
     } finally {
       setLoading(false);
     }
+    if (!fetchSucceeded) return;
+    messageService.markMessagesAsRead(climberId as string, user.id).catch((err) => {
+      if (__DEV__) console.error('Failed to mark messages as read:', err);
+    });
+    refreshUnreadMessageCount().catch((err) => {
+      if (__DEV__) console.error('Failed to refresh unread count:', err);
+    });
   };
 
   const loadEarlierMessages = async () => {
