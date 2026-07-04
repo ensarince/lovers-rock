@@ -116,6 +116,7 @@ export class MessageService {
     const records = await this.pb.collection('messages').getList(page, perPage, {
       filter: `((sender_id = "${safeId(userId1)}" && receiver_id = "${safeId(userId2)}") || (sender_id = "${safeId(userId2)}" && receiver_id = "${safeId(userId1)}"))`,
       sort: '-created',
+      requestKey: null,
     });
 
     return records.items.map((record: any) => mapMessageRecord(record)) as Message[];
@@ -141,7 +142,7 @@ export class MessageService {
 
     // Update each message individually
     const updatePromises = records.map(record =>
-      this.pb.collection('messages').update(record.id, { read: true })
+      this.pb.collection('messages').update(record.id, { read: true }, { requestKey: null })
     );
 
     await Promise.all(updatePromises);
@@ -227,7 +228,7 @@ export class MessageService {
       reactions[userId] = reaction;
     }
 
-    await this.pb.collection('messages').update(messageId, { reactions });
+    await this.pb.collection('messages').update(messageId, { reactions }, { requestKey: null });
   }
 }
 
