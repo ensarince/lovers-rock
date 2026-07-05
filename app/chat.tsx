@@ -304,6 +304,9 @@ export default function ChatScreen() {
   const conversationUnsubscribeRef = useRef<null | (() => Promise<void>)>(null);
   const typingUnsubscribeRef = useRef<null | (() => Promise<void>)>(null);
   const reactingToMessageIdsRef = useRef<string[]>([]);
+  // Tracks the user's intended reaction per message. Overrides any stale SSE
+  // snapshot so markMessagesAsRead PATCHes can never revert an optimistic update.
+  const localReactionsRef = useRef<Record<string, string | null>>({});
   const typingExpireTimeoutRef = useRef<number | null>(null);
   const lastTypingSentAtRef = useRef(0);
   const hasScrolledToBottomRef = useRef(false);
@@ -523,13 +526,25 @@ export default function ChatScreen() {
                 ? { ...message, read: true }
                 : message;
 
-            // If a reaction PATCH is in-flight for this message, preserve local
-            // reactions — the SSE snapshot from a concurrent markMessagesAsRead
-            // PATCH would otherwise carry stale reactions: {} and revert the heart.
-            if (action === 'update' && reactingToMessageIdsRef.current.includes(message.id)) {
-              setMessages((prev) =>
-                prev.map((m) => (m.id === message.id ? { ...nextMessage, reactions: m.reactions } : m))
-              );
+            if (action === 'update') {
+              // Apply server update but preserve the current user's locally-intended
+              // reaction. A concurrent markMessagesAsRead PATCH fires an SSE snapshot
+              // captured before our reaction write — without this guard it would wipe
+              // the optimistic heart regardless of timing.
+              setMessages((prev) => {
+                const safeReactions = { ...(nextMessage.reactions || {}) };
+                const localIntent = localReactionsRef.current[nextMessage.id];
+                if (localIntent !== undefined) {
+                  if (localIntent) {
+                    safeReactions[user.id] = localIntent;
+                  } else {
+                    delete safeReactions[user.id];
+                  }
+                }
+                const safeMsg = { ...nextMessage, reactions: safeReactions };
+                const next = upsertMessage(prev, safeMsg);
+                return messagesAreEqual(prev, next) ? prev : next;
+              });
             } else {
               applyMessageUpdate(nextMessage);
             }
@@ -580,6 +595,7 @@ export default function ChatScreen() {
       messagesPageRef.current = 1;
       setHasMoreMessages(msgs.length === 50);
       updateMessages(msgs);
+      localReactionsRef.current = {}; // fresh server data — clear any stale local intents
       fetchSucceeded = true;
     } catch (err) {
       setError('Failed to load messages');
@@ -725,21 +741,21 @@ export default function ChatScreen() {
     if (!message) return;
     const previousReaction = message.reactions?.[user.id];
     const nextReaction = isHeartReaction(previousReaction) ? null : HEART_REACTION;
+    // Record intent BEFORE optimistic update so the subscription guard sees it immediately
+    localReactionsRef.current[messageId] = nextReaction;
     try {
       reactingToMessageIdsRef.current = [...reactingToMessageIdsRef.current, messageId];
       setReactingToMessageIds((prev) => (prev.includes(messageId) ? prev : [...prev, messageId]));
       setReactionForMessage(messageId, nextReaction, user.id);
       await messageService.updateMessageReaction(messageId, user.id, nextReaction);
     } catch (error) {
+      // API failed — discard local intent so the next SSE restores server truth
+      delete localReactionsRef.current[messageId];
       setReactionForMessage(messageId, previousReaction || null, user.id);
       if (__DEV__) console.error('Failed to update reaction:', error);
     } finally {
-      // Delay clearing the guard so any late-arriving SSE from a concurrent
-      // markMessagesAsRead PATCH is still intercepted and can't revert the heart.
-      setTimeout(() => {
-        reactingToMessageIdsRef.current = reactingToMessageIdsRef.current.filter((id) => id !== messageId);
-        setReactingToMessageIds((prev) => prev.filter((id) => id !== messageId));
-      }, 600);
+      reactingToMessageIdsRef.current = reactingToMessageIdsRef.current.filter((id) => id !== messageId);
+      setReactingToMessageIds((prev) => prev.filter((id) => id !== messageId));
     }
   };
 
@@ -1213,13 +1229,14 @@ const createStyles = (theme: typeof themeLight) =>
     receivedReaction: {
       fontSize: 13,
       marginRight: 4,
-      marginTop: 3,
+      marginTop: -8,
       alignSelf: 'flex-end',
     },
     sentReaction: {
       alignSelf: 'flex-start',
       marginLeft: 6,
       marginRight: 0,
+      marginTop: -8,
     },
     doubleTapHint: {
       position: 'absolute',
