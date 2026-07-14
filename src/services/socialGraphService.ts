@@ -289,6 +289,23 @@ export const createBlock = async (
   }
 };
 
+export const resetDatingDeclines = async (userId: string, token: string): Promise<void> => {
+  const records = await fetchAllRecords<DeclineRecord>(
+    'declines',
+    token,
+    `from_user = "${safeId(userId)}" && intent = "dating"`
+  );
+  if (records.length === 0) return;
+  await Promise.all(
+    records.map((record) =>
+      fetch(`${POCKETBASE_URL}/api/collections/declines/records/${record.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    )
+  );
+};
+
 export const removeBlock = async (
   fromUserId: string,
   toUserId: string,

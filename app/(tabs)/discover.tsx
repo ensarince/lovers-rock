@@ -17,6 +17,7 @@ import {
   getOutgoingLikes,
   hasIncomingLike,
   removeLike,
+  resetDatingDeclines,
 } from '@/src/services/socialGraphService';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
@@ -29,6 +30,7 @@ import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
+  Alert,
   FlatList,
   ImageBackground,
   LayoutChangeEvent,
@@ -81,6 +83,8 @@ export default function DiscoverScreen() {
 
   // Trigger for manual refresh of blocked users
   const [blockRefreshTrigger, setBlockRefreshTrigger] = useState(0);
+  // Trigger to reload dating data after a decline reset
+  const [declineResetTrigger, setDeclineResetTrigger] = useState(0);
   const [introModalVisible, setIntroModalVisible] = useState(false);
   const [datingCardAreaHeight, setDatingCardAreaHeight] = useState(0);
 
@@ -285,7 +289,7 @@ export default function DiscoverScreen() {
     if (token && user?.id) {
       loadDatingData();
     }
-  }, [token, user?.id, blockedUserIds, user?.interested_in]);
+  }, [token, user?.id, blockedUserIds, user?.interested_in, declineResetTrigger]);
 
   // Load partner mode data - runs on load and when blocked list changes
   useEffect(() => {
@@ -548,6 +552,40 @@ export default function DiscoverScreen() {
     setFilterModalVisible(false);
   };
 
+  const RESET_STORAGE_KEY = 'dating_decline_reset_date';
+
+  const handleResetDeclines = async () => {
+    if (!user?.id || !token) return;
+
+    const today = new Date().toISOString().slice(0, 10);
+    const lastReset = await AsyncStorage.getItem(RESET_STORAGE_KEY);
+    if (lastReset === today) {
+      Alert.alert('Already reset today', 'You can reset your passed profiles once per day.');
+      return;
+    }
+
+    Alert.alert(
+      'Reset passed profiles?',
+      'Everyone you passed on in dating mode will show up again.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await resetDatingDeclines(user.id, token);
+              await AsyncStorage.setItem(RESET_STORAGE_KEY, today);
+              setDeclineResetTrigger((k) => k + 1);
+            } catch {
+              Alert.alert('Error', 'Could not reset. Try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Partner modal handlers
   const openPartnerModal = (climber: Climber) => {
     setSelectedPartner(climber);
@@ -773,6 +811,13 @@ export default function DiscoverScreen() {
             value={searchText}
             onChangeText={handleSearchChange}
           />
+          {isDatingMode && (
+            <Pressable
+              onPress={handleResetDeclines}
+              style={[styles.filterButton, { backgroundColor: modeColors.accentSurface, marginRight: 4 }]}>
+              <Ionicons name="refresh" size={18} color={modeColors.accent} />
+            </Pressable>
+          )}
           <Pressable
             onPress={() => setFilterModalVisible(true)}
             style={[styles.filterButton, { backgroundColor: modeColors.accentSurface }]}>
