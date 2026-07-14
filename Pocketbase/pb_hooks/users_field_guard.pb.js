@@ -6,10 +6,17 @@
 // requests. Internal/admin SDK calls (e.auth == null) are always allowed through.
 onRecordUpdateRequest((e) => {
     try {
-        // No auth = internal hook / admin SDK call — skip field guard
-        if (!e.auth) return e.next();
-
         var info = e.requestInfo();
+
+        // No auth = internal hook / admin SDK call — skip
+        if (!e.auth) return e.next();
+        // PocketBase < 0.23: admin object is separate from auth
+        if (info.admin) return e.next();
+        // PocketBase >= 0.23: admins are superusers in _superusers collection
+        try {
+            if (e.auth.collection && e.auth.collection().name === '_superusers') return e.next();
+        } catch (_) {}
+
         var body = info.body || info.data || {};
 
         if (Object.prototype.hasOwnProperty.call(body, 'verified')) {
