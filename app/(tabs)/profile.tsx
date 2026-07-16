@@ -25,6 +25,7 @@ import {
   Dimensions,
   Image,
   ImageBackground,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -1255,6 +1256,17 @@ export default function ProfileScreen() {
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
+            </Pressable>
+
+            <Pressable
+              style={[styles.settingItem, { borderTopWidth: 1, borderTopColor: theme.colors.border }]}
+              onPress={() => Linking.openURL('https://takeclimbing.live')}
+            >
+              <View style={styles.settingLabelRow}>
+                <Ionicons name="globe-outline" size={20} color={theme.colors.accent} style={{ marginRight: 12 }} />
+                <Text style={[styles.settingLabel, { color: theme.colors.text }]}>Visit Website</Text>
+              </View>
+              <Ionicons name="open-outline" size={18} color={theme.colors.textSecondary} />
             </Pressable>
 
             <Pressable
