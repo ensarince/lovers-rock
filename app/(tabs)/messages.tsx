@@ -64,10 +64,18 @@ export default function MessagesScreen() {
         if (!user?.id || !token) return;
         let unsub: (() => Promise<void>) | null = null;
         messageService.subscribeToIncomingMessages(user.id, (message) => {
-            setConversations(prev => prev.map(conv => {
-                if (conv.climber.id !== message.sender_id) return conv;
-                return { ...conv, lastMessage: message, unreadCount: conv.unreadCount + 1 };
-            }));
+            setConversations(prev => {
+                const updated = prev.map(conv => {
+                    if (conv.climber.id !== message.sender_id) return conv;
+                    return { ...conv, lastMessage: message, unreadCount: conv.unreadCount + 1 };
+                });
+                return [...updated].sort((a, b) => {
+                    if (!a.lastMessage && !b.lastMessage) return 0;
+                    if (!a.lastMessage) return 1;
+                    if (!b.lastMessage) return -1;
+                    return new Date(b.lastMessage.created).getTime() - new Date(a.lastMessage.created).getTime();
+                });
+            });
         }).then(fn => { unsub = fn; }).catch(() => {});
         return () => { unsub?.().catch(() => {}); };
     }, [user?.id, token]);
@@ -106,7 +114,13 @@ export default function MessagesScreen() {
                 })
             );
 
-            setConversations(conversationsWithMessages);
+            const sorted = [...conversationsWithMessages].sort((a, b) => {
+                if (!a.lastMessage && !b.lastMessage) return 0;
+                if (!a.lastMessage) return 1;
+                if (!b.lastMessage) return -1;
+                return new Date(b.lastMessage.created).getTime() - new Date(a.lastMessage.created).getTime();
+            });
+            setConversations(sorted);
             await refreshUnreadMessageCount();
         } catch (err) {
             if (__DEV__) console.error('Failed to load conversations:', err);
