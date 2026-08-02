@@ -576,6 +576,8 @@ export default function DiscoverScreen() {
             try {
               await resetDatingDeclines(user.id, token);
               await AsyncStorage.setItem(RESET_STORAGE_KEY, today);
+              setDatingInteractionIds([]);
+              setCurrentIndex(0);
               setDeclineResetTrigger((k) => k + 1);
             } catch {
               Alert.alert('Error', 'Could not reset. Try again.');

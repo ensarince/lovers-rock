@@ -5,6 +5,7 @@ import {
   Animated,
   Dimensions,
   Easing,
+  Linking,
   Modal,
   Pressable,
   StyleSheet,
@@ -298,6 +299,9 @@ export const MatchAnimation: React.FC<MatchAnimationProps> = ({
               <Pressable onPress={onClose} hitSlop={12}>
                 <Text style={styles.skipText}>Keep Swiping</Text>
               </Pressable>
+              <Pressable onPress={() => Linking.openURL('https://buymeacoffee.com/takeclimbingapp')} hitSlop={12}>
+                <Text style={styles.coffeeText}>☕ you matched, wanna buy me a coffee?</Text>
+              </Pressable>
             </Animated.View>
           </>
         )}
@@ -416,5 +420,12 @@ const styles = StyleSheet.create({
     fontFamily: 'JosefinSans_400Regular',
     color: 'rgba(255,255,255,0.3)',
     letterSpacing: 1.5,
+  },
+  coffeeText: {
+    fontSize: 11,
+    fontFamily: 'JosefinSans_400Regular',
+    color: 'rgba(255,255,255,0.18)',
+    letterSpacing: 0.5,
+    textAlign: 'center',
   },
 });
