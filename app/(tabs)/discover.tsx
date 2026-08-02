@@ -43,6 +43,9 @@ import {
 } from 'react-native';
 import { getPublicProfiles } from '../../src/services/accountService';
 
+const RESET_STORAGE_KEY = 'dating_decline_reset_date';
+const RESET_AT_STORAGE_KEY = 'dating_decline_reset_at';
+
 export default function DiscoverScreen() {
   // Dating mode state
   const [climbers, setClimbers] = useState<Climber[]>([]);
@@ -85,6 +88,10 @@ export default function DiscoverScreen() {
   const [blockRefreshTrigger, setBlockRefreshTrigger] = useState(0);
   // Trigger to reload dating data after a decline reset
   const [declineResetTrigger, setDeclineResetTrigger] = useState(0);
+  // Epoch ms of the last local reset — declines older than this are ignored client-side
+  const [declineResetAt, setDeclineResetAt] = useState(0);
+  // Dating data waits for the stored cutoff so the first load already respects it
+  const [declineResetLoaded, setDeclineResetLoaded] = useState(false);
   const [introModalVisible, setIntroModalVisible] = useState(false);
   const [datingCardAreaHeight, setDatingCardAreaHeight] = useState(0);
 
@@ -174,6 +181,17 @@ export default function DiscoverScreen() {
     syncPreferences();
   }, [user?.id, token]);
 
+  // Read the stored decline-reset cutoff once before the first dating fetch
+  useEffect(() => {
+    AsyncStorage.getItem(RESET_AT_STORAGE_KEY)
+      .then((value) => {
+        const parsed = value ? Number(value) : 0;
+        setDeclineResetAt(Number.isFinite(parsed) ? parsed : 0);
+      })
+      .catch(() => setDeclineResetAt(0))
+      .finally(() => setDeclineResetLoaded(true));
+  }, []);
+
   // Load dating mode data - runs on load and when blocked list changes
   useEffect(() => {
     const loadDatingData = async () => {
@@ -192,7 +210,7 @@ export default function DiscoverScreen() {
         ]);
 
         const declinedDatingIds = new Set(
-          getActiveDeclinedUserIds(declinedDatingRecords, 'dating', 'outgoing')
+          getActiveDeclinedUserIds(declinedDatingRecords, 'dating', 'outgoing', declineResetAt)
         );
         // Partner matches — mutual partner likes → exclude from dating feed
         const likedPartnerIds = new Set(outgoingPartnerLikes.map((l) => l.to_user).filter(Boolean));
@@ -286,10 +304,10 @@ export default function DiscoverScreen() {
       }
     };
 
-    if (token && user?.id) {
+    if (token && user?.id && declineResetLoaded) {
       loadDatingData();
     }
-  }, [token, user?.id, blockedUserIds, user?.interested_in, declineResetTrigger]);
+  }, [token, user?.id, blockedUserIds, user?.interested_in, declineResetTrigger, declineResetLoaded, declineResetAt]);
 
   // Load partner mode data - runs on load and when blocked list changes
   useEffect(() => {
@@ -552,8 +570,6 @@ export default function DiscoverScreen() {
     setFilterModalVisible(false);
   };
 
-  const RESET_STORAGE_KEY = 'dating_decline_reset_date';
-
   const handleResetDeclines = async () => {
     if (!user?.id || !token) return;
 
@@ -574,12 +590,27 @@ export default function DiscoverScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await resetDatingDeclines(user.id, token);
-              await AsyncStorage.setItem(RESET_STORAGE_KEY, today);
+              const removed = await resetDatingDeclines(user.id, token);
+
+              // Local cutoff: anything passed before now is ignored by the feed
+              // even if a delete on the server did not stick.
+              const resetAt = Date.now();
+              await AsyncStorage.multiSet([
+                [RESET_STORAGE_KEY, today],
+                [RESET_AT_STORAGE_KEY, String(resetAt)],
+              ]);
+
+              setDeclineResetAt(resetAt);
               setDatingInteractionIds([]);
               setCurrentIndex(0);
+              setSearchText('');
               setDeclineResetTrigger((k) => k + 1);
-            } catch {
+
+              if (removed === 0) {
+                Alert.alert('Nothing to reset', 'You have not passed on anyone in dating mode yet.');
+              }
+            } catch (e) {
+              if (__DEV__) console.error('❌ Reset declines failed:', e);
               Alert.alert('Error', 'Could not reset. Try again.');
             }
           },

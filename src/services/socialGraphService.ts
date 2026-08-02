@@ -289,14 +289,17 @@ export const createBlock = async (
   }
 };
 
-export const resetDatingDeclines = async (userId: string, token: string): Promise<void> => {
+// Deletes every dating decline this user made. Returns how many were removed so
+// callers can tell "nothing to reset" apart from "reset worked".
+export const resetDatingDeclines = async (userId: string, token: string): Promise<number> => {
   const records = await fetchAllRecords<DeclineRecord>(
     'declines',
     token,
     `from_user = "${safeId(userId)}" && intent = "dating"`
   );
-  if (records.length === 0) return;
-  await Promise.all(
+  if (records.length === 0) return 0;
+
+  const results = await Promise.all(
     records.map((record) =>
       fetch(`${POCKETBASE_URL}/api/collections/declines/records/${record.id}`, {
         method: 'DELETE',
@@ -304,6 +307,14 @@ export const resetDatingDeclines = async (userId: string, token: string): Promis
       })
     )
   );
+
+  // A 404 means it is already gone, which is the outcome we wanted anyway.
+  const failed = results.filter((r) => !r.ok && r.status !== 404);
+  if (failed.length > 0) {
+    throw new Error(`Failed to delete ${failed.length} of ${records.length} declines (status ${failed[0].status})`);
+  }
+
+  return records.length;
 };
 
 export const removeBlock = async (
@@ -347,15 +358,19 @@ export const isDeclineStillActive = (decline: DeclineRecord, intent: IntentType)
   return Date.now() - timestamp < expiryMs;
 };
 
+// `ignoreBefore` (epoch ms) drops declines made before a local reset, so the feed
+// refills even if the server-side delete did not go through.
 export const getActiveDeclinedUserIds = (
   declines: DeclineRecord[],
   intent: IntentType,
-  direction: 'outgoing' | 'incoming'
+  direction: 'outgoing' | 'incoming',
+  ignoreBefore?: number
 ): string[] => {
   const idKey = direction === 'outgoing' ? 'to_user' : 'from_user';
   return declines
     .filter((decline) => decline.intent === intent)
     .filter((decline) => isDeclineStillActive(decline, intent))
+    .filter((decline) => !ignoreBefore || getDeclineTimestamp(decline) >= ignoreBefore)
     .map((decline) => decline[idKey])
     .filter(Boolean);
 };
