@@ -2,6 +2,7 @@ import PocketBase from 'pocketbase/cjs';
 import EventSource from 'react-native-sse';
 import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import { Message } from '../types/message';
+import { decryptForDisplay, encrypt } from './encryptionService';
 
 const POCKETBASE_URL = getPocketBaseUrl();
 
@@ -14,20 +15,35 @@ if (!globalWithEventSource.EventSource) {
   globalWithEventSource.EventSource = EventSource;
 }
 
-const mapMessageRecord = (record: any): Message => ({
-  id: record.id,
-  sender_id: record.sender_id,
-  receiver_id: record.receiver_id,
-  content: record.content,
-  created: record.created,
-  read: record.read,
-  reactions: record.reactions || {},
-  message_type: record.message_type || 'text',
-  image_attachment: record.image_attachment || undefined,
-  attachment_url: record.attachment_url || undefined,
-  reply_to_id: record.reply_to_id || undefined,
-  reply_to_preview: record.reply_to_preview || undefined,
-});
+// Text fields are sealed by encryptionService before they leave the device.
+// conversationKey is deliberately tri-state:
+//   a key    -> open the text for display
+//   null     -> we looked and have no key, show the "not available" placeholder
+//   omitted  -> leave the text exactly as stored, for callers that resolve the
+//               key themselves later (see subscribeToIncomingMessages)
+// Messages predating encryption are plain and pass through untouched in all three.
+const mapMessageRecord = (record: any, conversationKey?: Uint8Array | null): Message => {
+  const open = (value: string | undefined) => {
+    if (!value || conversationKey === undefined) return value;
+    return decryptForDisplay(value, conversationKey);
+  };
+
+  return {
+    id: record.id,
+    sender_id: record.sender_id,
+    receiver_id: record.receiver_id,
+    content: open(record.content) ?? '',
+    created: record.created,
+    read: record.read,
+    reactions: record.reactions || {},
+    message_type: record.message_type || 'text',
+    image_attachment: record.image_attachment || undefined,
+    attachment_url: open(record.attachment_url) || undefined,
+    reply_to_id: record.reply_to_id || undefined,
+    // The quoted copy of another message, so it leaks the same text if left plain.
+    reply_to_preview: open(record.reply_to_preview) || undefined,
+  };
+};
 
 export class MessageService {
   private pb: PocketBase;
@@ -50,21 +66,36 @@ export class MessageService {
     }
   }
 
-  async sendMessage(senderId: string, receiverId: string, content: string, replyToId?: string, replyToPreview?: string): Promise<Message> {
+  // A null conversationKey means the recipient has not published an encryption
+  // key yet (they are on an older build), so the message goes out in plaintext.
+  // That is the only path that still writes readable text to the server.
+  async sendMessage(
+    senderId: string,
+    receiverId: string,
+    content: string,
+    replyToId?: string,
+    replyToPreview?: string,
+    conversationKey?: Uint8Array | null
+  ): Promise<Message> {
+    const trimmed = content.trim();
+    const seal = (value: string) =>
+      conversationKey ? encrypt(value, conversationKey) : value;
+
     const data: Record<string, any> = {
       sender_id: senderId,
       receiver_id: receiverId,
-      content: content.trim(),
+      content: seal(trimmed),
       message_type: 'text',
       read: false,
       reactions: {},
     };
     if (replyToId) {
       data.reply_to_id = replyToId;
-      data.reply_to_preview = replyToPreview || '';
+      data.reply_to_preview = replyToPreview ? seal(replyToPreview) : '';
     }
+
     const record = await this.pb.collection('messages').create(data);
-    return mapMessageRecord(record);
+    return mapMessageRecord(record, conversationKey);
   }
 
   async sendImageMessage(senderId: string, receiverId: string, imageUri: string): Promise<Message> {
@@ -97,20 +128,32 @@ export class MessageService {
     return mapMessageRecord(record);
   }
 
-  async sendGifMessage(senderId: string, receiverId: string, gifUrl: string): Promise<Message> {
+  async sendGifMessage(
+    senderId: string,
+    receiverId: string,
+    gifUrl: string,
+    conversationKey?: Uint8Array | null
+  ): Promise<Message> {
     const record = await this.pb.collection('messages').create({
       sender_id: senderId,
       receiver_id: receiverId,
       content: '',
       message_type: 'gif',
-      attachment_url: gifUrl,
+      // Which GIF someone picked says plenty, so seal the URL too.
+      attachment_url: conversationKey ? encrypt(gifUrl, conversationKey) : gifUrl,
       read: false,
       reactions: {},
     });
-    return mapMessageRecord(record);
+    return mapMessageRecord(record, conversationKey);
   }
 
-  async getMessagesBetweenUsers(userId1: string, userId2: string, page = 1, perPage = 50): Promise<Message[]> {
+  async getMessagesBetweenUsers(
+    userId1: string,
+    userId2: string,
+    page = 1,
+    perPage = 50,
+    conversationKey?: Uint8Array | null
+  ): Promise<Message[]> {
     // Sort newest-first so page 1 always returns the most recent messages.
     // Callers that display messages use sortMessages() to re-order oldest-first.
     const records = await this.pb.collection('messages').getList(page, perPage, {
@@ -119,7 +162,9 @@ export class MessageService {
       requestKey: null,
     });
 
-    return records.items.map((record: any) => mapMessageRecord(record)) as Message[];
+    return records.items.map((record: any) =>
+      mapMessageRecord(record, conversationKey)
+    ) as Message[];
   }
 
   async getUnreadCountFromSender(senderId: string, receiverId: string): Promise<number> {
@@ -152,14 +197,15 @@ export class MessageService {
   async subscribeToConversation(
     userId1: string,
     userId2: string,
-    callback: (event: { action: string; message: Message }) => void
+    callback: (event: { action: string; message: Message }) => void,
+    conversationKey?: Uint8Array | null
   ): Promise<() => Promise<void>> {
     const filter = `((sender_id = "${safeId(userId1)}" && receiver_id = "${safeId(userId2)}") || (sender_id = "${safeId(userId2)}" && receiver_id = "${safeId(userId1)}"))`;
 
     const unsubscribe = await this.pb.collection('messages').subscribe('*', (event: any) => {
       callback({
         action: event.action,
-        message: mapMessageRecord(event.record),
+        message: mapMessageRecord(event.record, conversationKey),
       });
     }, { filter });
 
@@ -168,6 +214,9 @@ export class MessageService {
     };
   }
 
+  // Fires for messages from *any* sender, so there is no single conversation key
+  // to apply here. Content is handed over still sealed and the caller decrypts it
+  // once it knows who sent it.
   async subscribeToIncomingMessages(
     userId: string,
     callback: (message: Message) => void
@@ -184,14 +233,20 @@ export class MessageService {
     return async () => { await unsubscribe(); };
   }
 
-  async getLastMessage(userId1: string, userId2: string): Promise<Message | null> {
+  async getLastMessage(
+    userId1: string,
+    userId2: string,
+    conversationKey?: Uint8Array | null
+  ): Promise<Message | null> {
     try {
       const records = await this.pb.collection('messages').getList(1, 1, {
         filter: `((sender_id = "${safeId(userId1)}" && receiver_id = "${safeId(userId2)}") || (sender_id = "${safeId(userId2)}" && receiver_id = "${safeId(userId1)}"))`,
         sort: '-created',
         requestKey: null,
       });
-      return records.items.length > 0 ? mapMessageRecord(records.items[0]) : null;
+      return records.items.length > 0
+        ? mapMessageRecord(records.items[0], conversationKey)
+        : null;
     } catch {
       return null;
     }

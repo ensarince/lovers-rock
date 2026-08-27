@@ -1,5 +1,6 @@
 import { authService } from '@/src/services/authService';
 import { messageService } from '@/src/services/messageService';
+import { clearKeyCache, decryptForDisplay, ensureKeyPair, getConversationKey } from '@/src/services/encryptionService';
 import { createDefaultGrade } from '@/src/services/gradeService';
 import { locationService } from '@/src/services/locationService';
 import { activeConversationPartnerId, NotificationService, registerPushToken } from '@/src/services/notificationService';
@@ -63,7 +64,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const [pendingChatNav, setPendingChatNav] = useState<{ climberId: string; climberName: string } | null>(null);
   const incomingMessageUnsubscribeRef = useRef<(() => Promise<void>) | null>(null);
-  const senderNameCacheRef = useRef<Map<string, string>>(new Map());
+  // Name plus public key per sender, so an in-app message notification can show
+  // real decrypted text without re-fetching the profile every time.
+  const senderCacheRef = useRef<Map<string, { name: string; publicKey: string }>>(new Map());
 
   // Execute deferred notification navigation once auth finishes loading
   useEffect(() => {
@@ -140,9 +143,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         userId,
         async (message) => {
           if (activeConversationPartnerId !== message.sender_id) {
-            // Resolve sender name — cache to avoid repeated fetches
-            let senderName = senderNameCacheRef.current.get(message.sender_id);
-            if (!senderName) {
+            // Resolve sender name and public key — cache to avoid repeated fetches.
+            // The key is what lets this local notification show real text, unlike
+            // the server-sent push, which cannot read the message at all.
+            let sender = senderCacheRef.current.get(message.sender_id);
+            if (!sender) {
               try {
                 const res = await fetch(
                   `${getPocketBaseUrl()}/api/collections/public_profiles/records/${message.sender_id}`,
@@ -150,17 +155,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
                 );
                 if (res.ok) {
                   const profile = await res.json();
-                  senderName = profile.name || 'Someone';
-                  senderNameCacheRef.current.set(message.sender_id, senderName);
+                  sender = {
+                    name: profile.name || 'Someone',
+                    publicKey: profile.public_key || '',
+                  };
+                  senderCacheRef.current.set(message.sender_id, sender);
                 }
               } catch {
-                senderName = 'Someone';
+                sender = { name: 'Someone', publicKey: '' };
               }
             }
-            const preview = message.message_type === 'image' ? '📷 Photo'
-              : message.message_type === 'gif' ? '🎞️ GIF'
-              : message.content;
-            notificationService?.notifyNewMessage(senderName || 'Someone', preview, message.sender_id);
+
+            let preview: string;
+            if (message.message_type === 'image') {
+              preview = '📷 Photo';
+            } else if (message.message_type === 'gif') {
+              preview = '🎞️ GIF';
+            } else {
+              const conversationKey = await getConversationKey(
+                userId,
+                message.sender_id,
+                sender?.publicKey
+              );
+              preview = decryptForDisplay(message.content, conversationKey);
+            }
+
+            notificationService?.notifyNewMessage(sender?.name || 'Someone', preview, message.sender_id);
           }
 
           await refreshUnreadMessageCount(userId, authToken);
@@ -197,6 +217,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.error('Failed to initialize ReportService:', error);
     }
   }, []);
+
+  // Make sure this account has an encryption key pair on this device, and that
+  // the public half is published so matches can send us encrypted messages.
+  // Covers every way a session starts (login, Google login, restored session)
+  // in one place. After the first run it is a cheap Keychain read and no write.
+  useEffect(() => {
+    const userId = user?.id;
+    if (!userId || !token) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const publicKey = await ensureKeyPair(userId);
+      // No key means secure storage is unavailable — leave the stored value
+      // alone rather than publishing something we cannot decrypt against.
+      if (cancelled || !publicKey || publicKey === user?.public_key) return;
+
+      try {
+        const response = await fetch(
+          `${getPocketBaseUrl()}/api/collections/users/records/${userId}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ public_key: publicKey }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to publish public key: ${response.status}`);
+        }
+
+        if (!cancelled) {
+          setUser((prev) => (prev ? { ...prev, public_key: publicKey } : prev));
+        }
+      } catch (error) {
+        // Non-fatal: messages to us stay plaintext until the next app start
+        // manages to publish the key.
+        if (__DEV__) console.error('[e2ee] publishing public key failed:', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, token, user?.public_key]);
 
   // Helper to map any record to Climber type with defaults
   const mapToClimber = (record: any): Climber => {
@@ -235,6 +303,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       profile_completed: record.profile_completed || false,
       blocked_users: Array.isArray(record.blocked_users) ? record.blocked_users : [],
       interested_in: record.interested_in || 'everyone',
+      public_key: record.public_key || '',
     };
   };
 
@@ -487,6 +556,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     await SecureStore.deleteItemAsync('token');
     // Reset preference service when logging out
     preferenceService.reset();
+    // Drop in-memory key material only. The stored key stays put, so signing back
+    // in on this phone still shows the existing history. Use deleteKeyPair()
+    // instead when an account is actually deleted.
+    clearKeyCache();
   };
 
   return (

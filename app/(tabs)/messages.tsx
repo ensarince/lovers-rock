@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/src/context/AuthContext';
 import { SkeletonRow } from '@/src/components/SkeletonLoader';
+import { decryptForDisplay, getConversationKey } from '@/src/services/encryptionService';
 import { getMatches } from '@/src/services/matchData';
 import { messageService } from '@/src/services/messageService';
 import { theme as themeDark } from '@/src/themeDark';
@@ -26,6 +27,10 @@ import {
 
 export default function MessagesScreen() {
     const [conversations, setConversations] = useState<Conversation[]>([]);
+    // Mirrors conversations so the realtime handler can look up a sender's public
+    // key without re-subscribing every time the list changes.
+    const conversationsRef = useRef<Conversation[]>([]);
+    conversationsRef.current = conversations;
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [introModalVisible, setIntroModalVisible] = useState(false);
@@ -63,11 +68,27 @@ export default function MessagesScreen() {
     useEffect(() => {
         if (!user?.id || !token) return;
         let unsub: (() => Promise<void>) | null = null;
-        messageService.subscribeToIncomingMessages(user.id, (message) => {
+
+        messageService.subscribeToIncomingMessages(user.id, async (message) => {
+            // The subscription spans every sender, so it hands the message over
+            // still sealed. Open it with this sender's key before it hits the list.
+            const sender = conversationsRef.current.find(
+                conv => conv.climber.id === message.sender_id
+            );
+            const conversationKey = await getConversationKey(
+                user.id,
+                message.sender_id,
+                (sender?.climber as any)?.public_key
+            );
+            const opened = {
+                ...message,
+                content: decryptForDisplay(message.content, conversationKey),
+            };
+
             setConversations(prev => {
                 const updated = prev.map(conv => {
                     if (conv.climber.id !== message.sender_id) return conv;
-                    return { ...conv, lastMessage: message, unreadCount: conv.unreadCount + 1 };
+                    return { ...conv, lastMessage: opened, unreadCount: conv.unreadCount + 1 };
                 });
                 return [...updated].sort((a, b) => {
                     if (!a.lastMessage && !b.lastMessage) return 0;
@@ -90,8 +111,15 @@ export default function MessagesScreen() {
             const conversationsWithMessages = await Promise.all(
                 matches.map(async (match) => {
                     try {
+                        // Each preview needs this conversation's key. Derivation is
+                        // cheap and cached inside the service, so one per row is fine.
+                        const conversationKey = await getConversationKey(
+                            user.id,
+                            match.climber.id,
+                            (match.climber as any).public_key
+                        );
                         const [lastMessage, unreadCount] = await Promise.all([
-                            messageService.getLastMessage(user.id, match.climber.id),
+                            messageService.getLastMessage(user.id, match.climber.id, conversationKey),
                             messageService.getUnreadCountFromSender(match.climber.id, user.id),
                         ]);
                         return {

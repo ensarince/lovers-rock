@@ -5,6 +5,7 @@ import { SkeletonRow } from '@/src/components/SkeletonLoader';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@/src/context/AuthContext';
 import { getPublicProfiles } from '@/src/services/accountService';
+import { getConversationKey } from '@/src/services/encryptionService';
 import { notificationService } from '@/src/services/notificationService';
 import { messageService } from '@/src/services/messageService';
 import { acceptPartnerRequest, declinePartnerRequest, getIncomingPartnerRequests, getMatches, unmatchUser } from '@/src/services/matchData';
@@ -121,7 +122,17 @@ export default function MatchesScreen() {
       messageService.setToken(token);
       Promise.all(
         allMatches.map(async (match) => {
-          const lastMsg = await messageService.getLastMessage(user!.id, match.climber.id);
+          // Previews are sealed on the server, so derive this pair's key to read them.
+          const conversationKey = await getConversationKey(
+            user!.id,
+            match.climber.id,
+            (match.climber as any).public_key
+          );
+          const lastMsg = await messageService.getLastMessage(
+            user!.id,
+            match.climber.id,
+            conversationKey
+          );
           if (!lastMsg) return match;
           let preview = lastMsg.content;
           if (!preview) {

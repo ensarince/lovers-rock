@@ -6,7 +6,7 @@ onRecordAfterCreateSuccess((e) => {
         var msg = e.record;
         var senderId = String(msg.get('sender_id') || '');
         var receiverId = String(msg.get('receiver_id') || '');
-        var content = String(msg.get('content') || '');
+        var messageType = String(msg.get('message_type') || 'text');
 
         if (!senderId || !receiverId || senderId === receiverId) return e.next();
 
@@ -17,7 +17,13 @@ onRecordAfterCreateSuccess((e) => {
 
         var sender = $app.findRecordById('users', senderId);
         var senderName = String(sender.get('name') || 'Someone');
-        var preview = content.length > 60 ? content.substring(0, 60) + '...' : content;
+
+        // Message bodies are end-to-end encrypted, so the server cannot build a
+        // text preview any more. message_type is not encrypted and reveals nothing
+        // beyond metadata already visible here, so it still shapes the wording.
+        var preview = messageType === 'image' ? 'Sent you a photo'
+            : messageType === 'gif' ? 'Sent you a GIF'
+            : 'Sent you a message';
 
         var tokenPreview = pushToken.substring(0, 30) + '...';
         try {

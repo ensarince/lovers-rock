@@ -43,4 +43,7 @@ export interface Climber {
   profile_completed?: boolean; // Whether user has completed profile setup
   blocked_users?: string[]; // Blocked user IDs
   interested_in?: InterestedIn;
+  public_key?: string; // Base64 X25519 public key for end-to-end encrypted chat.
+                       // Empty means this user has not opened an encryption-capable
+                       // build yet, so messages to them fall back to plaintext.
 }

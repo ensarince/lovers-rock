@@ -3,6 +3,7 @@ import { ChatMenuModal } from '@/src/components/ChatMenuModal';
 import { GifSearchModal } from '@/src/components/GifSearchModal';
 import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import { useAuth } from '@/src/context/AuthContext';
+import { getConversationKey } from '@/src/services/encryptionService';
 import { messageService } from '@/src/services/messageService';
 import { getReportService } from '@/src/services/reportService';
 import { setActiveConversationPartnerId } from '@/src/services/notificationService';
@@ -282,6 +283,13 @@ export default function ChatScreen() {
   const { user, token, darkMode, refreshUnreadMessageCount } = useAuth();
   const [blocked, setBlocked] = useState(false);
   const [climberData, setClimberData] = useState<any>(null);
+  // Shared key for this conversation. null means we could not derive one, either
+  // because this person has not published a key yet or ours is missing — in that
+  // case messages go out in plaintext, as they did before encryption shipped.
+  const [conversationKey, setConversationKey] = useState<Uint8Array | null>(null);
+  // Nothing reads or sends until the key question is settled, otherwise the first
+  // paint would show placeholders for messages we can perfectly well decrypt.
+  const [keyResolved, setKeyResolved] = useState(false);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
   const [reactingToMessageIds, setReactingToMessageIds] = useState<string[]>([]);
@@ -289,6 +297,7 @@ export default function ChatScreen() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [fullscreenImageUrl, setFullscreenImageUrl] = useState<string | null>(null);
+  const [encryptionInfoVisible, setEncryptionInfoVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [showDoubleTapHint, setShowDoubleTapHint] = useState(false);
@@ -353,19 +362,51 @@ export default function ChatScreen() {
   // Fetch authoritative climber data from PocketBase; fall back to route params if network fails
   useEffect(() => {
     if (!climberId || !token) return;
+
+    // Route params never carry public_key, so this fallback yields a plaintext
+    // conversation. It always resolves to *something* though, because the key
+    // effect below gates message loading on climberData being set.
+    const fallback = () => {
+      if (climberDataStr) {
+        try { return JSON.parse(climberDataStr as string); } catch {}
+      }
+      return {};
+    };
+
     const POCKETBASE_URL = getPocketBaseUrl();
     fetch(`${POCKETBASE_URL}/api/collections/public_profiles/records/${climberId}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setClimberData(data); })
-      .catch(() => {
-        // fallback: use route param data if fetch fails
-        if (climberDataStr) {
-          try { setClimberData(JSON.parse(climberDataStr as string)); } catch {}
-        }
-      });
+      .then(data => { setClimberData(data || fallback()); })
+      .catch(() => { setClimberData(fallback()); });
   }, [climberId, token]);
+
+  // Derive the shared key for this conversation from our secret key and their
+  // published public key. The public key rides along in the profile fetch above,
+  // so this costs no extra request.
+  useEffect(() => {
+    if (!user?.id || !climberId || !climberData) return;
+
+    let cancelled = false;
+
+    getConversationKey(user.id, climberId as string, climberData.public_key)
+      .then((key) => {
+        if (cancelled) return;
+        setConversationKey(key);
+        setKeyResolved(true);
+      })
+      .catch(() => {
+        // Fall back to plaintext rather than locking the user out of the chat.
+        if (cancelled) return;
+        setConversationKey(null);
+        setKeyResolved(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, climberId, climberData?.public_key, climberData]);
 
   // Check blocked status and load messages on mount
   useEffect(() => {
@@ -385,9 +426,11 @@ export default function ChatScreen() {
     }
     if (user?.id && climberId && token) {
       checkBlocked();
-      loadMessages();
+      // Hold the first fetch until the conversation key is settled, so history
+      // renders decrypted on the first paint instead of as placeholders.
+      if (keyResolved) loadMessages();
     }
-  }, [user?.id, climberId, token]);
+  }, [user?.id, climberId, token, keyResolved, conversationKey]);
 
   useEffect(() => {
     if (!user?.id || !climberId) return;
@@ -481,7 +524,11 @@ export default function ChatScreen() {
   }, [isPartnerTyping]);
 
   // Realtime conversation updates, with slower polling as a fallback.
+  // Waits for the conversation key so incoming messages are decrypted on arrival
+  // rather than flashing the "not available" placeholder first.
   useEffect(() => {
+    if (!keyResolved) return;
+
     let isActive = true;
 
     const clearFallbackPolling = () => {
@@ -496,7 +543,7 @@ export default function ChatScreen() {
 
       fallbackPollingIntervalRef.current = setInterval(async () => {
         try {
-          const msgs = await messageService.getMessagesBetweenUsers(user.id, climberId as string);
+          const msgs = await messageService.getMessagesBetweenUsers(user.id, climberId as string, 1, 50, conversationKey);
           updateMessages(msgs);
         } catch (error) {
           if (__DEV__) console.error('Fallback polling error:', error);
@@ -563,7 +610,8 @@ export default function ChatScreen() {
                 flatListRef.current?.scrollToEnd({ animated: true });
               }, 50);
             }
-          }
+          },
+          conversationKey
         );
       } catch (error) {
         if (__DEV__) console.error('Realtime subscription failed, using fallback polling:', error);
@@ -583,7 +631,7 @@ export default function ChatScreen() {
         conversationUnsubscribeRef.current = null;
       }
     };
-  }, [user?.id, climberId]);
+  }, [user?.id, climberId, keyResolved, conversationKey]);
 
   const loadMessages = async () => {
     if (!user?.id || !climberId) return;
@@ -591,7 +639,7 @@ export default function ChatScreen() {
     try {
       setLoading(true);
       setError(null);
-      const msgs = await messageService.getMessagesBetweenUsers(user.id, climberId as string, 1, 50);
+      const msgs = await messageService.getMessagesBetweenUsers(user.id, climberId as string, 1, 50, conversationKey);
       messagesPageRef.current = 1;
       setHasMoreMessages(msgs.length === 50);
       updateMessages(msgs);
@@ -616,7 +664,7 @@ export default function ChatScreen() {
     if (!user?.id || !climberId || !hasMoreMessages) return;
     const nextPage = messagesPageRef.current + 1;
     try {
-      const older = await messageService.getMessagesBetweenUsers(user.id, climberId as string, nextPage, 50);
+      const older = await messageService.getMessagesBetweenUsers(user.id, climberId as string, nextPage, 50, conversationKey);
       if (older.length === 0) { setHasMoreMessages(false); return; }
       messagesPageRef.current = nextPage;
       setHasMoreMessages(older.length === 50);
@@ -636,7 +684,9 @@ export default function ChatScreen() {
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !user?.id || !climberId || sending || blocked) return;
+    // keyResolved guards against sending in the clear to someone who does have a
+    // key, in the brief window before we have derived it.
+    if (!newMessage.trim() || !user?.id || !climberId || sending || blocked || !keyResolved) return;
 
     try {
       setSending(true);
@@ -645,7 +695,7 @@ export default function ChatScreen() {
           : replyingTo.message_type === 'gif' ? '🎞️ GIF'
           : (replyingTo.content.length > 60 ? replyingTo.content.slice(0, 60) + '…' : replyingTo.content)
         : undefined;
-      const sentMessage = await messageService.sendMessage(user.id, climberId as string, newMessage, replyingTo?.id, replyPreview);
+      const sentMessage = await messageService.sendMessage(user.id, climberId as string, newMessage, replyingTo?.id, replyPreview, conversationKey);
       setNewMessage('');
       setReplyingTo(null);
       inputRef.current?.clear();
@@ -664,7 +714,7 @@ export default function ChatScreen() {
   };
 
   const pickAndSendImage = async () => {
-    if (!user?.id || !climberId || sending || blocked) return;
+    if (!user?.id || !climberId || sending || blocked || !keyResolved) return;
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -707,11 +757,11 @@ export default function ChatScreen() {
   };
 
   const sendGif = async (gifUrl: string) => {
-    if (!user?.id || !climberId || sending || blocked) return;
+    if (!user?.id || !climberId || sending || blocked || !keyResolved) return;
     setReplyingTo(null);
     setSending(true);
     try {
-      const sentMessage = await messageService.sendGifMessage(user.id, climberId as string, gifUrl);
+      const sentMessage = await messageService.sendGifMessage(user.id, climberId as string, gifUrl, conversationKey);
       applyMessageUpdate(sentMessage);
       setTimeout(() => { flatListRef.current?.scrollToEnd({ animated: true }); }, 100);
     } catch (error) {
@@ -886,6 +936,21 @@ export default function ChatScreen() {
           <Ionicons name="ellipsis-vertical" size={24} color={theme.colors.text} />
         </Pressable>
       </View>
+
+      {/* Encryption notice — only shown when this conversation really is sealed,
+          so it is never a claim we cannot back up. */}
+      {conversationKey && (
+        <Pressable
+          onPress={() => setEncryptionInfoVisible(true)}
+          style={styles.encryptionNotice}
+          hitSlop={6}
+        >
+          <Ionicons name="lock-closed" size={11} color={theme.colors.textSecondary} />
+          <Text style={styles.encryptionNoticeText}>
+            Messages are end-to-end encrypted
+          </Text>
+        </Pressable>
+      )}
 
       {/* Messages */}
       <FlatList
@@ -1064,6 +1129,48 @@ export default function ChatScreen() {
         onSelect={sendGif}
         darkMode={darkMode}
       />
+
+      {/* What the lock actually means. Spells out the limits too — claiming more
+          than we deliver would be worse than saying nothing. */}
+      <Modal
+        visible={encryptionInfoVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setEncryptionInfoVisible(false)}
+      >
+        <Pressable style={styles.encryptionOverlay} onPress={() => setEncryptionInfoVisible(false)}>
+          <Pressable style={styles.encryptionSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.encryptionSheetIcon}>
+              <Ionicons name="lock-closed" size={22} color={theme.colors.accent} />
+            </View>
+
+            <Text style={styles.encryptionSheetTitle}>Your chat is private</Text>
+
+            <Text style={styles.encryptionSheetBody}>
+              Messages in this chat are locked on your phone before they are sent, and
+              only {climberName} can unlock them. Not us, not anyone with access to our
+              servers. The key never leaves your device.
+            </Text>
+
+            <View style={styles.encryptionSheetDivider} />
+
+            <Text style={styles.encryptionSheetNote}>
+              Photos are not encrypted yet. We are working on it.
+            </Text>
+            <Text style={styles.encryptionSheetNote}>
+              If you reinstall the app or switch phones, older messages cannot be
+              unlocked again. Nobody can recover them, which is the point.
+            </Text>
+
+            <Pressable
+              style={styles.encryptionSheetButton}
+              onPress={() => setEncryptionInfoVisible(false)}
+            >
+              <Text style={styles.encryptionSheetButtonText}>Got it</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Fullscreen image viewer */}
       {fullscreenImageUrl !== null && (
@@ -1421,6 +1528,85 @@ const createStyles = (theme: typeof themeLight) =>
     loadEarlierText: {
       fontSize: 13,
       color: theme.colors.textSecondary,
+    },
+    encryptionNotice: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 5,
+      paddingVertical: 7,
+      paddingHorizontal: 16,
+      backgroundColor: theme.colors.surface,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.colors.border,
+    },
+    encryptionNoticeText: {
+      fontSize: 11,
+      color: theme.colors.textSecondary,
+      letterSpacing: 0.2,
+    },
+    encryptionOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 28,
+    },
+    encryptionSheet: {
+      width: '100%',
+      borderRadius: 18,
+      backgroundColor: theme.colors.surface,
+      paddingVertical: 26,
+      paddingHorizontal: 22,
+      alignItems: 'center',
+    },
+    encryptionSheetIcon: {
+      width: 46,
+      height: 46,
+      borderRadius: 23,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.colors.background,
+      marginBottom: 14,
+    },
+    encryptionSheetTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: theme.colors.text,
+      marginBottom: 10,
+      textAlign: 'center',
+    },
+    encryptionSheetBody: {
+      fontSize: 14,
+      lineHeight: 20,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+    },
+    encryptionSheetDivider: {
+      height: StyleSheet.hairlineWidth,
+      alignSelf: 'stretch',
+      backgroundColor: theme.colors.border,
+      marginVertical: 16,
+    },
+    encryptionSheetNote: {
+      fontSize: 12,
+      lineHeight: 17,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    encryptionSheetButton: {
+      marginTop: 12,
+      alignSelf: 'stretch',
+      paddingVertical: 12,
+      borderRadius: 12,
+      backgroundColor: theme.colors.accent,
+      alignItems: 'center',
+    },
+    encryptionSheetButtonText: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: '#ffffff',
     },
     replyQuote: {
       flexDirection: 'row',

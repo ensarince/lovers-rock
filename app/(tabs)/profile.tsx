@@ -4,6 +4,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { SkeletonProfile } from '@/src/components/SkeletonLoader';
 import { getBlockedUsersData } from '@/src/services/accountService';
 import { GradePicker } from '@/src/components/GradePicker';
+import { deleteKeyPair } from '@/src/services/encryptionService';
 import { createDefaultGrade, formatGradeDisplay } from '@/src/services/gradeService';
 import { getReportService } from '@/src/services/reportService';
 import { theme as themeDark } from '@/src/themeDark';
@@ -232,6 +233,9 @@ export default function ProfileScreen() {
       // Clear local storage and logout
       await AsyncStorage.removeItem('user');
       await SecureStore.deleteItemAsync('token');
+      // The account is gone, so destroy its encryption key too rather than
+      // leaving orphaned key material in the Keychain.
+      await deleteKeyPair(user.id);
       setDeleteConfirmationVisible(false);
       await logout();
       router.replace('/(auth)/login');

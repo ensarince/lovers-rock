@@ -87,6 +87,10 @@ routerAdd('GET', '/api/nearby-profiles', function(e) {
                 intent: intent,
                 profile_completed: r.get('profile_completed') === true,
                 distance_km: distanceKm,
+                // Public half of their chat encryption key pair. Needed here
+                // because matches, and so the conversation list, are built from
+                // this endpoint. Useless without the secret half on their device.
+                public_key: r.get('public_key') || '',
             });
         }
 
