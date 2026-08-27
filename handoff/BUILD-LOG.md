@@ -29,12 +29,27 @@ App is near-complete. Core flows (auth, discover, matches, messages, chat, profi
 - **F4 Card Polish**: Gradient height 28%→45%, panel opacity 0.52→0.78, shadow elevated, thin accent border added.
 - **F5 Micro-animations**: Button scale spring (0.85→1) in SwipeableCard. Celebratory ripple + Continue button scale in MatchAnimation.
 
+### Step G — End-to-end encrypted chat (commits: 26d9641, fbdf93f, 2b9952d, e0b9fc9, 4b7f9ae)
+- `src/services/encryptionService.ts` — X25519 key pair per account, ECDH + HKDF conversation key, XChaCha20-Poly1305 sealing for both text and photo bytes
+- `src/services/attachmentCache.ts` — downloads, decrypts and caches photos so `<Image>` has something renderable
+- `src/services/messageService.ts` — seals on send, opens on read, across text, replies, GIF URLs and photos
+- `Pocketbase/` — `public_key` on users and the public_profiles view, `application/octet-stream` allowed on `image_attachment`, generic push notification bodies
+- Chat shows a tappable lock note; website gained a "Your Privacy" section
+- 62 tests on the crypto and message paths, plus a live PocketBase run confirming an encrypted photo uploads, downloads byte-identical and decrypts back
+- **Not yet run on a real device.** Verify before shipping an APK
+
+### Step H — Home gym autocomplete
+- `Pocketbase/pb_hooks/gym_suggestions.pb.js` — `GET /api/gym-suggestions?q=`, groups names case-insensitively and returns the most-used spelling of each
+- `src/services/gymService.ts` + `src/components/GymInput.tsx` — debounced suggestions, degrading to a plain text field on any failure
+- Wired into profile edit and the profile completion modal
+
 ## Remaining Work
-- Nothing from the original feature list. All notified, tested, and polished.
+- Run the encryption on a device with two accounts, then decide the rollout (force update vs. a rough week for old clients)
+- Re-run the EAS Android build; the last one died on a Gradle download timeout on their infrastructure
 
 ## Known Gaps (out of scope, log for future)
 - Session posts feature (future)
 - Gym hubs feature (future)
-- Image attachments in chat — schema-ready, not implemented
 - Pre-accept icebreaker messages for partner mode — not implemented
-- Background push notifications (Expo Push Tokens / FCM / APNs) — current notifications are local/foreground only
+- Gym names already stored are still fragmented ("Bw" vs "boulderwerk"); autocomplete stops new drift but merges nothing existing
+- Encryption has no forward secrecy and no safety-number UI, and metadata (who talks to whom, and when) stays visible. See `handoff/ENCRYPTION-PLAN.md`
