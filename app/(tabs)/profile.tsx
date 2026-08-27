@@ -4,6 +4,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { SkeletonProfile } from '@/src/components/SkeletonLoader';
 import { getBlockedUsersData } from '@/src/services/accountService';
 import { GradePicker } from '@/src/components/GradePicker';
+import { GymInput } from '@/src/components/GymInput';
 import { clearAttachmentCache } from '@/src/services/attachmentCache';
 import { deleteKeyPair } from '@/src/services/encryptionService';
 import { createDefaultGrade, formatGradeDisplay } from '@/src/services/gradeService';
@@ -1071,12 +1072,12 @@ export default function ProfileScreen() {
           <View style={styles.infoCardMinimal}>
             <Text style={styles.labelMinimal}>Home Gym</Text>
             {editMode ? (
-              <TextInput
-                style={[styles.valueMinimal, { backgroundColor: theme.colors.surface, borderRadius: 8, padding: 8 }]}
+              <GymInput
                 value={homeGym}
                 onChangeText={setHomeGym}
-                placeholder="Home Gym"
-                placeholderTextColor={theme.colors.textSecondary}
+                token={token}
+                theme={theme}
+                style={[styles.valueMinimal, { backgroundColor: theme.colors.surface, borderRadius: 8, padding: 8 }]}
               />
             ) : (
               <Text style={styles.valueMinimal}>{homeGym || 'No home gym set.'}</Text>

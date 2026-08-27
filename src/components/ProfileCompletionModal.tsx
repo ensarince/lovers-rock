@@ -1,5 +1,6 @@
 import { Text, View } from '@/components/Themed';
 import { GradePicker } from '@/src/components/GradePicker';
+import { GymInput } from '@/src/components/GymInput';
 import { useAuth } from '@/src/context/AuthContext';
 import { createDefaultGrade } from '@/src/services/gradeService';
 import { theme as themeDark } from '@/src/themeDark';
@@ -677,12 +678,13 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                     {/* Home Gym Input */}
                     <View style={styles.fieldGroup}>
                         <Text style={styles.label}>Home Gym *</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Your home gym"
-                            placeholderTextColor={theme.colors.textSecondary}
+                        <GymInput
                             value={homeGym}
                             onChangeText={setHomeGym}
+                            token={token}
+                            theme={theme}
+                            style={styles.input}
+                            placeholder="Your home gym"
                         />
                     </View>
 
