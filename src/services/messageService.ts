@@ -2,7 +2,10 @@ import PocketBase from 'pocketbase/cjs';
 import EventSource from 'react-native-sse';
 import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import { Message } from '../types/message';
-import { decryptForDisplay, encrypt } from './encryptionService';
+// Aliased because this module already has a Message "File"-free namespace and
+// the bare name File collides with the DOM lib type in TS.
+import { File as FileSystemFile, Paths } from 'expo-file-system';
+import { decryptForDisplay, encrypt, sealAttachment } from './encryptionService';
 
 const POCKETBASE_URL = getPocketBaseUrl();
 
@@ -98,34 +101,71 @@ export class MessageService {
     return mapMessageRecord(record, conversationKey);
   }
 
-  async sendImageMessage(senderId: string, receiverId: string, imageUri: string): Promise<Message> {
-    const filename = imageUri.split('/').pop() || 'photo.jpg';
-    const formData = new FormData();
-    formData.append('sender_id', senderId);
-    formData.append('receiver_id', receiverId);
-    formData.append('content', '');
-    formData.append('message_type', 'image');
-    formData.append('read', 'false');
-    formData.append('reactions', '{}');
-    formData.append('image_attachment', { uri: imageUri, name: filename, type: 'image/jpeg' } as any);
+  // With a key, the photo is sealed on this device and what gets uploaded is
+  // opaque bytes. Without one, the plain image goes up as it always did, so a
+  // recipient still on the old build keeps working.
+  async sendImageMessage(
+    senderId: string,
+    receiverId: string,
+    imageUri: string,
+    conversationKey?: Uint8Array | null
+  ): Promise<Message> {
+    let uploadUri = imageUri;
+    let filename = imageUri.split('/').pop() || 'photo.jpg';
+    let mimeType = 'image/jpeg';
+    let sealedFile: FileSystemFile | null = null;
 
-    // Use raw fetch for multipart uploads — the PocketBase SDK's FormData
-    // handling is unreliable in React Native. Raw fetch passes FormData
-    // directly to the native networking layer which handles file parts correctly.
-    const token = this.pb.authStore.token;
-    const response = await fetch(`${POCKETBASE_URL}/api/collections/messages/records`, {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    });
+    if (conversationKey) {
+      const plain = await new FileSystemFile(imageUri).bytes();
+      const sealed = sealAttachment(plain, conversationKey);
 
-    if (!response.ok) {
-      const errorBody = await response.json().catch(() => ({}));
-      throw new Error(errorBody.message || `Upload failed: ${response.status}`);
+      // Multipart uploads take a file path, not a buffer, so the sealed bytes
+      // have to land on disk first. Cleaned up in the finally below.
+      sealedFile = new FileSystemFile(Paths.cache, `sealed-${Date.now()}.bin`);
+      sealedFile.create({ overwrite: true });
+      sealedFile.write(sealed);
+
+      uploadUri = sealedFile.uri;
+      filename = 'photo.bin';
+      // Sealed bytes sniff as octet-stream on the server, which the
+      // image_attachment field now allows alongside the plain image types.
+      mimeType = 'application/octet-stream';
     }
 
-    const record = await response.json();
-    return mapMessageRecord(record);
+    try {
+      const formData = new FormData();
+      formData.append('sender_id', senderId);
+      formData.append('receiver_id', receiverId);
+      formData.append('content', '');
+      formData.append('message_type', 'image');
+      formData.append('read', 'false');
+      formData.append('reactions', '{}');
+      formData.append('image_attachment', { uri: uploadUri, name: filename, type: mimeType } as any);
+
+      // Use raw fetch for multipart uploads — the PocketBase SDK's FormData
+      // handling is unreliable in React Native. Raw fetch passes FormData
+      // directly to the native networking layer which handles file parts correctly.
+      const token = this.pb.authStore.token;
+      const response = await fetch(`${POCKETBASE_URL}/api/collections/messages/records`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        throw new Error(errorBody.message || `Upload failed: ${response.status}`);
+      }
+
+      const record = await response.json();
+      return mapMessageRecord(record, conversationKey);
+    } finally {
+      try {
+        sealedFile?.delete();
+      } catch {
+        // A leftover file in the cache directory is harmless.
+      }
+    }
   }
 
   async sendGifMessage(

@@ -199,6 +199,59 @@ export const decrypt = (payload: string, conversationKey: Uint8Array): string | 
   }
 };
 
+// ---------- attachment sealing ----------
+
+// Photos are sealed as raw bytes rather than base64, so an encrypted photo is
+// only 45 bytes larger than the original and still fits the 2MB upload cap.
+//
+// Layout: [5-byte magic][24-byte nonce][ciphertext + 16-byte tag]
+//
+// The magic prefix is what tells an encrypted attachment apart from one uploaded
+// before encryption shipped. No real image starts with these bytes: JPEG begins
+// FF D8 FF and PNG begins 89 50 4E 47.
+const ATTACHMENT_MAGIC = new Uint8Array([0x54, 0x41, 0x4b, 0x45, 0x31]); // "TAKE1"
+const ATTACHMENT_HEADER = ATTACHMENT_MAGIC.length + NONCE_BYTES;
+
+// True when these bytes were sealed by sealAttachment, false for a plain image.
+export const isSealedAttachment = (data: Uint8Array): boolean => {
+  if (data.length < ATTACHMENT_HEADER) return false;
+  return ATTACHMENT_MAGIC.every((byte, index) => data[index] === byte);
+};
+
+export const sealAttachment = (
+  data: Uint8Array,
+  conversationKey: Uint8Array
+): Uint8Array => {
+  const nonce = Crypto.getRandomBytes(NONCE_BYTES);
+  const sealed = xchacha20poly1305(conversationKey, nonce).encrypt(data);
+
+  const out = new Uint8Array(ATTACHMENT_HEADER + sealed.length);
+  out.set(ATTACHMENT_MAGIC, 0);
+  out.set(nonce, ATTACHMENT_MAGIC.length);
+  out.set(sealed, ATTACHMENT_HEADER);
+  return out;
+};
+
+// Opens a sealed attachment. Returns null if these bytes were sealed for a key we
+// no longer hold, or were tampered with. Plain images are returned untouched, so
+// callers can pass anything downloaded from the server straight through.
+export const openAttachment = (
+  data: Uint8Array,
+  conversationKey: Uint8Array | null
+): Uint8Array | null => {
+  if (!isSealedAttachment(data)) return data;
+  if (!conversationKey) return null;
+
+  try {
+    const nonce = data.subarray(ATTACHMENT_MAGIC.length, ATTACHMENT_HEADER);
+    return xchacha20poly1305(conversationKey, nonce).decrypt(
+      data.subarray(ATTACHMENT_HEADER)
+    );
+  } catch {
+    return null;
+  }
+};
+
 // Convenience wrapper for render paths: legacy plaintext passes straight through,
 // sealed text is opened, and anything unreadable becomes the placeholder.
 export const decryptForDisplay = (

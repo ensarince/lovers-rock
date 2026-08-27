@@ -1,5 +1,6 @@
 import { authService } from '@/src/services/authService';
 import { messageService } from '@/src/services/messageService';
+import { clearAttachmentCache } from '@/src/services/attachmentCache';
 import { clearKeyCache, decryptForDisplay, ensureKeyPair, getConversationKey } from '@/src/services/encryptionService';
 import { createDefaultGrade } from '@/src/services/gradeService';
 import { locationService } from '@/src/services/locationService';
@@ -560,6 +561,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // in on this phone still shows the existing history. Use deleteKeyPair()
     // instead when an account is actually deleted.
     clearKeyCache();
+    // Decrypted photos are cached as plain files, so they have to go. Otherwise
+    // the next person to use the phone could browse them without signing in.
+    clearAttachmentCache();
   };
 
   return (

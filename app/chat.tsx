@@ -3,6 +3,7 @@ import { ChatMenuModal } from '@/src/components/ChatMenuModal';
 import { GifSearchModal } from '@/src/components/GifSearchModal';
 import { MatchDetailModal } from '@/src/components/MatchDetailModal';
 import { useAuth } from '@/src/context/AuthContext';
+import { getAttachmentUri } from '@/src/services/attachmentCache';
 import { getConversationKey } from '@/src/services/encryptionService';
 import { messageService } from '@/src/services/messageService';
 import { getReportService } from '@/src/services/reportService';
@@ -111,6 +112,7 @@ function MessageItem({
   onReply,
   onImagePress,
   pbUrl,
+  conversationKey,
 }: {
   item: Message;
   userId: string;
@@ -118,11 +120,44 @@ function MessageItem({
   theme: any;
   styles: any;
   pbUrl: string;
+  conversationKey: Uint8Array | null;
   onLike: (id: string) => void;
   onReply: (msg: Message) => void;
   onImagePress: (url: string) => void;
 }) {
   const dragX = useSharedValue(0);
+
+  // Photos arrive sealed, so the renderable local file has to be resolved
+  // asynchronously. null while that is in flight, or when the photo was sealed
+  // for a key this device no longer holds.
+  const [attachmentUri, setAttachmentUri] = useState<string | null>(null);
+  const [attachmentFailed, setAttachmentFailed] = useState(false);
+  const attachmentUriRef = useRef<string | null>(null);
+  attachmentUriRef.current = attachmentUri;
+
+  const imageFilename = item.message_type === 'image' ? item.image_attachment : undefined;
+
+  useEffect(() => {
+    if (!imageFilename) return;
+
+    let cancelled = false;
+    setAttachmentFailed(false);
+
+    getAttachmentUri(
+      item.id,
+      imageFilename,
+      `${pbUrl}/api/files/messages/${item.id}/${imageFilename}`,
+      conversationKey
+    ).then((uri) => {
+      if (cancelled) return;
+      setAttachmentUri(uri);
+      setAttachmentFailed(!uri);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [item.id, imageFilename, pbUrl, conversationKey]);
 
   // Refs so worklet callbacks always see the latest values
   const onReplyRef = useRef(onReply);
@@ -157,14 +192,15 @@ function MessageItem({
       return;
     }
     lastTapRef.current = now;
-    // Single-tap: open media
+    // Single-tap: open media. Photos open from the decrypted local copy, since
+    // the remote URL only ever serves sealed bytes.
     const cur = itemRef.current;
-    if (cur.message_type === 'image' && cur.image_attachment) {
-      onImagePressRef.current(`${pbUrl}/api/files/messages/${cur.id}/${cur.image_attachment}`);
+    if (cur.message_type === 'image') {
+      if (attachmentUriRef.current) onImagePressRef.current(attachmentUriRef.current);
     } else if (cur.message_type === 'gif' && cur.attachment_url) {
       onImagePressRef.current(cur.attachment_url);
     }
-  }, [pbUrl]);
+  }, []);
 
   const initialTouchLocation = useSharedValue({ x: 0, y: 0 });
 
@@ -213,9 +249,6 @@ function MessageItem({
   const likedByCurrentUser = isHeartReaction(userReaction);
   const heartReactionCount = getHeartReactionCount(item);
   const isMedia = item.message_type === 'image' || item.message_type === 'gif';
-  const messageImageUrl = item.image_attachment
-    ? `${pbUrl}/api/files/messages/${item.id}/${item.image_attachment}`
-    : null;
   const showReaction = isOwn ? heartReactionCount > 0 : likedByCurrentUser;
 
   return (
@@ -239,8 +272,23 @@ function MessageItem({
                     <Text style={styles.replyQuoteText} numberOfLines={2}>{item.reply_to_preview}</Text>
                   </View>
                 ) : null}
-                {item.message_type === 'image' && messageImageUrl ? (
-                  <Image source={{ uri: messageImageUrl }} style={styles.messageImage} resizeMode="cover" />
+                {item.message_type === 'image' ? (
+                  attachmentUri ? (
+                    <Image source={{ uri: attachmentUri }} style={styles.messageImage} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.messageImage, styles.attachmentPlaceholder]}>
+                      <Ionicons
+                        name={attachmentFailed ? 'lock-closed-outline' : 'image-outline'}
+                        size={24}
+                        color={theme.colors.textSecondary}
+                      />
+                      {attachmentFailed && (
+                        <Text style={styles.attachmentPlaceholderText}>
+                          Not available on this device
+                        </Text>
+                      )}
+                    </View>
+                  )
                 ) : item.message_type === 'gif' && item.attachment_url ? (
                   <Image source={{ uri: item.attachment_url }} style={styles.messageImage} resizeMode="cover" />
                 ) : (
@@ -741,7 +789,7 @@ export default function ChatScreen() {
         { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
       );
 
-      const sentMessage = await messageService.sendImageMessage(user.id, climberId as string, compressed.uri);
+      const sentMessage = await messageService.sendImageMessage(user.id, climberId as string, compressed.uri, conversationKey);
       applyMessageUpdate(sentMessage);
       setTimeout(() => { flatListRef.current?.scrollToEnd({ animated: true }); }, 100);
     } catch (error: any) {
@@ -780,6 +828,7 @@ export default function ChatScreen() {
       theme={theme}
       styles={styles}
       pbUrl={pbUrl}
+      conversationKey={conversationKey}
       onLike={handleToggleLike}
       onReply={setReplyingTo}
       onImagePress={setFullscreenImageUrl}
@@ -1147,19 +1196,19 @@ export default function ChatScreen() {
             <Text style={styles.encryptionSheetTitle}>Your chat is private</Text>
 
             <Text style={styles.encryptionSheetBody}>
-              Messages in this chat are locked on your phone before they are sent, and
-              only {climberName} can unlock them. Not us, not anyone with access to our
-              servers. The key never leaves your device.
+              Messages and photos in this chat are locked on your phone before they are
+              sent, and only {climberName} can unlock them. Not us, not anyone with
+              access to our servers. The key never leaves your device.
             </Text>
 
             <View style={styles.encryptionSheetDivider} />
 
             <Text style={styles.encryptionSheetNote}>
-              Photos are not encrypted yet. We are working on it.
+              If you reinstall the app or switch phones, older messages and photos
+              cannot be unlocked again. Nobody can recover them, which is the point.
             </Text>
             <Text style={styles.encryptionSheetNote}>
-              If you reinstall the app or switch phones, older messages cannot be
-              unlocked again. Nobody can recover them, which is the point.
+              Who you talk to and when is still visible to us. The contents are not.
             </Text>
 
             <Pressable
@@ -1528,6 +1577,18 @@ const createStyles = (theme: typeof themeLight) =>
     loadEarlierText: {
       fontSize: 13,
       color: theme.colors.textSecondary,
+    },
+    attachmentPlaceholder: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      backgroundColor: theme.colors.background,
+    },
+    attachmentPlaceholderText: {
+      fontSize: 11,
+      color: theme.colors.textSecondary,
+      textAlign: 'center',
+      paddingHorizontal: 10,
     },
     encryptionNotice: {
       flexDirection: 'row',

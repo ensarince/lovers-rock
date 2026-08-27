@@ -48,6 +48,25 @@ jest.mock('expo-crypto', () => ({
   getRandomBytes: (n: number) => new Uint8Array(require('crypto').randomBytes(n)),
 }));
 
+// In-memory filesystem, so tests can read back exactly what was written to disk
+// before upload.
+const mockDisk = new Map<string, Uint8Array>();
+
+jest.mock('expo-file-system', () => {
+  class FakeFile {
+    uri: string;
+    constructor(...parts: any[]) {
+      this.uri = parts.map((p) => (typeof p === 'string' ? p : p?.uri ?? '')).join('/');
+    }
+    get exists() { return mockDisk.has(this.uri); }
+    async bytes() { return mockDisk.get(this.uri) ?? new Uint8Array(0); }
+    create() { /* nothing to allocate in memory */ }
+    write(data: Uint8Array) { mockDisk.set(this.uri, data); }
+    delete() { mockDisk.delete(this.uri); }
+  }
+  return { File: FakeFile, Directory: FakeFile, Paths: { cache: 'file:///cache' } };
+});
+
 import { MessageService } from '@/src/services/messageService';
 import { ensureKeyPair, getConversationKey } from '@/src/services/encryptionService';
 import { x25519 } from '@noble/curves/ed25519.js';
@@ -161,6 +180,85 @@ describe('messages as stored on the server', () => {
     it('reads plaintext back untouched even when a key exists', async () => {
       const [message] = await service.getMessagesBetweenUsers(ME, THEM, 1, 50, conversationKey);
       expect(message.content).toBe(SECRET);
+    });
+  });
+
+  describe('a photo', () => {
+    const PHOTO_URI = 'file:///tmp/compressed.jpg';
+    // Real JPEG magic, so the test proves the uploaded bytes stop looking like one.
+    const photoBytes = new Uint8Array([
+      0xff, 0xd8, 0xff, 0xe0,
+      ...Array.from({ length: 5000 }, (_, i) => i % 256),
+    ]);
+
+    let uploadedPart: any;
+    let uploadedBytes: Uint8Array | undefined;
+    let realFormData: any;
+
+    beforeEach(() => {
+      mockDisk.clear();
+      mockDisk.set(PHOTO_URI, photoBytes);
+
+      // React Native's FormData takes a { uri, name, type } object for file parts.
+      // Node's built-in FormData would stringify that, so record the parts instead.
+      realFormData = (global as any).FormData;
+      (global as any).FormData = class {
+        parts: Record<string, any> = {};
+        append(name: string, value: any) { this.parts[name] = value; }
+      };
+
+      // Photo upload uses raw fetch rather than the SDK, so intercept it there.
+      uploadedPart = undefined;
+      uploadedBytes = undefined;
+      (global as any).fetch = jest.fn(async (_url: string, init: any) => {
+        uploadedPart = init.body.parts.image_attachment;
+        // Read it here: the sealed temp file is deleted as soon as the upload
+        // returns, which is exactly what the cleanup test below asserts.
+        uploadedBytes = mockDisk.get(uploadedPart.uri);
+        return {
+          ok: true,
+          json: async () => ({
+            id: 'img1',
+            image_attachment: 'photo.bin',
+            created: new Date(0).toISOString(),
+          }),
+        };
+      });
+    });
+
+    afterEach(() => {
+      (global as any).FormData = realFormData;
+      delete (global as any).fetch;
+    });
+
+    it('uploads sealed bytes, not the photo', async () => {
+      await service.sendImageMessage(ME, THEM, PHOTO_URI, conversationKey);
+      const uploaded = uploadedBytes!;
+      expect(uploaded).toBeDefined();
+      // No longer a JPEG, so the server cannot recognise or render it.
+      expect([uploaded[0], uploaded[1], uploaded[2]]).not.toEqual([0xff, 0xd8, 0xff]);
+    });
+
+    it('declares the sealed MIME type the field now allows', async () => {
+      await service.sendImageMessage(ME, THEM, PHOTO_URI, conversationKey);
+      expect(uploadedPart.type).toBe('application/octet-stream');
+    });
+
+    it('adds only 45 bytes over the original photo', async () => {
+      await service.sendImageMessage(ME, THEM, PHOTO_URI, conversationKey);
+      expect(uploadedBytes!.length).toBe(photoBytes.length + 45);
+    });
+
+    it('cleans the sealed temp file off disk afterwards', async () => {
+      await service.sendImageMessage(ME, THEM, PHOTO_URI, conversationKey);
+      // Only the original photo should be left behind.
+      expect([...mockDisk.keys()]).toEqual([PHOTO_URI]);
+    });
+
+    it('uploads the plain photo when the recipient has no key', async () => {
+      await service.sendImageMessage(ME, THEM, PHOTO_URI, null);
+      expect(uploadedPart.uri).toBe(PHOTO_URI);
+      expect(uploadedPart.type).toBe('image/jpeg');
     });
   });
 

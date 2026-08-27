@@ -223,6 +223,90 @@ describe('encryptionService', () => {
     });
   });
 
+  describe('sealing photo attachments', () => {
+    // Real JPEG magic, so the tests prove a plain image is never mistaken for a
+    // sealed one and vice versa.
+    const jpegBytes = (size = 4096) => {
+      const data = new Uint8Array(size);
+      data.set([0xff, 0xd8, 0xff, 0xe0], 0);
+      for (let i = 4; i < size; i += 1) data[i] = i % 256;
+      return data;
+    };
+
+    let key: Uint8Array;
+
+    beforeEach(async () => {
+      await svc.ensureKeyPair(ALICE);
+      key = await svc.getConversationKey(ALICE, BOB, makePeer().publicKeyB64);
+    });
+
+    it('round-trips the exact bytes', () => {
+      const original = jpegBytes();
+      const opened = svc.openAttachment(svc.sealAttachment(original, key), key);
+      expect(Buffer.from(opened)).toEqual(Buffer.from(original));
+    });
+
+    it('round-trips a 2MB photo, the upload cap', () => {
+      const original = jpegBytes(2 * 1024 * 1024);
+      const opened = svc.openAttachment(svc.sealAttachment(original, key), key);
+      // Compare by digest — a deep buffer equality on 2MB takes jest ~30s to diff.
+      const digest = (b: Uint8Array) =>
+        require('crypto').createHash('sha256').update(Buffer.from(b)).digest('hex');
+      expect(opened).toHaveLength(original.length);
+      expect(digest(opened)).toBe(digest(original));
+    });
+
+    it('leaves the image header unrecognisable', () => {
+      const sealed = svc.sealAttachment(jpegBytes(), key);
+      // Not a JPEG any more, so PocketBase cannot sniff it as an image.
+      expect([sealed[0], sealed[1], sealed[2]]).not.toEqual([0xff, 0xd8, 0xff]);
+    });
+
+    it('adds only 45 bytes of overhead', () => {
+      const original = jpegBytes(10000);
+      expect(svc.sealAttachment(original, key).length).toBe(original.length + 45);
+    });
+
+    it('uses a fresh nonce every time', () => {
+      const original = jpegBytes(64);
+      const a = Buffer.from(svc.sealAttachment(original, key)).toString('hex');
+      const b = Buffer.from(svc.sealAttachment(original, key)).toString('hex');
+      expect(a).not.toBe(b);
+    });
+
+    it('cannot be opened with a stranger key', () => {
+      const sealed = svc.sealAttachment(jpegBytes(), key);
+      expect(svc.openAttachment(sealed, new Uint8Array(randomBytes(32)))).toBeNull();
+    });
+
+    it('rejects tampered bytes', () => {
+      const sealed = svc.sealAttachment(jpegBytes(), key);
+      sealed[sealed.length - 1] ^= 0xff;
+      expect(svc.openAttachment(sealed, key)).toBeNull();
+    });
+
+    it('returns null for a sealed photo when no key is available', () => {
+      expect(svc.openAttachment(svc.sealAttachment(jpegBytes(), key), null)).toBeNull();
+    });
+
+    it('passes a plain image through untouched', () => {
+      const plain = jpegBytes();
+      expect(Buffer.from(svc.openAttachment(plain, key))).toEqual(Buffer.from(plain));
+    });
+
+    it('passes a plain image through even with no key', () => {
+      const plain = jpegBytes();
+      expect(Buffer.from(svc.openAttachment(plain, null))).toEqual(Buffer.from(plain));
+    });
+
+    it('recognises sealed bytes and only sealed bytes', () => {
+      expect(svc.isSealedAttachment(svc.sealAttachment(jpegBytes(), key))).toBe(true);
+      expect(svc.isSealedAttachment(jpegBytes())).toBe(false);
+      expect(svc.isSealedAttachment(new Uint8Array([0x54, 0x41]))).toBe(false);
+      expect(svc.isSealedAttachment(new Uint8Array(0))).toBe(false);
+    });
+  });
+
   describe('isEncrypted', () => {
     it('recognises sealed payloads', async () => {
       await svc.ensureKeyPair(ALICE);

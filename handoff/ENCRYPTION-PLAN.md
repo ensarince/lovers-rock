@@ -2,48 +2,63 @@
 
 ---
 
-## Status: phases 1-6 built, not yet tested on a device
+## Status: text and photos encrypted, not yet run on a device
 
-All six phases are implemented and covered by 109 passing tests. What has **not**
-happened yet: running it on a real phone. The crypto is pure JS and Hermes-compatible
-by design, but that assumption is unverified until the app actually boots.
+All six phases plus photo attachments are implemented, with 125 passing tests.
+What has **not** happened: running it on a real phone. The crypto is pure JS and
+Hermes-compatible by design, but that stays an assumption until the app boots.
 
-**Verified so far**
-- 31 unit tests on encryptionService (round-trip, tamper rejection, nonce uniqueness,
-  Turkish characters and emoji, per-account key isolation, shared-device safety)
-- 15 integration tests proving what reaches the server is ciphertext, that reply
-  previews and GIF URLs are sealed too, that plaintext fallback works, and that
-  messages predating encryption still render
-- Both migrations applied cleanly against the local database, and `public_key`
-  confirmed present on `users` and on the `public_profiles` view
+**Verified**
+- 42 unit tests on encryptionService: round-trip, tamper rejection, nonce
+  uniqueness, Turkish characters and emoji, per-account key isolation,
+  shared-device safety, and photo sealing up to the 2MB cap
+- 20 integration tests proving what reaches the server is ciphertext, that reply
+  previews and GIF URLs are sealed, that uploaded photos no longer look like
+  images, that the sealed temp file is cleaned up, and that both fallbacks work
+- **A live PocketBase run** confirming an encrypted photo uploads successfully,
+  downloads byte-identical, decrypts back to the original, is not stored as a
+  recognisable JPEG, and that plain JPEGs from old clients are still accepted
+- All three migrations applied cleanly against the local database
 - Website builds
 
-**Still to do**
-1. Run on a device with two accounts, send a message both ways
-2. Open the PocketBase admin panel and confirm the `messages` table shows gibberish
-3. Decide the rollout question below before shipping the APK
-4. Round 2: encrypt photo attachments
+**Performance** (Node; Hermes will be slower but the same order)
+- 2MB photo: 23ms to seal, 20ms to open
+- Sealing adds a flat 45 bytes, so the 2MB upload cap is effectively unchanged
 
-**Deviations from the plan above**
-- Keys are scoped per account (`take_e2ee_secret_key_v1_<userId>`), not one per
+**Still to do**
+1. Run on a device with two accounts. Send text and a photo both ways
+2. Open the PocketBase admin panel and confirm `messages` shows gibberish and
+   the stored attachment does not render as an image
+3. Settle the rollout question below before building the APK
+
+**Deviations from the plan below**
+- Keys are scoped per account (`take_e2ee_secret_key_v1_<userId>`), not per
   device. Two accounts on one phone would otherwise have shared a key, and the
-  second one in would have published the first one's public key as its own.
-- Logout keeps the stored key and clears only the memory cache, so signing back in
-  on the same phone still shows history. `deleteKeyPair()` on account deletion is
-  the only thing that destroys it.
-- `public_key` was added to `/api/nearby-profiles` as well, because matches (and so
-  the conversation list) are built from that endpoint rather than `public_profiles`.
-- Push notifications now vary by `message_type` ("Sent you a photo" / "a GIF" /
-  "a message") instead of one fixed string. The type is not encrypted and leaks
+  second to sign in would have published the first one's public key as its own.
+- Logout keeps the stored key and clears only the memory cache, so signing back
+  in on the same phone still shows history. `deleteKeyPair()` on account deletion
+  is the only thing that destroys it.
+- `public_key` was added to `/api/nearby-profiles` too, because matches, and so
+  the conversation list, are built from that endpoint rather than the view.
+- Push notifications vary by `message_type` ("Sent you a photo" / "a GIF" /
+  "a message") rather than one fixed string. The type is not encrypted and leaks
   nothing beyond metadata the server already sees.
+- Photos were pulled forward from round 2 and are now sealed as raw bytes,
+  layout `[5-byte magic][24-byte nonce][ciphertext+tag]`. Raw rather than base64
+  so an encrypted photo is only 45 bytes larger than the original.
+- `image_attachment` now also accepts `application/octet-stream`, since
+  PocketBase sniffs file content and sealed bytes are indistinguishable from
+  random. The plain image types stay allowed for the rollout.
+- Decrypted photos are cached under the OS cache directory and wiped on logout
+  and on account deletion, so the next person on the phone cannot browse them.
 - Jest needed `transformIgnorePatterns` extended for `@noble/*`, which ships pure
-  ESM with no CJS build. Metro handles it natively; only Jest needed telling.
+  ESM with no CJS build. Metro handles it natively.
 
 ## The rollout decision, still open
 
 Once the new APK is live, old clients cannot read new clients' messages and will
-show the raw `v1.…` string in the chat. Either force an app update so everyone
-moves at once, or accept a rough week. Worth settling before the build goes out.
+show the raw `v1.…` string in chat. Either force an app update so everyone moves
+at once, or accept a rough week. Worth settling before the build goes out.
 
 ---
 
@@ -55,7 +70,7 @@ UI and on the website so users can see and trust it.
 **Decisions locked in:**
 - Approach: **real E2EE** (not server-side encryption at rest)
 - Key backup: **none for now**. Lose the device, lose the history. Recovery phrase is a later option.
-- Scope round 1: **text messages + reply previews + GIF URLs**. Photos are round 2.
+- Scope: **text messages, reply previews, GIF URLs, and photo attachments**.
 
 ---
 
