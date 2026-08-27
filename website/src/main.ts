@@ -168,3 +168,62 @@ document.querySelectorAll<HTMLAnchorElement>('a[href^="#"]').forEach((anchor) =>
     }
   });
 });
+
+// ── Ciphertext scramble ──────────────────────────────────────────────────
+// The privacy section claims we cannot read your messages. Rather than only
+// asserting it, the panel shows one message twice: as your match reads it, and
+// as it actually sits on our server. Scrambling the second one into place makes
+// the point faster than the paragraph underneath it.
+const cipherEl = document.querySelector<HTMLElement>('[data-cipher]');
+
+if (cipherEl) {
+  const finalText = cipherEl.textContent ?? '';
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  let frame = 0;
+  let raf2 = 0;
+
+  const scramble = (): void => {
+    // Characters lock in left to right, so it reads as the message being sealed.
+    const settled = Math.floor(frame / 1.6);
+    let out = '';
+
+    for (let i = 0; i < finalText.length; i++) {
+      if (i < settled || finalText[i] === '.') {
+        out += finalText[i];
+      } else {
+        out += alphabet[Math.floor(Math.random() * alphabet.length)];
+      }
+    }
+
+    cipherEl.textContent = out;
+    frame++;
+
+    if (settled <= finalText.length) {
+      raf2 = requestAnimationFrame(scramble);
+    } else {
+      cipherEl.textContent = finalText;
+      raf2 = 0;
+    }
+  };
+
+  if (prefersReducedMotion) {
+    cipherEl.textContent = finalText;
+  } else {
+    // Hold the scramble until the panel is actually on screen, then replay it
+    // whenever the reader scrolls back to it.
+    new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !raf2) {
+          frame = 0;
+          scramble();
+        } else if (!entry.isIntersecting && raf2) {
+          cancelAnimationFrame(raf2);
+          raf2 = 0;
+        }
+      },
+      { threshold: 0.4 }
+    ).observe(cipherEl);
+  }
+}
