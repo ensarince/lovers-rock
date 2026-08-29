@@ -351,8 +351,9 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   justify-content: center;
   margin-bottom: 20px;
-  font-size: 26px;
+  color: var(--teal);
 }
+.feature-icon-wrap svg { width: 24px; height: 24px; }
 .styles-icons {
   display: flex;
   gap: 16px;
