@@ -15,6 +15,7 @@ import { Match } from '@/src/types/match';
 import { Message } from '@/src/types/message';
 import { getPocketBaseUrl } from '@/src/utils/helperFunctions';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import * as Haptics from 'expo-haptics';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -50,6 +51,11 @@ const HEART_REACTION = '\u2764\uFE0F';
 const LEGACY_HEART_REACTION = '\u00e2\u009d\u00a4\u00ef\u00b8\u008f';
 
 const QUICK_EMOJIS = ['\ud83d\ude02', '\u2764\uFE0F', '\ud83d\udd25', '\ud83d\udc4d', '\ud83d\ude4f', '\ud83d\ude0d', '\ud83e\udd23', '\ud83d\ude2d', '\ud83d\ude0e', '\ud83e\udd70', '\ud83d\udcaa', '\ud83c\udf89', '\ud83e\udd29', '\ud83d\ude0a', '\ud83d\ude05', '\ud83e\udef6', '\u26f0\uFE0F', '\ud83e\uddd7', '\ud83c\udfd4\uFE0F', '\ud83e\udea8'];
+
+// Tap window for like-vs-open, and how far a bubble travels before a swipe
+// counts as a reply. The old 60px threshold made replying feel like a fight.
+const DOUBLE_TAP_MS = 260;
+const REPLY_SWIPE_THRESHOLD = 44;
 
 const sortMessages = (msgs: Message[]) =>
   [...msgs].sort((a, b) => new Date(a.created).getTime() - new Date(b.created).getTime());
@@ -113,6 +119,7 @@ function MessageItem({
   onImagePress,
   pbUrl,
   conversationKey,
+  replyToAuthor,
 }: {
   item: Message;
   userId: string;
@@ -121,6 +128,7 @@ function MessageItem({
   styles: any;
   pbUrl: string;
   conversationKey: Uint8Array | null;
+  replyToAuthor?: string;
   onLike: (id: string) => void;
   onReply: (msg: Message) => void;
   onImagePress: (url: string) => void;
@@ -174,32 +182,62 @@ function MessageItem({
   const onImagePressRef = useRef(onImagePress);
   onImagePressRef.current = onImagePress;
   const lastTapRef = useRef(0);
+  const singleTapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const triggerReply = useCallback(() => {
     onReplyRef.current(itemRef.current);
   }, []);
 
-  // Double-tap via JS timestamp — avoids all RNGH vs Pressable conflicts
+  // Double-tap via JS timestamp — avoids all RNGH vs Pressable conflicts.
+  //
+  // Opening media has to wait out the double-tap window, otherwise the first tap
+  // launches the viewer and a double-tap on a photo can never register as a like.
+  // Own messages cannot be liked, so their media opens with no delay at all.
   const handleBubblePress = useCallback(() => {
-    const now = Date.now();
-    const gap = now - lastTapRef.current;
-    if (gap < 300 && gap > 0) {
+    const cur = itemRef.current;
+    const likeable = cur.sender_id !== userIdRef.current;
+
+    const openMedia = () => {
+      if (cur.message_type === 'image') {
+        // Photos open from the decrypted local copy, since the remote URL only
+        // ever serves sealed bytes.
+        if (attachmentUriRef.current) onImagePressRef.current(attachmentUriRef.current);
+      } else if (cur.message_type === 'gif' && cur.attachment_url) {
+        onImagePressRef.current(cur.attachment_url);
+      }
+    };
+
+    if (!likeable) {
+      openMedia();
+      return;
+    }
+
+    const gap = Date.now() - lastTapRef.current;
+    if (gap < DOUBLE_TAP_MS && gap > 0) {
+      if (singleTapTimerRef.current) {
+        clearTimeout(singleTapTimerRef.current);
+        singleTapTimerRef.current = null;
+      }
       lastTapRef.current = 0;
-      const cur = itemRef.current;
-      if (cur.sender_id !== userIdRef.current && !isReactingRef.current) {
+      if (!isReactingRef.current) {
+        // Confirm the like in the hand — the badge alone is easy to miss when
+        // your thumb is covering the bubble.
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         onLikeRef.current(cur.id);
       }
       return;
     }
-    lastTapRef.current = now;
-    // Single-tap: open media. Photos open from the decrypted local copy, since
-    // the remote URL only ever serves sealed bytes.
-    const cur = itemRef.current;
-    if (cur.message_type === 'image') {
-      if (attachmentUriRef.current) onImagePressRef.current(attachmentUriRef.current);
-    } else if (cur.message_type === 'gif' && cur.attachment_url) {
-      onImagePressRef.current(cur.attachment_url);
-    }
+
+    lastTapRef.current = Date.now();
+    if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current);
+    singleTapTimerRef.current = setTimeout(() => {
+      singleTapTimerRef.current = null;
+      openMedia();
+    }, DOUBLE_TAP_MS);
+  }, []);
+
+  useEffect(() => () => {
+    if (singleTapTimerRef.current) clearTimeout(singleTapTimerRef.current);
   }, []);
 
   const initialTouchLocation = useSharedValue({ x: 0, y: 0 });
@@ -230,7 +268,7 @@ function MessageItem({
         .onEnd(() => {
           const dx = dragX.value;
           dragX.value = withSpring(0, { damping: 20, stiffness: 300 });
-          if (dx > 60) runOnJS(triggerReply)();
+          if (dx > REPLY_SWIPE_THRESHOLD) runOnJS(triggerReply)();
         }),
     []
   );
@@ -240,7 +278,7 @@ function MessageItem({
   }));
 
   const replyIconStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(dragX.value, [0, 60], [0, 1], Extrapolation.CLAMP),
+    opacity: interpolate(dragX.value, [0, REPLY_SWIPE_THRESHOLD], [0, 1], Extrapolation.CLAMP),
     transform: [{ scale: interpolate(dragX.value, [0, 60], [0.4, 1], Extrapolation.CLAMP) }],
   }));
 
@@ -268,8 +306,17 @@ function MessageItem({
               >
                 {item.reply_to_preview ? (
                   <View style={[styles.replyQuote, isOwn ? styles.replyQuoteOwn : styles.replyQuoteOther]}>
-                    <View style={styles.replyQuoteBar} />
-                    <Text style={styles.replyQuoteText} numberOfLines={2}>{item.reply_to_preview}</Text>
+                    {replyToAuthor ? (
+                      <Text style={[styles.replyQuoteAuthor, isOwn && styles.replyQuoteAuthorOwn]}>
+                        {replyToAuthor}
+                      </Text>
+                    ) : null}
+                    <Text
+                      style={[styles.replyQuoteText, isOwn && styles.replyQuoteTextOwn]}
+                      numberOfLines={2}
+                    >
+                      {item.reply_to_preview}
+                    </Text>
                   </View>
                 ) : null}
                 {item.message_type === 'image' ? (
@@ -346,6 +393,8 @@ export default function ChatScreen() {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [fullscreenImageUrl, setFullscreenImageUrl] = useState<string | null>(null);
   const [encryptionInfoVisible, setEncryptionInfoVisible] = useState(false);
+  // Reopened by the chevron while typing; an empty field always shows the rail.
+  const [mediaRailExpanded, setMediaRailExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [showDoubleTapHint, setShowDoubleTapHint] = useState(false);
@@ -739,12 +788,13 @@ export default function ChatScreen() {
     try {
       setSending(true);
       const replyPreview = replyingTo
-        ? replyingTo.message_type === 'image' ? '📷 Photo'
-          : replyingTo.message_type === 'gif' ? '🎞️ GIF'
+        ? replyingTo.message_type === 'image' ? 'Photo'
+          : replyingTo.message_type === 'gif' ? 'GIF'
           : (replyingTo.content.length > 60 ? replyingTo.content.slice(0, 60) + '…' : replyingTo.content)
         : undefined;
       const sentMessage = await messageService.sendMessage(user.id, climberId as string, newMessage, replyingTo?.id, replyPreview, conversationKey);
       setNewMessage('');
+      setMediaRailExpanded(false);
       setReplyingTo(null);
       inputRef.current?.clear();
       applyMessageUpdate(sentMessage);
@@ -820,20 +870,33 @@ export default function ChatScreen() {
     }
   };
 
-  const renderMessage = ({ item }: { item: Message }) => (
-    <MessageItem
-      item={item}
-      userId={user?.id || ''}
-      isReacting={reactingToMessageIds.includes(item.id)}
-      theme={theme}
-      styles={styles}
-      pbUrl={pbUrl}
-      conversationKey={conversationKey}
-      onLike={handleToggleLike}
-      onReply={setReplyingTo}
-      onImagePress={setFullscreenImageUrl}
-    />
-  );
+  const renderMessage = ({ item }: { item: Message }) => {
+    // A quote with no name is just floating text. Resolve who is being quoted
+    // from the original message when it is still loaded.
+    const quoted = item.reply_to_id
+      ? messages.find((message) => message.id === item.reply_to_id)
+      : undefined;
+    const replyToAuthor = quoted
+      ? (quoted.sender_id === user?.id ? 'You' : (climberName as string) || undefined)
+      : undefined;
+
+    return (
+      <MessageItem
+        item={item}
+        userId={user?.id || ''}
+        isReacting={reactingToMessageIds.includes(item.id)}
+        theme={theme}
+        styles={styles}
+        pbUrl={pbUrl}
+        conversationKey={conversationKey}
+        onLike={handleToggleLike}
+        onReply={setReplyingTo}
+        onImagePress={setFullscreenImageUrl}
+        replyToAuthor={replyToAuthor}
+      />
+    );
+  };
+
   const handleToggleLike = async (messageId: string) => {
     if (!user?.id || !token) return;
     const message = messages.find((currentMessage) => currentMessage.id === messageId);
@@ -957,6 +1020,10 @@ export default function ChatScreen() {
     );
   }
 
+  // An empty field always shows the attachment rail; once there is something
+  // to send it collapses so the text has room, unless reopened by the chevron.
+  const mediaRailOpen = !newMessage.trim() || mediaRailExpanded;
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -989,16 +1056,18 @@ export default function ChatScreen() {
       {/* Encryption notice — only shown when this conversation really is sealed,
           so it is never a claim we cannot back up. */}
       {conversationKey && (
-        <Pressable
-          onPress={() => setEncryptionInfoVisible(true)}
-          style={styles.encryptionNotice}
-          hitSlop={6}
-        >
-          <Ionicons name="lock-closed" size={11} color={theme.colors.textSecondary} />
-          <Text style={styles.encryptionNoticeText}>
-            Messages are end-to-end encrypted
-          </Text>
-        </Pressable>
+        <View style={styles.encryptionNoticeRow}>
+          <Pressable
+            onPress={() => setEncryptionInfoVisible(true)}
+            style={styles.encryptionNotice}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Messages are end-to-end encrypted. Tap to learn what that means."
+          >
+            <Ionicons name="lock-closed" size={12} color={theme.colors.secure} />
+            <Text style={styles.encryptionNoticeText}>End-to-end encrypted</Text>
+          </Pressable>
+        </View>
       )}
 
       {/* Messages */}
@@ -1057,14 +1126,30 @@ export default function ChatScreen() {
       <View style={styles.inputWrapper}>
         {replyingTo && (
           <View style={styles.replyStrip}>
-            <Ionicons name="return-up-back" size={15} color={theme.colors.accent} style={{ marginRight: 6 }} />
-            <Text style={styles.replyStripText} numberOfLines={1}>
-              {replyingTo.message_type === 'image' ? '📷 Photo'
-                : replyingTo.message_type === 'gif' ? '🎞️ GIF'
-                : replyingTo.content}
-            </Text>
-            <Pressable onPress={() => setReplyingTo(null)} hitSlop={10} style={{ marginLeft: 6 }}>
-              <Ionicons name="close-circle" size={18} color={theme.colors.textSecondary} />
+            <Ionicons name="return-up-back" size={16} color={theme.colors.accent} style={{ marginRight: 8 }} />
+            <View style={styles.replyStripBody}>
+              {/* Naming the target makes it obvious which message got picked up,
+                  which matters most when several say something similar. */}
+              <Text style={styles.replyStripLabel} numberOfLines={1}>
+                Replying to {replyingTo.sender_id === user?.id ? 'yourself' : climberName}
+              </Text>
+              <View style={styles.replyStripPreview}>
+                {replyingTo.message_type === 'image' || replyingTo.message_type === 'gif' ? (
+                  <Ionicons
+                    name={replyingTo.message_type === 'image' ? 'image-outline' : 'film-outline'}
+                    size={13}
+                    color={theme.colors.textSecondary}
+                  />
+                ) : null}
+                <Text style={styles.replyStripText} numberOfLines={1}>
+                  {replyingTo.message_type === 'image' ? 'Photo'
+                    : replyingTo.message_type === 'gif' ? 'GIF'
+                    : replyingTo.content}
+                </Text>
+              </View>
+            </View>
+            <Pressable onPress={() => setReplyingTo(null)} hitSlop={12} style={{ marginLeft: 8 }}>
+              <Ionicons name="close" size={18} color={theme.colors.textSecondary} />
             </Pressable>
           </View>
         )}
@@ -1087,30 +1172,46 @@ export default function ChatScreen() {
             ))}
           </ScrollView>
         )}
-        <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 10) + 8 }]}>
-          <Pressable
-            style={styles.mediaButton}
-            onPress={pickAndSendImage}
-            disabled={sending || blocked}
-            hitSlop={4}
-          >
-            <Ionicons name="image-outline" size={22} color={sending || blocked ? theme.colors.textSecondary : theme.colors.text} />
-          </Pressable>
-          <Pressable
-            style={styles.mediaButton}
-            onPress={() => setGifModalVisible(true)}
-            disabled={sending || blocked}
-            hitSlop={4}
-          >
-            <Text style={[styles.gifLabel, { color: sending || blocked ? theme.colors.textSecondary : theme.colors.text }]}>GIF</Text>
-          </Pressable>
-          <Pressable
-            style={styles.mediaButton}
-            onPress={() => setShowEmojiPicker((v) => !v)}
-            hitSlop={4}
-          >
-            <Ionicons name={showEmojiPicker ? 'happy' : 'happy-outline'} size={22} color={showEmojiPicker ? theme.colors.accent : theme.colors.text} />
-          </Pressable>
+        <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+          {/* Three attachment buttons plus the send button leave barely half the
+              row for text. Once there is something to send they collapse behind a
+              chevron, the way iMessage does, and the field takes the space back. */}
+          {mediaRailOpen ? (
+            <>
+              <Pressable
+                style={styles.mediaButton}
+                onPress={pickAndSendImage}
+                disabled={sending || blocked}
+                hitSlop={4}
+              >
+                <Ionicons name="image-outline" size={22} color={sending || blocked ? theme.colors.textSecondary : theme.colors.text} />
+              </Pressable>
+              <Pressable
+                style={styles.mediaButton}
+                onPress={() => setGifModalVisible(true)}
+                disabled={sending || blocked}
+                hitSlop={4}
+              >
+                <Text style={[styles.gifLabel, { color: sending || blocked ? theme.colors.textSecondary : theme.colors.text }]}>GIF</Text>
+              </Pressable>
+              <Pressable
+                style={styles.mediaButton}
+                onPress={() => setShowEmojiPicker((v) => !v)}
+                hitSlop={4}
+              >
+                <Ionicons name={showEmojiPicker ? 'happy' : 'happy-outline'} size={22} color={showEmojiPicker ? theme.colors.accent : theme.colors.text} />
+              </Pressable>
+            </>
+          ) : (
+            <Pressable
+              style={styles.mediaButton}
+              onPress={() => setMediaRailExpanded(true)}
+              hitSlop={8}
+              accessibilityLabel="Show photo, GIF and emoji options"
+            >
+              <Ionicons name="chevron-forward" size={22} color={theme.colors.textSecondary} />
+            </Pressable>
+          )}
           <TextInput
             ref={inputRef}
             style={styles.input}
@@ -1498,9 +1599,11 @@ const createStyles = (theme: typeof themeLight) =>
     },
     inputContainer: {
       flexDirection: 'row',
-      alignItems: 'center',
+      // Bottom-aligned so the buttons stay level with the last line of a long
+      // message rather than drifting to the middle of a grown field.
+      alignItems: 'flex-end',
       paddingHorizontal: 12,
-      paddingTop: 10,
+      paddingTop: 8,
       gap: 4,
     },
     mediaButton: {
@@ -1522,7 +1625,7 @@ const createStyles = (theme: typeof themeLight) =>
       paddingVertical: 10,
       color: theme.colors.text,
       fontSize: 16,
-      maxHeight: 100,
+      maxHeight: 132,
       marginHorizontal: 4,
       borderWidth: 1,
       borderColor: theme.colors.border,
@@ -1590,21 +1693,29 @@ const createStyles = (theme: typeof themeLight) =>
       textAlign: 'center',
       paddingHorizontal: 10,
     },
+    // A centred chip on the chat background, not a second bar. The header is
+    // already surface-coloured with a bottom border, so repeating that here
+    // stacked two slabs and read as system chrome rather than as a property of
+    // the conversation.
+    encryptionNoticeRow: {
+      alignItems: 'center',
+      paddingTop: 10,
+      paddingBottom: 2,
+    },
     encryptionNotice: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: 5,
-      paddingVertical: 7,
-      paddingHorizontal: 16,
-      backgroundColor: theme.colors.surface,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
+      gap: 6,
+      paddingVertical: 5,
+      paddingHorizontal: 11,
+      borderRadius: 999,
+      backgroundColor: theme.colors.secure + '1A', // 10% tint of the same hue
     },
     encryptionNoticeText: {
-      fontSize: 11,
-      color: theme.colors.textSecondary,
-      letterSpacing: 0.2,
+      fontSize: 11.5,
+      fontWeight: '500',
+      color: theme.colors.secure,
+      letterSpacing: 0.1,
     },
     encryptionOverlay: {
       flex: 1,
@@ -1669,33 +1780,45 @@ const createStyles = (theme: typeof themeLight) =>
       fontWeight: '600',
       color: '#ffffff',
     },
+    // Sits flush above its bubble and borrows that bubble's colour, so the two
+    // read as one stacked unit. The old version was a detached grey box with an
+    // accent bar down its left edge, which belonged to no other surface here.
     replyQuote: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderRadius: 8,
-      marginBottom: 6,
-      paddingVertical: 8,
-      paddingHorizontal: 10,
-      gap: 8,
+      marginBottom: 2,
+      paddingTop: 7,
+      paddingBottom: 8,
+      paddingHorizontal: 14,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      borderBottomLeftRadius: 6,
+      borderBottomRightRadius: 6,
       minWidth: 120,
     },
     replyQuoteOwn: {
-      backgroundColor: 'rgba(255,255,255,0.15)',
+      // A deeper shade of the accent bubble beneath it.
+      backgroundColor: 'rgba(0,0,0,0.20)',
     },
     replyQuoteOther: {
-      backgroundColor: theme.colors.border,
+      backgroundColor: theme.colors.background,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
     },
-    replyQuoteBar: {
-      width: 3,
-      alignSelf: 'stretch',
-      borderRadius: 2,
-      backgroundColor: theme.colors.accent,
+    replyQuoteAuthor: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: theme.colors.accent,
+      marginBottom: 2,
+    },
+    replyQuoteAuthorOwn: {
+      color: 'rgba(255,255,255,0.92)',
     },
     replyQuoteText: {
-      flex: 1,
       fontSize: 13,
+      lineHeight: 17,
       color: theme.colors.textSecondary,
-      lineHeight: 18,
+    },
+    replyQuoteTextOwn: {
+      color: 'rgba(255,255,255,0.72)',
     },
     replyStrip: {
       flexDirection: 'row',
@@ -1706,10 +1829,25 @@ const createStyles = (theme: typeof themeLight) =>
       borderTopColor: theme.colors.border,
       backgroundColor: theme.colors.surface,
     },
+    replyStripBody: {
+      flex: 1,
+      gap: 1,
+    },
+    replyStripLabel: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: theme.colors.accent,
+      letterSpacing: 0.1,
+    },
+    replyStripPreview: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
     replyStripText: {
       flex: 1,
       fontSize: 13,
-      color: theme.colors.text,
+      color: theme.colors.textSecondary,
     },
     fullscreenOverlay: {
       flex: 1,

@@ -12,5 +12,8 @@ export const theme = {
     error: '#FF2E63',
     success: '#10B981',
     edit: '#34D3CF',
+    // Encryption/trust signal. Distinct from success, which already means
+    // "online" and "beginner grade" elsewhere in the app.
+    secure: '#34D3CF',
   },
 };
