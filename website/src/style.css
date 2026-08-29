@@ -44,15 +44,6 @@ a { color: inherit; text-decoration: none; }
    section's heading underneath it. Applies to #privacy, #download and #support. */
 .section, .editorial-band { scroll-margin-top: 88px; }
 
-.section-label {
-  font-family: var(--font-body);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--teal);
-  margin-bottom: 16px;
-}
 
 .section-title {
   font-family: var(--font-display);
@@ -441,7 +432,6 @@ a { color: inherit; text-decoration: none; }
   pointer-events: none;
 }
 .encryption .container { position: relative; z-index: 1; }
-.encryption .section-label { text-align: center; }
 .encryption-title { text-align: center; margin-bottom: 56px; }
 
 /* The demonstration: one message, as the reader sees it and as we store it. */
@@ -534,14 +524,6 @@ a { color: inherit; text-decoration: none; }
   width: 28px;
   height: 2px;
   background: var(--teal);
-}
-.privacy-point-index {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 15px;
-  font-weight: 600;
-  color: rgba(52, 211, 207, 0.5);
-  margin-bottom: 8px;
 }
 .privacy-point h3 {
   font-family: var(--font-display);
@@ -701,7 +683,6 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   gap: 48px;
 }
-.download-text .section-label,
 .download-text .section-title { text-align: center; }
 .download-text .section-title { margin-bottom: 16px; }
 .download-sub { font-size: 18px; color: var(--muted); margin-bottom: 8px; }
