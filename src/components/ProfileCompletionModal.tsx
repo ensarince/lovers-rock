@@ -51,7 +51,7 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
     onComplete,
     darkMode,
 }) => {
-    const { token } = useAuth();
+    const { token, logout } = useAuth();
     const theme = darkMode ? themeDark : themeLight;
     const styles = createStyles(theme);
     const insets = useSafeAreaInsets();
@@ -92,6 +92,38 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
             setInterestedIn(undefined);
         }
     }, [user, visible]);
+
+    // Signing in with the wrong Google account used to trap you here: the modal
+    // shows until profile_completed is true, and there was no way back to the
+    // login screen. Signing out releases it and lets you pick another account.
+    //
+    // The half-finished account is deliberately left in place rather than
+    // deleted. This modal also appears for existing users whose profile is
+    // incomplete, and deleting on cancel would destroy a real account with real
+    // matches and messages.
+    const handleCancelSetup = () => {
+        Alert.alert(
+            'Leave setup?',
+            'You will be signed out, so you can sign back in with a different account.',
+            [
+                { text: 'Keep setting up', style: 'cancel' },
+                { text: 'Sign out', style: 'destructive', onPress: () => { logout(); } },
+            ]
+        );
+    };
+
+    const renderCancel = () => (
+        <Pressable
+            style={[styles.cancelSetup, { top: insets.top + 10 }]}
+            onPress={handleCancelSetup}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Leave setup and sign out"
+        >
+            <Ionicons name="close" size={16} color={theme.colors.textSecondary} />
+            <Text style={styles.cancelSetupText}>Sign out</Text>
+        </Pressable>
+    );
 
     const handleImagePicker = async (index: number) => {
         const currentImageCount = newPhotos.length + images.length;
@@ -332,9 +364,10 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
         return (
             <Modal visible={visible} animationType="fade" transparent={false} hardwareAccelerated>
                 <View style={styles.container}>
+                    {renderCancel()}
                     <ScrollView
                         style={{ flex: 1 }}
-                        contentContainerStyle={[styles.intentScrollContent, { paddingTop: insets.top + 24 }]}
+                        contentContainerStyle={[styles.intentScrollContent, { paddingTop: insets.top + 56 }]}
                         showsVerticalScrollIndicator={false}
                     >
                         <Text style={styles.intentWelcome}>Welcome to Take!</Text>
@@ -420,9 +453,10 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
         return (
             <Modal visible={visible} animationType="fade" transparent={false} hardwareAccelerated>
                 <View style={styles.container}>
+                    {renderCancel()}
                     <ScrollView
                         style={{ flex: 1 }}
-                        contentContainerStyle={[styles.intentScrollContent, { paddingTop: insets.top + 24 }]}
+                        contentContainerStyle={[styles.intentScrollContent, { paddingTop: insets.top + 56 }]}
                         showsVerticalScrollIndicator={false}
                     >
                         <Text style={styles.intentWelcome}>Dating Preference</Text>
@@ -485,7 +519,8 @@ export const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
             hardwareAccelerated
         >
             <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
-                <View style={styles.header}>
+                {renderCancel()}
+                <View style={[styles.header, { marginTop: 28 }]}>
                     <Text style={styles.title}>Complete Your Profile</Text>
                     <Text style={styles.subtitle}>
                         Let's get to know you better!
@@ -849,6 +884,25 @@ const createStyles = (theme: any) =>
         requirementAsterisk: {
             color: theme.colors.error,
             fontWeight: '800',
+        },
+        cancelSetup: {
+            position: 'absolute',
+            right: 16,
+            zIndex: 10,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            paddingVertical: 6,
+            paddingHorizontal: 10,
+            borderRadius: 999,
+            backgroundColor: theme.colors.surface,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: theme.colors.border,
+        },
+        cancelSetupText: {
+            fontSize: 12,
+            fontWeight: '500',
+            color: theme.colors.textSecondary,
         },
         progressBadge: {
             flexDirection: 'row',
