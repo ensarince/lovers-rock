@@ -47,6 +47,41 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 let notificationService: NotificationService | null = null;
 
+type RefreshResult =
+  | { status: 'ok'; token: string; record: any }
+  // The token is genuinely finished. The only recovery is signing in again.
+  | { status: 'expired'; token?: undefined; record?: undefined }
+  // We could not tell: offline, DNS, timeout, or the server is having a moment.
+  // Callers keep the stored session rather than punishing a bad connection.
+  | { status: 'unreachable'; token?: undefined; record?: undefined };
+
+const refreshSession = async (token: string): Promise<RefreshResult> => {
+  try {
+    const response = await fetch(
+      `${getPocketBaseUrl()}/api/collections/users/auth-refresh`,
+      { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data?.token && data?.record) {
+        return { status: 'ok', token: data.token, record: data.record };
+      }
+      return { status: 'unreachable' };
+    }
+
+    // 401 is what PocketBase answers for a token past its expiry; 403 covers a
+    // record that has since been disabled.
+    if (response.status === 401 || response.status === 403) {
+      return { status: 'expired' };
+    }
+
+    return { status: 'unreachable' };
+  } catch {
+    return { status: 'unreachable' };
+  }
+};
+
 const safeUserForStorage = (user: Climber) => {
   // Strip location, sensitive social graph, and email (PII) before caching in plaintext AsyncStorage.
   // Token is in SecureStore; re-fetch full profile from server when needed.
@@ -323,49 +358,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         if (storedUser && storedToken) {
           const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser ? mapToClimber(parsedUser) : null);
-          setToken(storedToken);
-          
-          // Setup notifications for restored user
+
+          // Trade the stored token for a fresh one BEFORE anything uses it.
+          //
+          // PocketBase auth tokens expire. The previous code detected that by
+          // reading the user's own record and treating 401/403 as dead, but the
+          // users viewRule is "id = @request.auth.id", so an expired token makes
+          // that record invisible and PocketBase answers 404, not 401. The check
+          // fell through, the dead token stayed in state, and every later request
+          // failed — which is why the app showed "failed to load" with empty
+          // lists until the user signed out and back in.
+          //
+          // auth-refresh is unambiguous: 200 with a usable token and the current
+          // record, or 401 when the token is genuinely finished. PocketBase hands
+          // back the same token while it is still fresh and a reissued one when
+          // it is near expiry, so this doubles as the session's keep-alive.
+          // Either way the caller gets a straight yes or no instead of a 404 it
+          // has to guess about.
+          const refreshed = await refreshSession(storedToken);
+
+          if (refreshed.status === 'expired') {
+            await AsyncStorage.removeItem('user');
+            await SecureStore.deleteItemAsync('token');
+            clearKeyCache();
+            setUser(null);
+            setToken(null);
+            setIsLoading(false);
+            return;
+          }
+
+          // 'unreachable' keeps the stored session: a flaky connection or a
+          // server hiccup must not sign anyone out.
+          const activeToken = refreshed.token ?? storedToken;
+          const climber = refreshed.record
+            ? mapToClimber(refreshed.record)
+            : mapToClimber(parsedUser);
+
+          setUser(climber);
+          setToken(activeToken);
+
+          if (refreshed.status === 'ok') {
+            await SecureStore.setItemAsync('token', activeToken);
+            await AsyncStorage.setItem('user', JSON.stringify(safeUserForStorage(climber)));
+          }
+
           const pb = new PocketBase(getPocketBaseUrl());
-          pb.authStore.save(storedToken, parsedUser);
-          await setupNotifications(parsedUser.id, pb, storedToken);
-          
-          // Refresh user data from PocketBase to ensure latest profile_completed status
-          try {
-            const POCKETBASE_URL = getPocketBaseUrl();
-            const freshUserRes = await fetch(
-              `${POCKETBASE_URL}/api/collections/users/records/${parsedUser.id}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${storedToken}`,
-                },
-              }
-            );
-            if (freshUserRes.ok) {
-              const freshUserData = await freshUserRes.json();
-              const freshClimber = mapToClimber(freshUserData);
-              setUser(freshClimber);
-              await AsyncStorage.setItem('user', JSON.stringify(safeUserForStorage(freshClimber)));
-            } else if (freshUserRes.status === 401 || freshUserRes.status === 403) {
-              // Token invalid/expired — clear session and force re-login
-              await AsyncStorage.removeItem('user');
-              await SecureStore.deleteItemAsync('token');
-              setUser(null);
-              setToken(null);
-              setIsLoading(false);
-              return;
-            }
-          } catch (err) {
-            // Silently fail if refresh doesn't work, use stored data
-          }
-          
-          // Reset preferences and sync for existing user
-          if (parsedUser && storedToken) {
-            preferenceService.reset();
-            await preferenceService.syncPreferences(storedToken, parsedUser.id);
-            setPreferencesSynced(true);
-          }
+          pb.authStore.save(activeToken, refreshed.record ?? parsedUser);
+          await setupNotifications(climber.id, pb, activeToken);
+
+          preferenceService.reset();
+          await preferenceService.syncPreferences(activeToken, climber.id);
+          setPreferencesSynced(true);
         } else if (authService.isAuthenticated()) {
           const currentUser = authService.getCurrentUser();
           const currentToken = authService.getToken?.() || null;
