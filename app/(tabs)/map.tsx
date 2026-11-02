@@ -132,37 +132,30 @@ export default function MapScreen() {
       >
         {items.map((item) =>
           item.type === 'cluster' ? (
-            <Marker
+            <SnapshotMarker
               key={item.id}
               coordinate={{ latitude: item.latitude, longitude: item.longitude }}
               onPress={() => zoomInto(item.latitude, item.longitude)}
+              redrawKey={item.gyms}
             >
-              <View
-                style={[
-                  styles.cluster,
-                  { transform: [{ scale: Math.min(1.6, 1 + Math.log10(item.gyms) / 2) }] },
-                ]}
-              >
-                <Text style={styles.clusterCount}>{item.gyms}</Text>
-                <Text style={styles.clusterLabel}>gyms</Text>
-              </View>
-            </Marker>
+              <ClusterBubble count={item.gyms} styles={styles} />
+            </SnapshotMarker>
           ) : (
-            <Marker
+            <SnapshotMarker
               key={item.id}
               coordinate={{ latitude: item.latitude, longitude: item.longitude }}
               onPress={(e) => {
                 e.stopPropagation();
                 setSelected(item);
               }}
+              redrawKey={`${item.climbers}-${selected?.id === item.id}`}
             >
-              <View
-                style={[styles.pin, selected?.id === item.id && styles.pinSelected]}
-              >
-                <Users size={12} color="#fff" strokeWidth={2.5} />
-                <Text style={styles.pinCount}>{item.climbers}</Text>
-              </View>
-            </Marker>
+              <GymPin
+                climbers={item.climbers}
+                selected={selected?.id === item.id}
+                styles={styles}
+              />
+            </SnapshotMarker>
           )
         )}
       </MapView>
@@ -216,6 +209,64 @@ export default function MapScreen() {
   );
 }
 
+// Android draws a custom marker by taking a snapshot of its view. If the
+// snapshot is taken before the icon and text have finished laying out, the pin
+// comes out cropped. So: give every pin an explicit size up front, keep
+// tracksViewChanges on just long enough for one complete draw, then switch it
+// off (leaving it on re-renders every pin every frame and makes panning laggy).
+// redrawKey re-opens that window whenever what the pin shows changes.
+const SNAPSHOT_SETTLE_MS = 600;
+
+function SnapshotMarker({
+  redrawKey,
+  children,
+  ...props
+}: React.ComponentProps<typeof Marker> & { redrawKey: string | number }) {
+  const [tracking, setTracking] = useState(true);
+
+  useEffect(() => {
+    setTracking(true);
+    const timer = setTimeout(() => setTracking(false), SNAPSHOT_SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, [redrawKey]);
+
+  return (
+    <Marker {...props} tracksViewChanges={tracking} anchor={{ x: 0.5, y: 0.5 }}>
+      {children}
+    </Marker>
+  );
+}
+
+function GymPin({ climbers, selected, styles }: { climbers: number; selected: boolean; styles: any }) {
+  const digits = String(climbers).length;
+  return (
+    <View
+      collapsable={false}
+      style={[styles.pin, { width: 40 + digits * 8 }, selected && styles.pinSelected]}
+    >
+      <Users size={12} color="#fff" strokeWidth={2.5} />
+      <Text style={styles.pinCount} numberOfLines={1}>
+        {climbers}
+      </Text>
+    </View>
+  );
+}
+
+function ClusterBubble({ count, styles }: { count: number; styles: any }) {
+  // Bigger bubble for more gyms. Real sizes, not a transform: a scaled view
+  // gets clipped to its unscaled box in the snapshot.
+  const size = count >= 100 ? 60 : count >= 10 ? 52 : 44;
+  return (
+    <View
+      collapsable={false}
+      style={[styles.cluster, { width: size, height: size, borderRadius: size / 2 }]}
+    >
+      <Text style={styles.clusterCount}>{count}</Text>
+      <Text style={styles.clusterLabel}>gyms</Text>
+    </View>
+  );
+}
+
 const createStyles = (theme: any) =>
   StyleSheet.create({
     container: {
@@ -223,10 +274,6 @@ const createStyles = (theme: any) =>
       backgroundColor: theme.colors.background,
     },
     cluster: {
-      minWidth: 44,
-      height: 44,
-      paddingHorizontal: 6,
-      borderRadius: 22,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: theme.colors.accent,
@@ -248,9 +295,9 @@ const createStyles = (theme: any) =>
     pin: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 4,
-      paddingHorizontal: 8,
-      paddingVertical: 5,
+      height: 28,
       borderRadius: 14,
       backgroundColor: theme.colors.accent,
       borderWidth: 2,
