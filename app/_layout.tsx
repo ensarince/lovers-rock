@@ -1,4 +1,5 @@
 import { ProfileCompletionModal } from '@/src/components/ProfileCompletionModal';
+import { UpdateModal } from '@/src/components/UpdateModal';
 import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import { deliverOAuthDeepLink } from '@/src/services/authService';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
@@ -127,6 +128,7 @@ function RootLayoutNav() {
           onComplete={handleProfileComplete}
           darkMode={darkMode}
         />
+        <UpdateModal darkMode={darkMode} />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="chat" />
