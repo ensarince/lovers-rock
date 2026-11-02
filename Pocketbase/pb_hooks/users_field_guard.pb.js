@@ -27,6 +27,9 @@ onRecordUpdateRequest((e) => {
         if (Object.prototype.hasOwnProperty.call(body, 'gym')) {
             throw new Error('Field "gym" is read-only for users');
         }
+        if (Object.prototype.hasOwnProperty.call(body, 'extra_gyms')) {
+            throw new Error('Field "extra_gyms" is read-only for users');
+        }
     } catch (err) {
         if (String(err.message || '').indexOf('read-only') >= 0) throw err;
         console.error('[users_guard] unexpected error:', String(err));

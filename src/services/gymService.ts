@@ -92,3 +92,41 @@ export const getGymMap = async (
   const data = await response.json();
   return Array.isArray(data.items) ? data.items : [];
 };
+
+export interface GymClimber {
+  id: string;
+  name: string;
+  age: number;
+  gender?: string;
+  grade: any;
+  climbing_styles: string[];
+  home_gym: string;
+  other_gyms: string[];
+  bio: string;
+  verified: boolean;
+  images: string[];
+  intent: string[];
+  /** true: this is their home gym. false: they also climb here. */
+  home: boolean;
+}
+
+/**
+ * The climbers at one gym, for the gym page on the map. Blocks are applied on
+ * the server. Throws on failure so the screen can offer a retry.
+ */
+export const getGymClimbers = async (
+  gymId: string,
+  token: string
+): Promise<{ gym: { id: string; name: string }; items: GymClimber[] }> => {
+  const response = await fetch(
+    `${POCKETBASE_URL}/api/gym-climbers?gym=${encodeURIComponent(gymId)}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  if (!response.ok) throw new Error(`Gym climbers failed (${response.status})`);
+
+  const data = await response.json();
+  return {
+    gym: data.gym,
+    items: Array.isArray(data.items) ? data.items : [],
+  };
+};

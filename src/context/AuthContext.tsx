@@ -326,6 +326,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       grade: parsedGrade,
       climbing_styles: Array.isArray(record.climbing_styles) ? record.climbing_styles : [],
       home_gym: record.home_gym || '',
+      other_gyms: Array.isArray(record.other_gyms) ? record.other_gyms : [],
       bio: record.bio || '',
       email: record.email || '',
       avatar: record.avatar || '',

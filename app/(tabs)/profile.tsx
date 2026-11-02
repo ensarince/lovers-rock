@@ -98,6 +98,7 @@ export default function ProfileScreen() {
   });
   const [climbingStyles, setClimbingStyles] = useState<ClimbingStyle[]>(typedUser?.climbing_styles || []);
   const [homeGym, setHomeGym] = useState(typedUser?.home_gym || '');
+  const [otherGyms, setOtherGyms] = useState<string[]>(typedUser?.other_gyms || []);
   // intent: array of 'partner' | 'date'
   const [intent, setIntent] = useState<string[]>(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
   const [interestedIn, setInterestedIn] = useState<InterestedIn>(typedUser?.interested_in || 'everyone');
@@ -128,6 +129,7 @@ export default function ProfileScreen() {
     );
     setClimbingStyles(typedUser?.climbing_styles || []);
     setHomeGym(typedUser?.home_gym || '');
+    setOtherGyms(typedUser?.other_gyms || []);
     setImages(typedUser?.images || []);
     setAvatar(typedUser?.avatar || '');
     setIntent(Array.isArray(typedUser?.intent) ? typedUser.intent : []);
@@ -435,6 +437,9 @@ export default function ProfileScreen() {
       formData.append('grade', JSON.stringify(gradeToSave));
       formData.append('climbing_styles', JSON.stringify(climbingStyles));
       formData.append('home_gym', homeGym);
+      // The server cleans this up (trims, dedupes, caps at 3) and links each
+      // name to a gym record.
+      formData.append('other_gyms', JSON.stringify(otherGyms.map((g) => g.trim()).filter(Boolean)));
       
       // intent as array
       intent.forEach((val) => formData.append('intent', val));
@@ -549,6 +554,7 @@ export default function ProfileScreen() {
               grade: parsedGrade,
               climbing_styles: Array.isArray(latestUser.climbing_styles) ? latestUser.climbing_styles : [],
               home_gym: latestUser.home_gym || '',
+              other_gyms: Array.isArray(latestUser.other_gyms) ? latestUser.other_gyms : [],
               bio: latestUser.bio || '',
               email: latestUser.email || '',
               avatar: latestUser.avatar || '',
@@ -1081,6 +1087,51 @@ export default function ProfileScreen() {
               />
             ) : (
               <Text style={styles.valueMinimal}>{homeGym || 'No home gym set.'}</Text>
+            )}
+          </View>
+
+          <View style={styles.infoCardMinimal}>
+            <Text style={styles.labelMinimal}>Also Climbs At</Text>
+            {editMode ? (
+              <View style={{ gap: 8 }}>
+                {otherGyms.map((gym, index) => (
+                  <View key={index} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+                    <View style={{ flex: 1 }}>
+                      <GymInput
+                        value={gym}
+                        onChangeText={(value) =>
+                          setOtherGyms((list) => list.map((g, i) => (i === index ? value : g)))
+                        }
+                        token={token}
+                        theme={theme}
+                        placeholder="Gym name"
+                        style={[styles.valueMinimal, { backgroundColor: theme.colors.surface, borderRadius: 8, padding: 8 }]}
+                      />
+                    </View>
+                    <Pressable
+                      onPress={() => setOtherGyms((list) => list.filter((_, i) => i !== index))}
+                      hitSlop={8}
+                      style={{ paddingTop: 10 }}
+                      accessibilityLabel="Remove gym"
+                    >
+                      <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
+                    </Pressable>
+                  </View>
+                ))}
+                {otherGyms.length < 3 && (
+                  <Pressable
+                    onPress={() => setOtherGyms((list) => [...list, ''])}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 }}
+                  >
+                    <Ionicons name="add-circle-outline" size={18} color={theme.colors.accent} />
+                    <Text style={{ color: theme.colors.accent, fontSize: 14 }}>Add a gym</Text>
+                  </Pressable>
+                )}
+              </View>
+            ) : (
+              <Text style={styles.valueMinimal}>
+                {otherGyms.filter(Boolean).length > 0 ? otherGyms.filter(Boolean).join(', ') : 'No other gyms.'}
+              </Text>
             )}
           </View>
 

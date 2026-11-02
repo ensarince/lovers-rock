@@ -1,4 +1,4 @@
-import { getGymMap, getGymSuggestions } from '@/src/services/gymService';
+import { getGymClimbers, getGymMap, getGymSuggestions } from '@/src/services/gymService';
 
 const TOKEN = 'test-token';
 
@@ -129,5 +129,28 @@ describe('getGymMap', () => {
     mockFetch(async () => ({ ok: false, status: 500, json: async () => ({}) }));
 
     await expect(getGymMap(bounds, 8, TOKEN)).rejects.toThrow('500');
+  });
+});
+
+describe('getGymClimbers', () => {
+  it('asks for the right gym and returns the climbers', async () => {
+    const items = [{ id: 'u1', name: 'Ada', home: true }, { id: 'u2', name: 'Bo', home: false }];
+    const fetchSpy = jest.fn(async (_url: string, _init?: any) => ({
+      ok: true,
+      json: async () => ({ gym: { id: 'g1', name: 'Boulderwerk' }, items }),
+    }));
+    mockFetch(fetchSpy);
+
+    const result = await getGymClimbers('g1', TOKEN);
+
+    expect(fetchSpy.mock.calls[0][0]).toContain('/api/gym-climbers?gym=g1');
+    expect(fetchSpy.mock.calls[0][1].headers.Authorization).toBe(`Bearer ${TOKEN}`);
+    expect(result.gym.name).toBe('Boulderwerk');
+    expect(result.items).toEqual(items);
+  });
+
+  it('throws when the server fails', async () => {
+    mockFetch(async () => ({ ok: false, status: 500, json: async () => ({}) }));
+    await expect(getGymClimbers('g1', TOKEN)).rejects.toThrow('500');
   });
 });

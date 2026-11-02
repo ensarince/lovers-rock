@@ -1,3 +1,4 @@
+import { GymClimbersModal } from '@/src/components/GymClimbersModal';
 import { useAuth } from '@/src/context/AuthContext';
 import { getGymMap, GymMapItem, GymMapPin, MapBounds } from '@/src/services/gymService';
 import { theme as themeDark } from '@/src/themeDark';
@@ -57,6 +58,7 @@ export default function MapScreen() {
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const [selected, setSelected] = useState<GymMapPin | null>(null);
+  const [showClimbers, setShowClimbers] = useState(false);
 
   // Open on the user's own area if we know it. This is their own position,
   // only used on their own phone to centre the map.
@@ -186,7 +188,11 @@ export default function MapScreen() {
       )}
 
       {selected && (
-        <View style={styles.card}>
+        <Pressable
+          style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
+          onPress={() => setShowClimbers(true)}
+          accessibilityLabel={`See climbers at ${selected.name}`}
+        >
           <View style={styles.cardIcon}>
             <MapPin size={20} color={theme.colors.accent} strokeWidth={2} />
           </View>
@@ -195,16 +201,22 @@ export default function MapScreen() {
               {selected.name}
             </Text>
             <Text style={styles.cardSubtitle}>
-              {selected.climbers === 1
-                ? '1 climber calls this home'
-                : `${selected.climbers} climbers call this home`}
+              {selected.climbers === 1 ? '1 climber' : `${selected.climbers} climbers`}
+              <Text style={styles.cardLink}>  ·  See climbers</Text>
             </Text>
           </View>
-          <Pressable onPress={() => setSelected(null)} hitSlop={10}>
+          <Pressable onPress={() => setSelected(null)} hitSlop={10} accessibilityLabel="Close">
             <X size={18} color={theme.colors.textSecondary} />
           </Pressable>
-        </View>
+        </Pressable>
       )}
+
+      <GymClimbersModal
+        gymId={selected?.id ?? null}
+        gymName={selected?.name ?? ''}
+        visible={showClimbers && !!selected}
+        onClose={() => setShowClimbers(false)}
+      />
     </View>
   );
 }
@@ -369,6 +381,10 @@ const createStyles = (theme: any) =>
       color: theme.colors.textSecondary,
       fontSize: 13,
       marginTop: 2,
+    },
+    cardLink: {
+      color: theme.colors.accent,
+      fontWeight: '600',
     },
   });
 

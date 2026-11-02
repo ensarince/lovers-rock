@@ -65,6 +65,13 @@ function resolveOrCreate(app, name, userId) {
     return gym.id;
 }
 
+// Everyone who climbs at a gym: as their home gym, or as one of their extra
+// gyms. extra_gyms is a multi-relation, which PocketBase stores as a JSON array.
+var CLIMBS_AT_SQL =
+    '(users.gym = {:id} OR EXISTS (SELECT 1 FROM json_each(' +
+    "CASE WHEN json_valid(users.extra_gyms) THEN users.extra_gyms ELSE '[]' END" +
+    ') WHERE json_each.value = {:id}))';
+
 // Raw SQL on purpose: counts change on every profile save and must not fire the
 // gyms record hooks (which handle merges) each time.
 function recount(app, gymId) {
@@ -72,10 +79,101 @@ function recount(app, gymId) {
     app.db()
         .newQuery(
             'UPDATE gyms SET climber_count = ' +
-            '(SELECT COUNT(*) FROM users WHERE users.gym = {:id}) WHERE id = {:id}'
+            '(SELECT COUNT(*) FROM users WHERE ' + CLIMBS_AT_SQL + ') WHERE id = {:id}'
         )
         .bind({ id: gymId })
         .execute();
+}
+
+function recountAll(app, ids) {
+    var seen = {};
+    for (var i = 0; i < ids.length; i++) {
+        if (!ids[i] || seen[ids[i]]) continue;
+        seen[ids[i]] = true;
+        recount(app, ids[i]);
+    }
+}
+
+function readJsonArray(record, field) {
+    if (!record) return [];
+    try {
+        var parsed = JSON.parse(toString(record.get(field)) || '[]');
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+        return [];
+    }
+}
+
+function relationIds(record, field) {
+    if (!record) return [];
+    try {
+        var ids = record.getStringSlice(field);
+        var out = [];
+        for (var i = 0; i < ids.length; i++) if (ids[i]) out.push(String(ids[i]));
+        return out;
+    } catch (_) {
+        return [];
+    }
+}
+
+var MAX_OTHER_GYMS = 3;
+
+// Cleans what the app sent for other_gyms: strings only, trimmed, no blanks,
+// no repeats, not the home gym again, at most three.
+function cleanOtherGyms(names, homeGym) {
+    var homeKey = normKey(homeGym);
+    var seen = {};
+    var out = [];
+    for (var i = 0; i < names.length && out.length < MAX_OTHER_GYMS; i++) {
+        if (typeof names[i] !== 'string') continue;
+        var name = names[i].trim().replace(/\s+/g, ' ').slice(0, 120);
+        var key = normKey(name);
+        if (!key || key === homeKey || seen[key]) continue;
+        seen[key] = true;
+        out.push(name);
+    }
+    return out;
+}
+
+// Brings users.gym and users.extra_gyms in line with what the user typed, and
+// returns the gym ids whose counts may have changed. `original` is null on
+// create. Cheap when nothing gym-related changed, which is the common case
+// (location pings arrive every 30s).
+function syncUserGyms(app, record, original) {
+    var touched = [];
+
+    // Home gym
+    var oldGym = original ? String(original.get('gym') || '') : '';
+    var homeBefore = original ? normKey(original.get('home_gym')) : '';
+    var homeAfter = normKey(record.get('home_gym'));
+    // The second half self-heals anyone with a gym name but no link.
+    if (homeBefore !== homeAfter || (!oldGym && homeAfter)) {
+        var newGym = resolveOrCreate(app, record.get('home_gym'), original ? record.id : '');
+        record.set('gym', newGym);
+        if (newGym !== oldGym) touched.push(oldGym, newGym);
+    }
+
+    // Other gyms
+    var oldExtra = relationIds(original, 'extra_gyms');
+    var namesBefore = readJsonArray(original, 'other_gyms');
+    var namesAfter = cleanOtherGyms(readJsonArray(record, 'other_gyms'), record.get('home_gym'));
+    var keysBefore = namesBefore.map(normKey).join('|');
+    var keysAfter = namesAfter.map(normKey).join('|');
+    var homeChanged = homeBefore !== homeAfter;
+
+    if (keysBefore !== keysAfter || homeChanged || (namesAfter.length && !oldExtra.length)) {
+        record.set('other_gyms', namesAfter);
+        var homeId = String(record.get('gym') || '');
+        var extra = [];
+        for (var i = 0; i < namesAfter.length; i++) {
+            var id = resolveOrCreate(app, namesAfter[i], original ? record.id : '');
+            if (id && id !== homeId && extra.indexOf(id) === -1) extra.push(id);
+        }
+        record.set('extra_gyms', extra);
+        touched = touched.concat(oldExtra, extra);
+    }
+
+    return touched;
 }
 
 // Looks up a gym on OpenStreetMap. Biased to a box around the person who first
@@ -288,6 +386,11 @@ module.exports = {
     findGym: findGym,
     resolveOrCreate: resolveOrCreate,
     recount: recount,
+    recountAll: recountAll,
+    syncUserGyms: syncUserGyms,
+    relationIds: relationIds,
+    readJsonArray: readJsonArray,
+    CLIMBS_AT_SQL: CLIMBS_AT_SQL,
     geocode: geocode,
     geocodeFuzzy: geocodeFuzzy,
     // Exposed for tests.

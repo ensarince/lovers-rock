@@ -1,17 +1,19 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-// Keeps users.gym in step with the free-text home_gym, keeps gym climber counts
+// Keeps users.gym / users.extra_gyms in step with the gym names people type, keeps gym climber counts
 // right, merges gyms on admin request, and geocodes new gyms in the background.
 // See handoff/MAP-PLAN.md, Phase 1.
 
-// --- Linking a user to a gym ------------------------------------------------
+// --- Linking a user to gyms ------------------------------------------------
+//
+// home_gym -> gym, and other_gyms -> extra_gyms ("I climb here too"). The
+// matching logic lives in gyms_lib.syncUserGyms.
 
 onRecordCreate((e) => {
     var lib = require(`${__hooks}/gyms_lib.js`);
-    var gymId = '';
+    var touched = [];
     try {
-        gymId = lib.resolveOrCreate(e.app, e.record.get('home_gym'), '');
-        e.record.set('gym', gymId);
+        touched = lib.syncUserGyms(e.app, e.record, null);
     } catch (err) {
         console.error('[gyms] resolve on create failed:', String(err));
     }
@@ -19,15 +21,17 @@ onRecordCreate((e) => {
     e.next();
 
     try {
-        if (gymId) {
-            // The creator is only known once the user exists.
-            var gym = e.app.findRecordById('gyms', gymId);
+        // A gym this user just created gets them as its creator, which biases
+        // its geocoding to their city. Only known once the user exists.
+        for (var i = 0; i < touched.length; i++) {
+            if (!touched[i]) continue;
+            var gym = e.app.findRecordById('gyms', touched[i]);
             if (!gym.get('created_by')) {
                 gym.set('created_by', e.record.id);
                 e.app.save(gym);
             }
-            lib.recount(e.app, gymId);
         }
+        lib.recountAll(e.app, touched);
     } catch (err) {
         console.error('[gyms] recount on create failed:', String(err));
     }
@@ -35,29 +39,18 @@ onRecordCreate((e) => {
 
 onRecordUpdate((e) => {
     var lib = require(`${__hooks}/gyms_lib.js`);
-    var original = e.record.original();
-    var before = lib.normKey(original.get('home_gym'));
-    var after = lib.normKey(e.record.get('home_gym'));
-    var oldGym = String(original.get('gym') || '');
-
-    // Location pings arrive every 30s per user, so bail out fast when the gym
-    // did not change. The second half self-heals anyone with a gym name but no link.
-    if (before === after && (oldGym || !after)) return e.next();
-
-    var newGym = oldGym;
+    var touched = [];
     try {
-        newGym = lib.resolveOrCreate(e.app, e.record.get('home_gym'), e.record.id);
-        e.record.set('gym', newGym);
+        touched = lib.syncUserGyms(e.app, e.record, e.record.original());
     } catch (err) {
         console.error('[gyms] resolve on update failed:', String(err));
     }
 
     e.next();
 
-    if (oldGym === newGym) return;
+    if (touched.length === 0) return;
     try {
-        lib.recount(e.app, oldGym);
-        lib.recount(e.app, newGym);
+        lib.recountAll(e.app, touched);
     } catch (err) {
         console.error('[gyms] recount on update failed:', String(err));
     }
@@ -66,7 +59,7 @@ onRecordUpdate((e) => {
 onRecordAfterDeleteSuccess((e) => {
     try {
         var lib = require(`${__hooks}/gyms_lib.js`);
-        lib.recount(e.app, String(e.record.get('gym') || ''));
+        lib.recountAll(e.app, [String(e.record.get('gym') || '')].concat(lib.relationIds(e.record, 'extra_gyms')));
     } catch (err) {
         console.error('[gyms] recount on delete failed:', String(err));
     }
@@ -106,6 +99,32 @@ onRecordAfterUpdateSuccess((e) => {
             .newQuery('UPDATE users SET gym = {:into}, home_gym = {:name} WHERE gym = {:from}')
             .bind({ into: into.id, name: into.get('name'), from: from.id })
             .execute();
+
+        // Same for people who listed the duplicate as an extra gym: point them
+        // at the real gym and fix the name they see, without duplicates.
+        var fromKeys = [lib.normKey(from.get('name'))].concat(incoming.map(lib.normKey));
+        var extraUsers = e.app.findRecordsByFilter('users', 'extra_gyms.id ?= {:id}', '', 10000, 0, { id: from.id });
+        for (var u = 0; u < extraUsers.length; u++) {
+            var user = extraUsers[u];
+            var homeId = String(user.get('gym') || '');
+            var ids = [];
+            var current = lib.relationIds(user, 'extra_gyms');
+            for (var c = 0; c < current.length; c++) {
+                var next = current[c] === from.id ? into.id : current[c];
+                if (next !== homeId && ids.indexOf(next) === -1) ids.push(next);
+            }
+            var names = [];
+            var typed = lib.readJsonArray(user, 'other_gyms');
+            for (var t = 0; t < typed.length; t++) {
+                var n = fromKeys.indexOf(lib.normKey(typed[t])) !== -1 ? into.get('name') : typed[t];
+                if (into.id === homeId && n === into.get('name')) continue;
+                if (names.indexOf(n) === -1) names.push(n);
+            }
+            e.app.db()
+                .newQuery('UPDATE users SET extra_gyms = {:ids}, other_gyms = {:names} WHERE id = {:id}')
+                .bind({ ids: JSON.stringify(ids), names: JSON.stringify(names), id: user.id })
+                .execute();
+        }
 
         // Anything pointing at the duplicate follows it to the real gym.
         e.app.db()

@@ -25,6 +25,7 @@ export interface Climber {
   grade: ClimbingGrade;
   climbing_styles: ClimbingStyle[];
   home_gym: string;
+  other_gyms?: string[]; // "I climb here too": up to 3 gyms besides the home gym
   bio: string;
   email: string;
   images?: string[]; // Array of image filenames (max 3)
