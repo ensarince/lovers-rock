@@ -341,6 +341,8 @@ export default function LoginScreen() {
                 editable={!isLoading}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoComplete="email"
+                textContentType="username"
                 onFocus={() => setFocusedField('email')}
                 onBlur={() => setFocusedField(null)}
               />
@@ -420,6 +422,12 @@ export default function LoginScreen() {
               editable={!isLoading}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
+              // Autofill hints so the phone's password manager offers to save
+              // and fill the login. Without them email users retype every time.
+              autoComplete="email"
+              textContentType="username"
+              importantForAutofill="yes"
               onFocus={() => setFocusedField('email')}
               onBlur={() => setFocusedField(null)}
             />
@@ -440,6 +448,9 @@ export default function LoginScreen() {
               onChangeText={setPassword}
               editable={!isLoading}
               secureTextEntry={!showPassword}
+              autoComplete={isSignup ? 'new-password' : 'current-password'}
+              textContentType={isSignup ? 'newPassword' : 'password'}
+              importantForAutofill="yes"
               onFocus={() => setFocusedField('password')}
               onBlur={() => setFocusedField(null)}
             />
@@ -476,6 +487,9 @@ export default function LoginScreen() {
                 onChangeText={setConfirmPassword}
                 editable={!isLoading}
                 secureTextEntry={!showConfirmPassword}
+                autoComplete="new-password"
+                textContentType="newPassword"
+                importantForAutofill="yes"
                 onFocus={() => setFocusedField('confirm')}
                 onBlur={() => setFocusedField(null)}
               />
