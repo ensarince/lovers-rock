@@ -1,7 +1,7 @@
 import { useAuth } from '@/src/context/AuthContext';
 import { theme as themeDark } from '@/src/themeDark';
 import { theme as themeLight } from '@/src/themeLight';
-import { Compass, Heart, MessageCircle, User } from 'lucide-react-native';
+import { Compass, Heart, Map as MapIcon, MessageCircle, User } from 'lucide-react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
@@ -53,6 +53,15 @@ export default function TabLayout() {
           title: 'Discover',
           tabBarIcon: ({ color, focused }) => (
             <Compass size={24} color={color} strokeWidth={focused ? 2.5 : 1.5} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="map"
+        options={{
+          title: 'Map',
+          tabBarIcon: ({ color, focused }) => (
+            <MapIcon size={24} color={color} strokeWidth={focused ? 2.5 : 1.5} />
           ),
         }}
       />
