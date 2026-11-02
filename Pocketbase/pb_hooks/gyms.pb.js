@@ -144,6 +144,10 @@ cronAdd('gyms_geocode', '*/15 * * * *', () => {
         return;
     }
 
+    // Overpass can take minutes when busy, so cap the fuzzy lookups per round
+    // to keep one round from running into the next.
+    var fuzzyLeft = 2;
+
     for (var i = 0; i < pending.length; i++) {
         var gym = pending[i];
         try {
@@ -154,6 +158,17 @@ cronAdd('gyms_geocode', '*/15 * * * *', () => {
             }
 
             var hit = lib.geocode(gym, creator);
+            if (!hit && fuzzyLeft <= 0) {
+                // Out of slow lookups this round; leave it untried for the next.
+                sleep(1100);
+                continue;
+            }
+            if (!hit) {
+                fuzzyLeft--;
+                sleep(1100);
+                hit = lib.geocodeFuzzy(gym, creator);
+                if (hit) console.log('[gyms] fuzzy match "' + gym.get('name') + '" -> "' + hit.name + '"');
+            }
             if (hit) {
                 gym.set('latitude', hit.lat);
                 gym.set('longitude', hit.lon);
