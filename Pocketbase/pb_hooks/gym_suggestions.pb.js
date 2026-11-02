@@ -6,10 +6,10 @@
 // "Boulderwerk", and none of those match each other in search or filters. Nudging
 // people towards a spelling their neighbours already used keeps the data usable.
 //
-// Names are grouped case-insensitively and the most common spelling of each wins,
-// so a handful of people typing "boulderwerk" does not unseat "Boulderwerk".
+// Suggestions come from the gyms collection, where case and spacing variants are
+// already one gym and admin-merged spellings are kept as aliases.
 //
-// No new exposure: home_gym is already readable through public_profiles.
+// No new exposure: gym names and counts, nothing about any person.
 
 routerAdd('GET', '/api/gym-suggestions', function (e) {
     try {
@@ -21,36 +21,31 @@ routerAdd('GET', '/api/gym-suggestions', function (e) {
         var query = String(e.request.url.query().get('q') || '').trim().toLowerCase();
         var limit = 8;
 
-        // Admin-level read, bypassing the users listRule. Only the gym name and a
-        // count leave this handler, never anything identifying.
-        var rows = arrayOf(new DynamicModel({ name: '', total: 0 }));
+        // Reads the gyms collection (pb_hooks/gyms.pb.js keeps it in step with
+        // what people type). Only names and counts leave this handler. Gyms
+        // nobody lists any more are left out.
+        var rows = arrayOf(new DynamicModel({ name: '', name_key: '', aliases: '', total: 0 }));
         $app.db()
             .newQuery(
-                "SELECT home_gym AS name, COUNT(*) AS total FROM users " +
-                "WHERE home_gym IS NOT NULL AND TRIM(home_gym) != '' " +
-                "GROUP BY home_gym"
+                "SELECT name, name_key, aliases, climber_count AS total FROM gyms " +
+                "WHERE climber_count > 0"
             )
             .all(rows);
 
-        // Merge spellings that differ only by case or surrounding whitespace.
         var grouped = {};
         for (var i = 0; i < rows.length; i++) {
             var name = String(rows[i].name || '').trim();
             if (!name) continue;
 
-            var key = name.toLowerCase();
-            var total = Number(rows[i].total) || 0;
+            // Match on the name and on merged-in spellings, so typing "bw"
+            // still finds Boulderwerk once an admin has merged them.
+            var keys = [String(rows[i].name_key || name.toLowerCase())];
+            try {
+                var aliases = JSON.parse(String(rows[i].aliases || '[]'));
+                if (Array.isArray(aliases)) keys = keys.concat(aliases);
+            } catch (_) {}
 
-            if (!grouped[key]) {
-                grouped[key] = { name: name, total: 0, best: 0 };
-            }
-            grouped[key].total += total;
-
-            // Keep the spelling the most people actually typed.
-            if (total > grouped[key].best) {
-                grouped[key].best = total;
-                grouped[key].name = name;
-            }
+            grouped[keys.join('|')] = { name: name, total: Number(rows[i].total) || 0 };
         }
 
         var suggestions = [];

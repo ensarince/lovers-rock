@@ -22,6 +22,11 @@ onRecordUpdateRequest((e) => {
         if (Object.prototype.hasOwnProperty.call(body, 'verified')) {
             throw new Error('Field "verified" is read-only for users');
         }
+        // Set by the server from home_gym (gyms.pb.js). Writing it directly would
+        // let someone skew a gym's climber count on the map.
+        if (Object.prototype.hasOwnProperty.call(body, 'gym')) {
+            throw new Error('Field "gym" is read-only for users');
+        }
     } catch (err) {
         if (String(err.message || '').indexOf('read-only') >= 0) throw err;
         console.error('[users_guard] unexpected error:', String(err));
