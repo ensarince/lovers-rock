@@ -43,6 +43,9 @@ routerAdd('GET', '/api/gym-climbers', function (e) {
     var parseObject = function (value) {
         try {
             var parsed = JSON.parse(toString(value) || 'null');
+            // Some older records hold the grade double-encoded (a JSON string
+            // of JSON); /api/nearby-profiles unwraps that too.
+            if (typeof parsed === 'string') parsed = JSON.parse(parsed);
             return parsed && typeof parsed === 'object' ? parsed : null;
         } catch (_) {
             return null;
@@ -111,7 +114,14 @@ routerAdd('GET', '/api/gym-climbers', function (e) {
             return a.home === b.home ? 0 : a.home ? -1 : 1;
         });
 
-        return e.json(200, { gym: { id: gym.id, name: gym.get('name') }, items: items });
+        // The list leaves out the person asking, so tell them separately whether
+        // they climb here. Otherwise "only you" looks the same as "nobody".
+        var myExtra = [];
+        try { myExtra = me.getStringSlice('extra_gyms'); } catch (_) {}
+        var you = String(me.get('gym') || '') === gym.id ? 'home'
+            : myExtra.indexOf(gym.id) !== -1 ? 'also' : null;
+
+        return e.json(200, { gym: { id: gym.id, name: gym.get('name') }, you: you, items: items });
     } catch (err) {
         console.error('[gym_climbers] error:', String(err));
         return e.json(500, { error: 'Could not load climbers' });

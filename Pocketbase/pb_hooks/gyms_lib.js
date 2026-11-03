@@ -49,6 +49,9 @@ function findGym(app, name) {
 // Typing a gym nobody has entered yet is how a new gym gets added. It starts
 // without a location; the geocode cron fills that in.
 function resolveOrCreate(app, name, userId) {
+    // Same cap as the gyms.name field. Without it a long name fails validation,
+    // and the self-heal in syncUserGyms would retry it on every location ping.
+    name = String(name || '').trim().replace(/\s+/g, ' ').slice(0, 120);
     var key = normKey(name);
     if (!key) return '';
 
@@ -56,7 +59,7 @@ function resolveOrCreate(app, name, userId) {
     if (existing) return existing.id;
 
     var gym = new Record(app.findCollectionByNameOrId('gyms'));
-    gym.set('name', String(name).trim().replace(/\s+/g, ' '));
+    gym.set('name', name);
     gym.set('name_key', key);
     gym.set('aliases', []);
     gym.set('climber_count', 0);
@@ -65,12 +68,15 @@ function resolveOrCreate(app, name, userId) {
     return gym.id;
 }
 
-// Everyone who climbs at a gym: as their home gym, or as one of their extra
-// gyms. extra_gyms is a multi-relation, which PocketBase stores as a JSON array.
+// Everyone who climbs at a gym, as their home gym or as one of their extra gyms
+// (a multi-relation, stored as a JSON array). Only finished, verified profiles
+// count: the same people the gym page can show, so the number on the pin
+// matches the list behind it.
 var CLIMBS_AT_SQL =
+    '(users.profile_completed = TRUE AND users.verified = TRUE AND ' +
     '(users.gym = {:id} OR EXISTS (SELECT 1 FROM json_each(' +
     "CASE WHEN json_valid(users.extra_gyms) THEN users.extra_gyms ELSE '[]' END" +
-    ') WHERE json_each.value = {:id}))';
+    ') WHERE json_each.value = {:id})))';
 
 // Raw SQL on purpose: counts change on every profile save and must not fire the
 // gyms record hooks (which handle merges) each time.
@@ -161,7 +167,7 @@ function syncUserGyms(app, record, original) {
     var keysAfter = namesAfter.map(normKey).join('|');
     var homeChanged = homeBefore !== homeAfter;
 
-    if (keysBefore !== keysAfter || homeChanged || (namesAfter.length && !oldExtra.length)) {
+    if (keysBefore !== keysAfter || homeChanged) {
         record.set('other_gyms', namesAfter);
         var homeId = String(record.get('gym') || '');
         var extra = [];
@@ -171,6 +177,16 @@ function syncUserGyms(app, record, original) {
         }
         record.set('extra_gyms', extra);
         touched = touched.concat(oldExtra, extra);
+    }
+
+    // Finishing a profile or verifying an email changes whether someone counts.
+    if (original) {
+        var visibleBefore = original.get('profile_completed') === true && original.get('verified') === true;
+        var visibleAfter = record.get('profile_completed') === true && record.get('verified') === true;
+        if (visibleBefore !== visibleAfter) {
+            touched.push(String(record.get('gym') || ''));
+            touched = touched.concat(relationIds(record, 'extra_gyms'));
+        }
     }
 
     return touched;

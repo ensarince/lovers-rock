@@ -154,7 +154,9 @@ cronAdd('gyms_geocode', '*/15 * * * *', () => {
         pending = $app.findRecordsByFilter(
             'gyms',
             'geocode_tried = false && latitude = 0 && longitude = 0',
-            '-climber_count',
+            // Random, not by size: gyms that fail on a busy Overpass stay
+            // untried, and a fixed order would let the same few hog every round.
+            '@random',
             5,
             0
         );

@@ -8,6 +8,7 @@ import { Climber } from '@/src/types/climber';
 import { getFirstImageUrl } from '@/src/utils/helperFunctions';
 import { ChevronDown, User } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ActivityIndicator,
   FlatList,
@@ -51,8 +52,12 @@ export function GymClimbersModal({ gymId, gymName, visible, onClose }: Props) {
   const { token, darkMode } = useAuth();
   const theme = darkMode ? themeDark : themeLight;
   const styles = createStyles(theme);
+  const insets = useSafeAreaInsets();
 
   const [climbers, setClimbers] = useState<GymClimber[]>([]);
+  // Whether I climb here myself. I'm not in the list, so this is what tells
+  // "just you so far" apart from "nobody".
+  const [you, setYou] = useState<'home' | 'also' | null>(null);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const [selected, setSelected] = useState<Climber | null>(null);
@@ -64,6 +69,7 @@ export function GymClimbersModal({ gymId, gymName, visible, onClose }: Props) {
     try {
       const result = await getGymClimbers(gymId, token);
       setClimbers(result.items);
+      setYou(result.you);
     } catch {
       setFailed(true);
     } finally {
@@ -74,6 +80,7 @@ export function GymClimbersModal({ gymId, gymName, visible, onClose }: Props) {
   useEffect(() => {
     if (visible) {
       setClimbers([]);
+      setYou(null);
       load();
     }
   }, [visible, load]);
@@ -118,7 +125,7 @@ export function GymClimbersModal({ gymId, gymName, visible, onClose }: Props) {
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.container}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, 12) + 12 }]}>
           <Pressable onPress={onClose} hitSlop={10} style={styles.closeButton} accessibilityLabel="Close">
             <ChevronDown size={26} color={theme.colors.text} />
           </Pressable>
@@ -129,8 +136,10 @@ export function GymClimbersModal({ gymId, gymName, visible, onClose }: Props) {
             {!loading && !failed && (
               <Text style={styles.subtitle}>
                 {climbers.length === 0
-                  ? 'No climbers to show yet'
-                  : `${regulars} call${regulars === 1 ? 's' : ''} it home · ${climbers.length - regulars} also climb${climbers.length - regulars === 1 ? 's' : ''} here`}
+                  ? you
+                    ? 'Just you so far'
+                    : 'No climbers to show yet'
+                  : `${climbers.length} other climber${climbers.length === 1 ? '' : 's'}${you ? ' besides you' : ''}`}
               </Text>
             )}
           </View>
@@ -150,7 +159,9 @@ export function GymClimbersModal({ gymId, gymName, visible, onClose }: Props) {
         ) : climbers.length === 0 ? (
           <View style={styles.center}>
             <Text style={styles.emptyText}>
-              Nobody here has a finished profile yet. Add this gym to your profile and be the first!
+              {you
+                ? "It's just you here so far. Bring your climbing friends to Take! and they'll show up here."
+                : 'Nobody to show here yet. Climb here? Add it to your profile under "Also Climbs At".'}
             </Text>
           </View>
         ) : (
@@ -186,7 +197,6 @@ const createStyles = (theme: any) =>
       alignItems: 'center',
       gap: 12,
       paddingHorizontal: 16,
-      paddingTop: 48,
       paddingBottom: 16,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: theme.colors.border,

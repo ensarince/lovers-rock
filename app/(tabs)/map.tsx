@@ -127,10 +127,10 @@ export default function MapScreen() {
         onRegionChangeComplete={onRegionChangeComplete}
         onPress={() => setSelected(null)}
         showsUserLocation
-        showsPointsOfInterest={false}
+        showsPointsOfInterests={false}
         toolbarEnabled={false}
         userInterfaceStyle={darkMode ? 'dark' : 'light'}
-        customMapStyle={Platform.OS === 'android' && darkMode ? DARK_MAP_STYLE : undefined}
+        customMapStyle={Platform.OS === 'android' && darkMode ? DARK_MAP_STYLE : []}
       >
         {items.map((item) =>
           item.type === 'cluster' ? (

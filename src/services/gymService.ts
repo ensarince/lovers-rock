@@ -117,7 +117,7 @@ export interface GymClimber {
 export const getGymClimbers = async (
   gymId: string,
   token: string
-): Promise<{ gym: { id: string; name: string }; items: GymClimber[] }> => {
+): Promise<{ gym: { id: string; name: string }; you: 'home' | 'also' | null; items: GymClimber[] }> => {
   const response = await fetch(
     `${POCKETBASE_URL}/api/gym-climbers?gym=${encodeURIComponent(gymId)}`,
     { headers: { Authorization: `Bearer ${token}` } }
@@ -127,6 +127,8 @@ export const getGymClimbers = async (
   const data = await response.json();
   return {
     gym: data.gym,
+    // Whether the person asking climbs here (they are not in items).
+    you: data.you === 'home' || data.you === 'also' ? data.you : null,
     items: Array.isArray(data.items) ? data.items : [],
   };
 };
